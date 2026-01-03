@@ -1,0 +1,139 @@
+const { invoke } = window.__TAURI__.core;
+
+// 1. Autostart
+async function initAutostart() {
+  const cb = document.getElementById("autostart-cb");
+  if (!cb) return;
+  try {
+    const isEnabled = await invoke("check_autostart");
+    cb.checked = isEnabled;
+    cb.addEventListener('change', async () => {
+      try { await invoke("set_autostart", { enable: cb.checked }); } 
+      catch (e) { cb.checked = !cb.checked; }
+    });
+  } catch (e) { cb.disabled = true; }
+}
+
+let isConnected = false;
+
+function setUiStatus(text, color) {
+    const status = document.getElementById("status-text");
+    if(status) {
+        status.innerText = text; // No UpperCase
+        status.style.color = color;
+    }
+}
+
+// 2. Load Ports & Status
+async function loadPorts() {
+  try {
+    const statusObj = await invoke("get_ports"); 
+    const select = document.getElementById("port-select");
+    const currentVal = select.value;
+
+    select.innerHTML = ""; 
+    
+    if (statusObj.ports.length === 0) {
+      let opt = document.createElement("option");
+      opt.text = "No Ports Found";
+      select.add(opt);
+    } else {
+      statusObj.ports.forEach((p) => {
+        let opt = document.createElement("option");
+        opt.value = p;
+        opt.text = p;
+        select.add(opt);
+      });
+      if (currentVal && statusObj.ports.includes(currentVal)) select.value = currentVal;
+    }
+
+    // --- CONNECTION STATE LOGIC ---
+    if (statusObj.connected) {
+        if (!isConnected) {
+             isConnected = true;
+             select.value = statusObj.connected;
+             
+             const btn = document.getElementById("conn-btn");
+             if(btn) { btn.innerText = "Disconnect"; btn.className = "btn-red"; }
+             if(select) select.disabled = true;
+             setUiStatus("Connected to " + statusObj.connected, "#10b981");
+        }
+    } else {
+        if (isConnected) {
+            isConnected = false;
+            const btn = document.getElementById("conn-btn");
+            if(btn) { btn.innerText = "Connect"; btn.className = "btn-blue"; }
+            if(select) select.disabled = false;
+        }
+        
+        // --- ERROR/STATUS HANDLING ---
+        if (statusObj.status_text && statusObj.status_text.length > 0) {
+            // Check keywords (case-insensitive) to decide color
+            const lowerText = statusObj.status_text.toLowerCase();
+            
+            if (lowerText.includes("failed")) {
+                // RED for errors
+                setUiStatus(statusObj.status_text, "#ef4444"); 
+            } else {
+                // GRAY for "Disconnected" or other states
+                setUiStatus(statusObj.status_text, "#888"); 
+            }
+        } else {
+            // Default Neutral State
+            setUiStatus("Waiting for connection...", "#888");
+        }
+    }
+  } catch (e) {}
+}
+
+async function updateStats() {
+  try {
+    const jsonStr = await invoke("get_stats");
+    if (!jsonStr || jsonStr === "{}") return;
+    const data = JSON.parse(jsonStr);
+    if (data.cpu_percent !== undefined) document.getElementById("cpu").innerText = Math.round(data.cpu_percent) + "%";
+    if (data.cpu_temp !== undefined) document.getElementById("temp").innerText = Math.round(data.cpu_temp) + "°C";
+    if (data.mem_percent !== undefined) document.getElementById("ram").innerText = Math.round(data.mem_percent) + "%";
+    if (data.disk_percent !== undefined) document.getElementById("disk").innerText = Math.round(data.disk_percent) + "%";
+  } catch (e) { }
+}
+
+async function toggleConnection() {
+  const select = document.getElementById("port-select");
+  if (!isConnected) {
+    const port = select.value;
+    if (!port || port === "No Ports Found") return;
+    
+    try {
+        await invoke("toggle_connection", { portName: port, connect: true });
+        // Optimistic UI Update on Success
+        isConnected = true; 
+        const btn = document.getElementById("conn-btn");
+        if(btn) { btn.innerText = "Disconnect"; btn.className = "btn-red"; }
+        if(select) select.disabled = true;
+        setUiStatus("Connected to " + port, "#10b981");
+    } catch (error) {
+        // Red Error on Click
+        setUiStatus(error, "#ef4444");
+    }
+  } else {
+    // Manual disconnect
+    try {
+        await invoke("toggle_connection", { portName: "", connect: false });
+        isConnected = false;
+        const btn = document.getElementById("conn-btn");
+        if(btn) { btn.innerText = "Connect"; btn.className = "btn-blue"; }
+        if(select) select.disabled = false;
+        setUiStatus("Disconnected", "#888");
+    } catch(e) {}
+  }
+}
+
+window.addEventListener("DOMContentLoaded", () => {
+  const btn = document.getElementById("conn-btn");
+  if(btn) btn.addEventListener("click", toggleConnection);
+  initAutostart();
+  loadPorts();
+  setInterval(loadPorts, 2000); 
+  setInterval(updateStats, 1000); 
+});

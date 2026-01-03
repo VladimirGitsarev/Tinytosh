@@ -1,0 +1,8 @@
+.DS_Store
+Thumbs.db
+node_modules/
+dist/
+src-tauri/target/
+TinytoshESP32/build/
+*.bin
+!Tinytosh.bin
