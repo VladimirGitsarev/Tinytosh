@@ -49,9 +49,10 @@ struct AirQualityData {
 
 struct PcStats {
     float cpu_percent = NAN;
-    float cpu_temp = NAN;
     float mem_percent = NAN;
+    // float cpu_temp = NAN;
     float disk_percent = NAN;
+    float net_down_kb = NAN;
 };
 
 struct CryptoData {

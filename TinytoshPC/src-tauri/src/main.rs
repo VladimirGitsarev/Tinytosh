@@ -7,7 +7,7 @@ use std::env;
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{TrayIconBuilder, TrayIconEvent, MouseButton};
 use tauri::{Manager, WindowEvent, Size, LogicalSize}; 
-use sysinfo::{System, Disks, Components}; 
+use sysinfo::{System, Disks, Networks}; 
 use serialport::{SerialPort, SerialPortType};
 use tauri_plugin_autostart::ManagerExt;
 
@@ -22,7 +22,7 @@ struct AppState {
 #[derive(serde::Serialize)]
 struct BridgeStats {
     cpu_percent: f32,
-    cpu_temp: f32,
+    net_down_kb: u64, 
     mem_percent: f64,
     disk_percent: u64,
 }
@@ -102,9 +102,10 @@ fn toggle_connection(state: tauri::State<AppState>, port_name: String, connect: 
     }
 }
 
-// Helper: Just show the window, but set a safe minimum size once
+// FIX: Added unminimize() to ensure window restores correctly on Windows
 fn show_window_safely(window: tauri::WebviewWindow) {
     let _ = window.set_min_size(Some(Size::Logical(LogicalSize { width: 300.0, height: 400.0 })));
+    let _ = window.unminimize(); 
     let _ = window.show();
     let _ = window.set_focus();
 }
@@ -123,7 +124,7 @@ fn main() {
         .manage(app_state) 
         .invoke_handler(tauri::generate_handler![get_stats, get_ports, toggle_connection, set_autostart, check_autostart])
         .setup(|app| {
-            // TRAY
+            // TRAY SETUP
             let quit_i = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
             let show_i = MenuItem::with_id(app, "show", "Show", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&show_i, &quit_i])?;
@@ -141,42 +142,40 @@ fn main() {
                     if let TrayIconEvent::Click { button: MouseButton::Left, .. } = event {
                         let app = tray.app_handle();
                         if let Some(w) = app.get_webview_window("main") {
-                            if w.is_visible().unwrap_or(false) { 
+                            // Logic: If visible AND not minimized, hide. Otherwise show/restore.
+                            if w.is_visible().unwrap_or(false) && !w.is_minimized().unwrap_or(false) { 
                                 let _ = w.hide(); 
                             } else { 
-                                show_window_safely(w);
+                                show_window_safely(w); 
                             }
                         }
                     }
                 })
                 .build(app)?;
 
-            // VISIBILITY
+            // VISIBILITY CHECK
             let args: Vec<String> = env::args().collect();
             if !args.contains(&"--minimized".to_string()) {
                 if let Some(w) = app.get_webview_window("main") { show_window_safely(w); }
             }
 
-            // THREAD
+            // DATA THREAD
             let app_handle = app.handle().clone();
             thread::spawn(move || {
                 let state = app_handle.state::<AppState>();
                 let mut sys = System::new_all();
                 let mut disks = Disks::new_with_refreshed_list();
-                let mut components = Components::new_with_refreshed_list();
+                let mut networks = Networks::new_with_refreshed_list(); 
                 let mut scan_counter = 0;
 
                 loop {
-                    // 1. STATS (Optimized Refresh)
+                    // 1. REFRESH DATA
                     sys.refresh_cpu_usage(); 
                     sys.refresh_memory();
-                    
-                    // --- FIX IS HERE ---
-                    // No arguments allowed in this version of sysinfo
-                    components.refresh(); 
-                    
                     disks.refresh_list(); 
+                    networks.refresh(); 
 
+                    // 2. CALCULATE METRICS
                     let cpu = sys.global_cpu_usage(); 
                     let ram = sys.used_memory() as f64 / sys.total_memory() as f64 * 100.0;
                     
@@ -185,21 +184,21 @@ fn main() {
                         .or_else(|| disks.list().iter().find(|d| d.mount_point().to_str() == Some("C:\\"))) 
                         .map(|d| (d.total_space() - d.available_space()) * 100 / d.total_space())
                         .unwrap_or(0);
-                    
-                    let mut max_temp = 0.0;
-                    for component in components.list() {
-                        let t = component.temperature();
-                        if t > max_temp { max_temp = t; }
-                    }
-                    
+
+                    let total_rx_bytes: u64 = networks.iter().map(|(_, n)| n.received()).sum();
+                    let download_kb = total_rx_bytes / 1024; 
+
                     let data = BridgeStats { 
-                        cpu_percent: cpu, cpu_temp: max_temp, mem_percent: ram, disk_percent: disk_usage 
+                        cpu_percent: cpu, 
+                        net_down_kb: download_kb, 
+                        mem_percent: ram, 
+                        disk_percent: disk_usage 
                     };
                     
                     let payload = serde_json::to_string(&data).unwrap_or("{}".to_string());
                     if let Ok(mut stats_lock) = state.stats.lock() { *stats_lock = payload.clone(); }
 
-                    // 2. SERIAL LOGIC
+                    // 3. SEND TO ESP32
                     let mut needs_scan = false;
                     {
                         let mut port_guard = state.port.lock().unwrap();
@@ -217,7 +216,7 @@ fn main() {
                         }
                     }
 
-                    // 3. SCAN
+                    // 4. AUTO-SCAN FOR DEVICE
                     if needs_scan {
                          scan_counter += 1;
                          if scan_counter > 2 {
@@ -226,8 +225,14 @@ fn main() {
                             let mut target_port = String::new();
                             for p in available {
                                 let name = p.port_name.to_lowercase();
-                                let product = match p.port_type { SerialPortType::UsbPort(info) => info.product.unwrap_or_default().to_lowercase(), _ => String::new() };
-                                if name.contains("usb") || name.contains("acm") || product.contains("cp210") || product.contains("ch340") || product.contains("esp32") {
+                                let product = match p.port_type { 
+                                    SerialPortType::UsbPort(info) => info.product.unwrap_or_default().to_lowercase(), 
+                                    _ => String::new() 
+                                };
+                                
+                                // FIX: Added case-insensitive checks for "serial", "jtag" and more
+                                if name.contains("usb") || name.contains("acm") || name.contains("serial") || name.contains("jtag") || 
+                                   product.contains("cp210") || product.contains("ch340") || product.contains("esp32") || product.contains("serial") || product.contains("jtag") {
                                     target_port = p.port_name;
                                     break;
                                 }

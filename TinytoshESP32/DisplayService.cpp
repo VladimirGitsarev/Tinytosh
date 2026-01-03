@@ -329,18 +329,14 @@ void DisplayService::drawAQIScreen(const Config& config, const AirQualityData& d
 }
 
 void DisplayService::drawPcScreen(const PcStats& pcStats) {
-    // 1. Check if data is valid
     bool isInvalid = (isnan(pcStats.cpu_percent) || pcStats.cpu_percent == 0) &&
-                     (isnan(pcStats.cpu_temp)    || pcStats.cpu_temp == 0)    &&
-                     (isnan(pcStats.mem_percent) || pcStats.mem_percent == 0) &&
-                     (isnan(pcStats.disk_percent)|| pcStats.disk_percent == 0);
+                     (isnan(pcStats.mem_percent) || pcStats.mem_percent == 0); 
 
     if (isInvalid) {
-        drawNoData(); // Draw "No Data" scree if data invalid and exit method
+        drawNoData(); 
         return; 
     }
 
-    // 2. If data is valid, proceed with drawing
     display.clearDisplay();
     display.setTextSize(1);
     display.setTextColor(1);
@@ -363,29 +359,39 @@ void DisplayService::drawPcScreen(const PcStats& pcStats) {
         }
     };
 
-    // CPU
+    // 1. CPU
     display.drawBitmap(0, 0, icon_cpu_percent, 16, 16, 1);
     drawInfilledBar(5, pcStats.cpu_percent);
     display.setCursor(TEXT_X, 4);
     display.print(String((int)round(pcStats.cpu_percent)) + "%");
 
-    // Temp
-    display.drawBitmap(0, 16, icon_cpu_temp, 16, 16, 1);
-    drawInfilledBar(22, pcStats.cpu_temp);
-    display.setCursor(TEXT_X, 21);
-    display.print(String((int)round(pcStats.cpu_temp)) + "C");
-
-    // RAM
-    display.drawBitmap(0, 32, icon_ram_percent, 16, 16, 1);
-    drawInfilledBar(37, pcStats.mem_percent);
-    display.setCursor(TEXT_X, 36);
+    // 2. RAM
+    display.drawBitmap(0, 16, icon_ram_percent, 16, 16, 1);
+    drawInfilledBar(21, pcStats.mem_percent);
+    display.setCursor(TEXT_X, 20);
     display.print(String((int)round(pcStats.mem_percent)) + "%");
 
-    // Disk
-    display.drawBitmap(0, 48, icon_disk_percent, 16, 16, 1);
-    drawInfilledBar(53, pcStats.disk_percent);
-    display.setCursor(TEXT_X, 52);
+    // 3. Disk
+    display.drawBitmap(0, 32, icon_disk_percent, 16, 16, 1);
+    drawInfilledBar(37, pcStats.disk_percent);
+    display.setCursor(TEXT_X, 36);
     display.print(String((int)round(pcStats.disk_percent)) + "%");
+
+    // 4. Download
+    display.drawBitmap(0, 48, icon_net_down, 16, 16, 1); 
+    
+    float netPercent = (pcStats.net_down_kb / 5120.0) * 100.0;
+    drawInfilledBar(53, netPercent);
+    
+    display.setCursor(TEXT_X, 52);
+    
+    if (pcStats.net_down_kb >= 1024) {
+        display.print(String((int)round(pcStats.net_down_kb / 1024.0)) + "M");
+    } else if (pcStats.net_down_kb >= 100) {
+        display.print("<1M");
+    } else {
+        display.print(String((int)pcStats.net_down_kb) + "K");
+    }
 
     display.display();
 }

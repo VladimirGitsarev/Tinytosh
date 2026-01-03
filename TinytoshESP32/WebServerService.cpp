@@ -273,9 +273,9 @@ String WebServerService::generateRootPageContent() {
   } else {
       content += "<div class='dashboard-grid'>";
       content += "<div class='tile'><div class='tile-icon'>📊</div><div class='tile-value' id='pc-cpu'>" + String((int)round(pcStats.cpu_percent)) + "%</div><div class='tile-label'>CPU Usage</div></div>";
-      content += "<div class='tile'><div class='tile-icon'>🔥</div><div class='tile-value' id='pc-temp'>" + String((int)round(pcStats.cpu_temp)) + " °C</div><div class='tile-label'>CPU Temp</div></div>";
       content += "<div class='tile'><div class='tile-icon'>🧠</div><div class='tile-value' id='pc-ram'>" + String((int)round(pcStats.mem_percent)) + "%</div><div class='tile-label'>RAM Usage</div></div>";
       content += "<div class='tile'><div class='tile-icon'>💽</div><div class='tile-value' id='pc-disk'>" + String((int)round(pcStats.disk_percent)) + "%</div><div class='tile-label'>Disk Usage</div></div>";
+      content += "<div class='tile'><div class='tile-icon'>⬇️</div><div class='tile-value' id='pc-net'>" + String((int)round(pcStats.net_down_kb)) + " KB/s</div><div class='tile-label'>Download</div></div>";      
       content += "</div>";
   }
   content += "</div></div>";
@@ -340,7 +340,7 @@ String WebServerService::generateRootPageContent() {
 
   content += "  if (d.pc_cpu !== undefined) {";
   content += "    set('pc-cpu', Math.round(d.pc_cpu) + '%');";
-  content += "    set('pc-temp', Math.round(d.pc_temp) + ' °C');";
+  content += "    set('pc-net', Math.round(d.pc_net) + ' KB/s');";
   content += "    set('pc-ram', Math.round(d.pc_ram) + '%');";
   content += "    set('pc-disk', Math.round(d.pc_disk) + '%');";
   content += "  }";
@@ -408,7 +408,7 @@ void WebServerService::handleSave() {
 
   if (!config.show_pc) {
     sharedPcStats->cpu_percent = 0;
-    sharedPcStats->cpu_temp = 0;
+    sharedPcStats->net_down_kb = 0;
     sharedPcStats->mem_percent = 0;
     sharedPcStats->disk_percent = 0;
   }
@@ -455,7 +455,7 @@ void WebServerService::handleUpdate() {
   doc["no2"] = String(airQualityData.no2, 1);
 
   doc["pc_cpu"] = String(pcStats.cpu_percent);
-  doc["pc_temp"] = String(pcStats.cpu_temp);
+  doc["pc_net"] = String(pcStats.net_down_kb);
   doc["pc_ram"] = String(pcStats.mem_percent);
   doc["pc_disk"] = String(pcStats.disk_percent);
 

@@ -20,7 +20,7 @@ void PcMonitorService::handleSerial(PcStats &stats) {
     // 2. Check for Timeout (Heartbeat)
     if (millis() - lastDataTimestamp > DATA_TIMEOUT_MS) {
         stats.cpu_percent = 0;
-        stats.cpu_temp = 0;
+        stats.net_down_kb = 0;
         stats.mem_percent = 0;
         stats.disk_percent = 0;
     }
@@ -37,7 +37,7 @@ void PcMonitorService::parseJson(const char* jsonString, PcStats &stats) {
     lastDataTimestamp = millis();
 
     stats.cpu_percent = doc["cpu_percent"] | 0.0;
-    stats.cpu_temp    = doc["cpu_temp"]    | 0.0;
+    stats.net_down_kb = doc["net_down_kb"] | 0.0;
     stats.mem_percent = doc["mem_percent"] | 0.0;
     stats.disk_percent = doc["disk_percent"] | 0.0;
 }

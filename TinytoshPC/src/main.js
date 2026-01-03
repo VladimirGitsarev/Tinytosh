@@ -92,7 +92,15 @@ async function updateStats() {
     if (!jsonStr || jsonStr === "{}") return;
     const data = JSON.parse(jsonStr);
     if (data.cpu_percent !== undefined) document.getElementById("cpu").innerText = Math.round(data.cpu_percent) + "%";
-    if (data.cpu_temp !== undefined) document.getElementById("temp").innerText = Math.round(data.cpu_temp) + "°C";
+   if (data.net_down_kb !== undefined) {
+      if (data.net_down_kb >= 1024) {
+          document.getElementById("dl-val").innerText = (data.net_down_kb / 1024).toFixed(1);
+          document.getElementById("dl-unit").innerText = "MB/s";
+      } else {
+          document.getElementById("dl-val").innerText = data.net_down_kb;
+          document.getElementById("dl-unit").innerText = "KB/s";
+      }
+    }
     if (data.mem_percent !== undefined) document.getElementById("ram").innerText = Math.round(data.mem_percent) + "%";
     if (data.disk_percent !== undefined) document.getElementById("disk").innerText = Math.round(data.disk_percent) + "%";
   } catch (e) { }
