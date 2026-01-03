@@ -1,3 +1,5 @@
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
 use std::thread;
 use std::time::Duration;
 use std::sync::Mutex; 
