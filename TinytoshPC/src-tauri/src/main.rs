@@ -102,7 +102,6 @@ fn toggle_connection(state: tauri::State<AppState>, port_name: String, connect: 
     }
 }
 
-// FIX: Added unminimize() to ensure window restores correctly on Windows
 fn show_window_safely(window: tauri::WebviewWindow) {
     let _ = window.set_min_size(Some(Size::Logical(LogicalSize { width: 300.0, height: 400.0 })));
     let _ = window.unminimize(); 
@@ -124,7 +123,6 @@ fn main() {
         .manage(app_state) 
         .invoke_handler(tauri::generate_handler![get_stats, get_ports, toggle_connection, set_autostart, check_autostart])
         .setup(|app| {
-            // TRAY SETUP
             let quit_i = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
             let show_i = MenuItem::with_id(app, "show", "Show", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&show_i, &quit_i])?;
@@ -142,7 +140,6 @@ fn main() {
                     if let TrayIconEvent::Click { button: MouseButton::Left, .. } = event {
                         let app = tray.app_handle();
                         if let Some(w) = app.get_webview_window("main") {
-                            // Logic: If visible AND not minimized, hide. Otherwise show/restore.
                             if w.is_visible().unwrap_or(false) && !w.is_minimized().unwrap_or(false) { 
                                 let _ = w.hide(); 
                             } else { 
@@ -153,13 +150,11 @@ fn main() {
                 })
                 .build(app)?;
 
-            // VISIBILITY CHECK
             let args: Vec<String> = env::args().collect();
             if !args.contains(&"--minimized".to_string()) {
                 if let Some(w) = app.get_webview_window("main") { show_window_safely(w); }
             }
 
-            // DATA THREAD
             let app_handle = app.handle().clone();
             thread::spawn(move || {
                 let state = app_handle.state::<AppState>();
@@ -230,7 +225,6 @@ fn main() {
                                     _ => String::new() 
                                 };
                                 
-                                // FIX: Added case-insensitive checks for "serial", "jtag" and more
                                 if name.contains("usb") || name.contains("acm") || name.contains("serial") || name.contains("jtag") || 
                                    product.contains("cp210") || product.contains("ch340") || product.contains("esp32") || product.contains("serial") || product.contains("jtag") {
                                     target_port = p.port_name;

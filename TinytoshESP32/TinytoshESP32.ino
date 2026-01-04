@@ -11,12 +11,16 @@
 #include "PcMonitorService.h"
 #include "CryptoService.h"
 
-// --- Global Constants ---
+// Global Constants
 const char* AP_SSID = "Tinytosh";
 const char* AP_PASS = "Tinytosh";
 const char* PREF_NAMESPACE = "tinytosh_config";
 
-// --- Global Data Structures ---
+// TTP223 Button Settings
+const int BUTTON_PIN = 10;
+const unsigned long DEBOUNCE_DELAY = 50;
+
+// Global Data Structures
 Config userConfig;
 WeatherData weatherData;
 AirQualityData airQualityData;
@@ -26,7 +30,7 @@ PcStats pcStats;
 // Forward declaration of callback for WebServerService
 void updateAllDataCallback();
 
-// --- Service Instances ---
+// Service Instances
 ConfigManager configManager(PREF_NAMESPACE);
 TimeService timeService;
 WeatherService weatherService;
@@ -39,7 +43,63 @@ CryptoService cryptoService;
 unsigned long lastScreenSwitch = 0;
 int currentScreen = SCREEN_TIME;
 
-// --- Core Application Logic ---
+int buttonState;             
+int lastButtonState = LOW;   
+unsigned long lastDebounceTime = 0;  
+
+// Helper Functions
+
+// Extracted drawing logic to be called by Timer OR Button
+void drawCurrentScreen() {
+  if (WiFi.status() != WL_CONNECTED) return; // Don't draw if WiFi lost
+
+  switch(currentScreen) {
+    case SCREEN_TIME:
+      displayService.drawTimeScreen(userConfig, timeService.getCurrentTimeShort(userConfig.time_format), timeService.getFullDate());
+      break;
+
+    case SCREEN_WEATHER:
+      displayService.drawWeatherScreen(userConfig, weatherData, timeService.getCurrentTimeShort(userConfig.time_format));
+      break;
+
+    case SCREEN_AIR_QUALITY:
+      displayService.drawAQIScreen(userConfig, airQualityData, timeService.getCurrentTimeShort(userConfig.time_format));
+      break;
+      
+    case SCREEN_PC_MONITOR:
+      displayService.drawPcScreen(pcStats);
+      break;
+
+    case SCREEN_CRYPTO:
+      displayService.drawCryptoScreen(cryptoData);
+      break;
+  }
+}
+
+// Logic to find the next ENABLED screen
+void switchToNextScreen() {
+    int startScreen = currentScreen;
+    bool foundVisible = false;
+
+    do {
+        currentScreen++;
+        if (currentScreen >= NUM_SCREENS) {
+            currentScreen = 0;
+        }
+        
+        if (displayService.isScreenEnabled(userConfig, currentScreen)) {
+            foundVisible = true;
+            break;
+        }
+
+    } while (currentScreen != startScreen);
+
+    if (!foundVisible) {
+        currentScreen = SCREEN_TIME;
+    }
+}
+
+// Core Application Logic
 
 void updateAllData() {
   // 1. Location Detection
@@ -51,7 +111,7 @@ void updateAllData() {
   }
 
   // 2. Sync Time (Depends on Location/Timezone)
-  displayService.showOLEDStatus({"\n", "\n", "Syncing Time...", "\n", "\Timezone:", userConfig.timezone}, true);
+  displayService.showOLEDStatus({"\n", "\n", "Syncing Time...", "\n", "Timezone:", userConfig.timezone}, true);
   timeService.syncNTP(userConfig.timezone);
 
   // 3. Fetch Weather (Depends on Lat/Lon)
@@ -95,6 +155,7 @@ void updateAllDataCallback() {
 
 void setup() {
   Serial.begin(115200);
+  pinMode(BUTTON_PIN, INPUT); // Initialize Button Pin
   delay(100);
   // configManager.clearAllPreferences();
 
@@ -140,6 +201,26 @@ void loop() {
   if (userConfig.show_pc) {
     pcMonitorService.handleSerial(pcStats);
   }
+
+  int reading = digitalRead(BUTTON_PIN);
+
+  if (reading != lastButtonState) {
+    lastDebounceTime = millis();
+  }
+
+  if ((millis() - lastDebounceTime) > DEBOUNCE_DELAY) {
+    if (reading != buttonState) {
+      buttonState = reading;
+
+      if (buttonState == HIGH) {
+        Serial.println("Button Pressed: Switching Screen");
+        switchToNextScreen();
+        lastScreenSwitch = millis();
+        drawCurrentScreen();
+      }
+    }
+  }
+  lastButtonState = reading;
   
   // 1. Scheduled Data Refresh
   static unsigned long lastDataUpdate = 0;
@@ -159,59 +240,22 @@ void loop() {
     lastDataUpdate = millis();
   }
 
-  // 2. Universal Screen Switching Logic
-  unsigned long intervalMs = userConfig.screen_interval_sec * 1000;
-
-  if (millis() - lastScreenSwitch >= intervalMs) {
-    int startScreen = currentScreen;
-    bool foundVisible = false;
-
-    do {
-        currentScreen++;
-        if (currentScreen >= NUM_SCREENS) {
-            currentScreen = 0;
-        }
-        
-        if (displayService.isScreenEnabled(userConfig, currentScreen)) {
-            foundVisible = true;
-            break;
-        }
-
-    } while (currentScreen != startScreen);
-
-    if (!foundVisible) {
-        currentScreen = SCREEN_TIME;
-    }
-
-    lastScreenSwitch = millis();
+  // 2. Auto Screen Switching Logic
+  // Only auto-switch if enabled in config AND enough time has passed
+  if (userConfig.screen_auto_cycle) {
+      unsigned long intervalMs = userConfig.screen_interval_sec * 1000;
+      if (millis() - lastScreenSwitch >= intervalMs) {
+        switchToNextScreen();
+        lastScreenSwitch = millis();
+      }
   }
 
   // 3. Screen Redraw Logic (Every 1 Second)
+  // Redraw every second to update clocks/dynamic data, 
+  // but button presses bypass this via the direct call above.
   static unsigned long lastScreenUpdate = 0;
   if (millis() - lastScreenUpdate >= 1000) { 
-    if (WiFi.status() == WL_CONNECTED) { 
-      switch(currentScreen) {
-        case SCREEN_TIME:
-          displayService.drawTimeScreen(userConfig, timeService.getCurrentTimeShort(userConfig.time_format), timeService.getFullDate());
-          break;
-
-        case SCREEN_WEATHER:
-          displayService.drawWeatherScreen(userConfig, weatherData, timeService.getCurrentTimeShort(userConfig.time_format));
-          break;
-
-        case SCREEN_AIR_QUALITY:
-          displayService.drawAQIScreen(userConfig, airQualityData, timeService.getCurrentTimeShort(userConfig.time_format));
-          break;
-          
-        case SCREEN_PC_MONITOR:
-          displayService.drawPcScreen(pcStats);
-          break;
-
-        case SCREEN_CRYPTO:
-          displayService.drawCryptoScreen(cryptoData);
-          break;
-      }
-    }
+    drawCurrentScreen();
     lastScreenUpdate = millis();
   }
 }

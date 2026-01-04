@@ -7,6 +7,7 @@ void ConfigManager::loadConfig(Config& config) {
   preferences.begin(PREF_NAMESPACE, true); 
 
   config.auto_detect = preferences.getBool("auto_detect", true);
+  config.screen_auto_cycle = preferences.getBool("auto_cycle", true);
   config.latitude = preferences.getFloat("latitude", 0.0);
   config.longitude = preferences.getFloat("longitude", 0.0);
   config.timezone = preferences.getString("timezone", ""); 
@@ -19,7 +20,6 @@ void ConfigManager::loadConfig(Config& config) {
   config.aqi_type = preferences.getString("aqi_type", "EU");
   config.crypto_id = preferences.getInt("crypto_id", 90);
   config.screen_interval_sec = preferences.getInt("scr_int", 15);
-  config.screen_auto_cycle = preferences.getBool("screen_auto_cycle", true);
 
   config.show_time = preferences.getBool("show_time", true);
   config.show_weather = preferences.getBool("show_weather", true);
@@ -36,6 +36,7 @@ void ConfigManager::saveConfig(const Config& config) {
   preferences.begin(PREF_NAMESPACE, false); 
 
   preferences.putBool("auto_detect", config.auto_detect);
+  preferences.putBool("auto_cycle", config.screen_auto_cycle);
   preferences.putFloat("latitude", config.latitude);
   preferences.putFloat("longitude", config.longitude);
   preferences.putString("timezone", config.timezone);
@@ -48,7 +49,6 @@ void ConfigManager::saveConfig(const Config& config) {
   preferences.putString("aqi_type", config.aqi_type);
   preferences.putInt("crypto_id", config.crypto_id);
   preferences.putInt("scr_int", config.screen_interval_sec);
-  preferences.putBool("screen_auto_cycle", config.screen_auto_cycle);
 
   preferences.putBool("show_time", config.show_time);
   preferences.putBool("show_weather", config.show_weather);

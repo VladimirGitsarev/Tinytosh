@@ -1,6 +1,5 @@
 const { invoke } = window.__TAURI__.core;
 
-// 1. Autostart
 async function initAutostart() {
   const cb = document.getElementById("autostart-cb");
   if (!cb) return;
@@ -19,12 +18,11 @@ let isConnected = false;
 function setUiStatus(text, color) {
     const status = document.getElementById("status-text");
     if(status) {
-        status.innerText = text; // No UpperCase
+        status.innerText = text;
         status.style.color = color;
     }
 }
 
-// 2. Load Ports & Status
 async function loadPorts() {
   try {
     const statusObj = await invoke("get_ports"); 
@@ -47,7 +45,6 @@ async function loadPorts() {
       if (currentVal && statusObj.ports.includes(currentVal)) select.value = currentVal;
     }
 
-    // --- CONNECTION STATE LOGIC ---
     if (statusObj.connected) {
         if (!isConnected) {
              isConnected = true;
@@ -66,20 +63,15 @@ async function loadPorts() {
             if(select) select.disabled = false;
         }
         
-        // --- ERROR/STATUS HANDLING ---
         if (statusObj.status_text && statusObj.status_text.length > 0) {
-            // Check keywords (case-insensitive) to decide color
             const lowerText = statusObj.status_text.toLowerCase();
             
             if (lowerText.includes("failed")) {
-                // RED for errors
                 setUiStatus(statusObj.status_text, "#ef4444"); 
             } else {
-                // GRAY for "Disconnected" or other states
                 setUiStatus(statusObj.status_text, "#888"); 
             }
         } else {
-            // Default Neutral State
             setUiStatus("Waiting for connection...", "#888");
         }
     }
@@ -114,18 +106,15 @@ async function toggleConnection() {
     
     try {
         await invoke("toggle_connection", { portName: port, connect: true });
-        // Optimistic UI Update on Success
         isConnected = true; 
         const btn = document.getElementById("conn-btn");
         if(btn) { btn.innerText = "Disconnect"; btn.className = "btn-red"; }
         if(select) select.disabled = true;
         setUiStatus("Connected to " + port, "#10b981");
     } catch (error) {
-        // Red Error on Click
         setUiStatus(error, "#ef4444");
     }
   } else {
-    // Manual disconnect
     try {
         await invoke("toggle_connection", { portName: "", connect: false });
         isConnected = false;

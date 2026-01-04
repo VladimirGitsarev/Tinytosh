@@ -75,45 +75,10 @@ String WebServerService::generateRootPageContent() {
   bool pcValid = pcStats.cpu_percent > 0.1; 
   bool cryptoValid = !isnan(cryptoData.price_usd) && cryptoData.price_usd > 0;
 
-  // content += "<html><head><title>Tinytosh</title>";
-  // content += "<meta name='viewport' content='width=device-width, initial-scale=1'><meta charset='UTF-8'>";
-  // content += "<style>";
-  // content += "body{font-family: 'Inter', sans-serif; background-color: #f0f4f8; color: #34495e; margin: 0; padding: 20px;}";
-  // content += ".container {max-width: 800px; margin: 0 auto; background-color: #fff; padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);}";
-  // content += ".app-header {text-align: center; color: #1e3a8a; font-size: 1.8rem; font-weight: 600; border-bottom: 2px solid #e0e7ff; padding-bottom: 10px; margin-bottom: 20px;}";
-  // content += "#time-display {text-align: center; margin-bottom: 5px; color: #34495e; font-size: 4rem; font-weight: 700; background-color: #f7f9fc; padding: 15px 0; border-radius: 8px;}";
-  // content += "#location-info {text-align: center; margin: 20px 0px; color: #7f8c8d;}";
-  // content += ".dashboard-grid {display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-top: 15px;}";
-  // content += ".tile {background-color: #fff; border: 1px solid #edf2f7; padding: 20px; border-radius: 10px; text-align: center;}";
-  // content += ".tile-icon {font-size: 2.5rem; margin-bottom: 5px; color: #4a90e2;}";
-  // content += ".tile-label {font-size: 0.8rem; color: #7f8c8d; text-transform: uppercase;}";
-  // content += ".tile-value {font-size: 1.5rem; font-weight: 600; color: #34495e;}";
-  // content += ".no-data-tile { grid-column: 1 / -1; background: #f0f7ff; border: 1px dashed #3b82f6; padding: 30px; color: #3b82f6; border-radius: 10px; font-weight: 600; text-align: center; margin-top: 15px;}";
-  // content += ".update-footer { text-align: center; font-size: 0.8rem; color: #95a5a6; margin-top: 10px; }";
-  // content += "label{display: block; margin-top: 12px; font-weight: 600; color: #34495e;}"; 
-  // content += "input[type='text'], input[type='number'], select {";
-  // content += "  width: 100%; padding: 10px; margin: 8px 0; ";
-  // content += "  border: 1px solid #ccd1d9; border-radius: 6px; ";
-  // content += "  box-sizing: border-box; background-color: #ffffff; "; 
-  // content += "  color: #2c3e50; font-size: 14px; appearance: none; ";
-  // content += "}";
-  // content += "select {";
-  // content += "  background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%233b82f6%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E');";
-  // content += "  background-repeat: no-repeat; background-position: right 12px top 50%; background-size: 12px auto; padding-right: 30px;";
-  // content += "}";
-  // content += "select:focus, input:focus { border-color: #3b82f6; outline: none; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }";
-  // content += "fieldset { border: 1px solid #e0e7ff; border-radius: 8px; padding: 15px; margin-top: 10px; background-color: #ffffff; }";
-  // content += "button{background-color: #3b82f6; color: white; padding: 15px; border: none; border-radius: 6px; cursor: pointer; margin-top: 25px; width: 100%; font-size: 18px; font-weight: 600;}";
-  // content += ".panel { background: #f7f9fc; padding: 15px; border-radius: 8px; border: 1px solid #e0e7ff; margin: 15px 0; }";
-  // content += ".collapsible { transition: all 0.3s ease; overflow: hidden; }";
-  // content += ".hidden { display: none; }";
-  // content += "@media (max-width: 600px) {.dashboard-grid {grid-template-columns: 1fr;}}";
-  // content += "</style></head><body><div class='container'>";
-
   content += "<html><head><title>Tinytosh | Web Panel</title>";
   content += "<meta name='viewport' content='width=device-width, initial-scale=1'><meta charset='UTF-8'>";
   content += "<style>";
-  // Ported CSS Variables
+  // CSS Variables
   content += ":root { --bg: #0f172a; --card: #1e293b; --accent: #3b82f6; --text: #f1f5f9; --text-muted: #94a3b8; --border: #334155; }";
 
   // Global Body & Container Styles
@@ -138,6 +103,10 @@ String WebServerService::generateRootPageContent() {
   content += "label { display: block; margin-top: 15px; font-weight: 600; color: var(--text); }";
   content += "input[type='text'], input[type='number'], select { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid var(--border); border-radius: 6px; background-color: #0f172a; color: var(--text); font-size: 15px; }";
   content += "input:focus, select:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2); }";
+  
+  // Disabled state style for inputs
+  content += "input:disabled { opacity: 0.5; cursor: not-allowed; background-color: #1e293b; }";
+
   content += "fieldset { border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin-top: 15px; background: rgba(0,0,0,0.1); }";
   content += "legend { color: var(--accent); font-weight: 700; padding: 0 10px; font-size: 0.9rem; text-transform: uppercase; }";
 
@@ -163,9 +132,13 @@ String WebServerService::generateRootPageContent() {
 
   // Hardware/Interval Settings
   content += "<label>Data Sync Interval (Mins):</label><input type='number' name='refresh_min' value='" + String(config.refresh_interval_min) + "'>";
-  content += "<label style='margin: 10px 0 0; cursor:pointer; font-weight:600;'><input type='checkbox' id='autoCycle' name='auto_cycle' value='1' " + String(config.screen_auto_cycle ? "checked" : "") + "> Switch Screens Automatically</label>";
-  content += "<p style='font-size:0.8em; color:var(--text-muted); margin-top:8px;'>Defines whether screens will be switching automatically or with button press only.</p>";
-  content += "<label>Screen Cycle Interval (Secs):</label><input type='number' name='screen_int' value='" + String(config.screen_interval_sec) + "'>";
+  
+  // Auto Cycle Checkbox
+  content += "<label style='margin: 10px 0 0; cursor:pointer; font-weight:600;'><input type='checkbox' id='autoCycle' name='auto_cycle' value='1' " + String(config.screen_auto_cycle ? "checked" : "") + "> Cycle Screens Automatically</label>";
+  content += "<p style='font-size:0.8em; color:var(--text-muted); margin-top:8px;'>If disabled, screens will only change when you press the button.</p>";
+  
+  // Screen Cycle Interval (Added ID 'screenIntInput' for JS targeting)
+  content += "<label>Screen Cycle Interval (Secs):</label><input type='number' id='screenIntInput' name='screen_int' value='" + String(config.screen_interval_sec) + "'>";
 
   content += "<label>Time Format:</label><div style='display:flex; gap:15px; margin-top:8px;'>";
   content += "<span><input type='radio' name='time_format' value='24' " + String(config.time_format == "24" ? "checked" : "") + "> 24-Hour</span>";
@@ -302,6 +275,7 @@ String WebServerService::generateRootPageContent() {
   
   content += "<script>";
   content += "function updateVisibility(){";
+  
   content += "  var pairs = [['autoDetect','manualFields',true], ['showTime', 'timeContent',false], ['showWeather','weatherContent',false], ['showPc','pcContent',false], ['showCrypto','cryptoContent',false], ['showAQI','aqiContent',false]];";
   content += "  pairs.forEach(p => {";
   content += "    var ch = document.getElementById(p[0]); if(!ch) return;";
@@ -310,9 +284,14 @@ String WebServerService::generateRootPageContent() {
   content += "    target.className = shouldHide ? 'collapsible hidden' : 'collapsible';";
   content += "    target.querySelectorAll('input, select').forEach(el => el.disabled = shouldHide);";
   content += "  });";
+
+  content += "  var ac = document.getElementById('autoCycle');";
+  content += "  var si = document.getElementById('screenIntInput');";
+  content += "  if(ac && si) si.disabled = !ac.checked;";
+
   content += "}";
   
-  content += "['autoDetect', 'showTime', 'showWeather', 'showPc', 'showCrypto', 'showAQI'].forEach(id => { var el=document.getElementById(id); if(el) el.addEventListener('change', updateVisibility); });";
+  content += "['autoDetect', 'showTime', 'showWeather', 'showPc', 'showCrypto', 'showAQI', 'autoCycle'].forEach(id => { var el=document.getElementById(id); if(el) el.addEventListener('change', updateVisibility); });";
   content += "updateVisibility();";
   
   content += "function updateData() { fetch('/update').then(r => r.json()).then(d => {";
@@ -367,6 +346,7 @@ void WebServerService::handleSave() {
   // 1. Update Screen Visibility
   config.auto_detect = server.hasArg("auto_detect");
   config.screen_auto_cycle = server.hasArg("auto_cycle");
+
   config.show_time = server.hasArg("show_time");
   config.show_weather = server.hasArg("show_weather");
   config.show_aqi = server.hasArg("show_aqi");

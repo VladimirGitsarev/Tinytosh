@@ -11,8 +11,9 @@
             --card: #1e293b;
             --accent: #3b82f6;
             --text: #f1f5f9;
-            --text-muted: #94a3b8;
+            --text-muted: #cbd5e1; 
             --border: #334155;
+            --table-header: #2d3b4e;
         }
 
         body {
@@ -21,6 +22,7 @@
             color: var(--text);
             margin: 0;
             line-height: 1.6;
+            overflow-x: hidden;
         }
 
         .wrapper {
@@ -35,10 +37,91 @@
             margin-bottom: 40px;
         }
 
-        h1 { margin: 0; font-size: 2.5rem; color: var(--accent); }
-        h2 { border-left: 4px solid var(--accent); padding-left: 15px; margin-top: 40px; }
+        h1 { 
+            margin: 0; font-size: 2.5rem; color: var(--accent); 
+        }
+
+        h2 { 
+            border-left: 4px solid var(--accent); padding-left: 15px; margin-top: 50px; scroll-margin-top: 20px; 
+        }
+
+        h3 {
+            color: var(--text); margin-top: 0; font-size: 1.2rem;
+        }
         
         .intro { font-size: 1.1rem; color: var(--text-muted); }
+
+        .carousel-wrapper {
+            position: relative;
+            margin-top: 30px;
+            padding: 20px 0;
+            overflow: hidden;
+        }
+
+        .carousel-track {
+            display: flex;
+            align-items: center;
+            will-change: transform;
+        }
+
+        .carousel-slide {
+            flex: 0 0 55%; 
+            margin: 0 2.5%; 
+            position: relative;
+            transition: all 0.5s ease-in-out;
+            opacity: 0.4;
+            transform: scale(0.85);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+        }
+
+        .carousel-slide.active {
+            opacity: 1;
+            transform: scale(1.1);
+            z-index: 5;
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.4);
+            border: 1px solid var(--accent);
+        }
+
+        .carousel-slide img {
+            width: 100%;
+            height: 100%;
+            display: block;
+            object-fit: cover;
+            aspect-ratio: 16/9;
+        }
+
+        .carousel-btn {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(15, 23, 42, 0.8);
+            color: var(--accent);
+            border: 1px solid var(--border);
+            cursor: pointer;
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            z-index: 10;
+            transition: all 0.2s;
+        }
+
+        .carousel-btn:hover { background: var(--accent); color: white; }
+        .prev { left: 10px; }
+        .next { right: 10px; }
+
+        @media (max-width: 600px) {
+            .carousel-slide {
+                flex: 0 0 85%;
+                margin: 0 2%;
+            }
+            .carousel-btn { display: none; }
+        }
 
         .step {
             background: var(--card);
@@ -48,94 +131,277 @@
             border: 1px solid var(--border);
         }
 
-        .feature-stack {
-            display: flex;
-            flex-direction: column;
-            gap: 24px;
+        .hardware-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin-bottom: 25px;
             margin-top: 20px;
         }
 
-        .feature-item {
-            background: rgba(30, 41, 59, 0.5);
-            padding: 25px;
-            border-radius: 12px;
+        .hw-card {
+            background: rgba(2, 6, 23, 0.5); 
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 15px 10px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100%;
+            box-sizing: border-box;
+            justify-content: space-between;
+        }
+
+        .hw-card img {
+            width: 100%;
+            height: 80px;
+            object-fit: contain;
+            margin-bottom: 10px;
+        }
+
+        .hw-name {
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: var(--text);
+            min-height: 40px; 
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1.2;
+        }
+
+        .hw-link {
+            font-size: 0.75rem;
+            color: var(--accent);
+            text-decoration: none;
+            border: 1px solid var(--accent);
+            padding: 4px 12px;
+            border-radius: 4px;
+            transition: all 0.2s;
+            width: fit-content;
+        }
+        .hw-link:hover { background: var(--accent); color: white; }
+
+        .diagram-img {
+            display: block;
+            margin: 20px auto;
+            max-width: 100%;
+            width: auto; 
+            border-radius: 8px;
             border: 1px solid var(--border);
         }
 
-        .feature-header {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            margin-bottom: 15px;
-            font-size: 1.25rem;
-            color: var(--accent);
-            font-weight: bold;
-        }
-
-        .feature-section-title {
-            font-size: 0.9rem;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            color: var(--accent);
+        .table-container {
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
             margin-top: 15px;
-            margin-bottom: 5px;
-            font-weight: 700;
+            border-radius: 8px;
+            border: 1px solid var(--border);
         }
 
-        .api-tag {
-            font-size: 0.75rem;
-            color: var(--text-muted);
-            font-family: monospace;
-            display: block;
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+            min-width: 500px;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        th { 
+            background: var(--table-header); color: var(--accent); white-space: nowrap; 
+        }
+        td { 
+            color: var(--text-muted); 
+        }
+        tr:last-child td { 
+            border-bottom: none; 
+        }
+        
+        .pin { 
+            font-family: monospace; color: var(--text); background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; display: inline-block;
+        }
+
+        .feature-stack { 
+            display: flex; flex-direction: column; gap: 24px; margin-top: 20px; 
+        }
+        
+        .feature-item { 
+            background: rgba(30, 41, 59, 0.5); padding: 25px; border-radius: 12px; border: 1px solid var(--border);
+        }
+        
+        .feature-header { 
+            display: flex; align-items: center; gap: 12px; margin-bottom: 15px; font-size: 1.25rem; color: var(--accent); font-weight: bold; 
+        }
+
+        .feature-section-title { 
+            font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px; color: var(--accent); margin-top: 15px; margin-bottom: 5px; font-weight: 700;
+        }
+
+        .api-tag { 
+            font-size: 0.75rem; color: var(--text-muted); font-family: monospace; display: block; margin-top: 20px; padding-top: 10px; border-top: 1px solid var(--border); 
+        }
+
+        .global-item { 
+            background: rgba(59, 130, 246, 0.05); border: 1px solid var(--accent); 
+        }
+        
+        ol, ul { 
+            padding-left: 20px; 
+        }
+
+        li { 
+            margin-bottom: 8px; 
+        }
+
+        .btn-container { 
+            display: flex; gap: 15px; flex-wrap: wrap; margin-top: 15px; 
+        }
+        .btn { 
+            display: inline-flex; align-items: center; justify-content: center; border: none; background: var(--accent); color: white; padding: 12px 20px; border-radius: 6px; text-decoration: none; font-weight: bold; cursor: pointer; transition: opacity 0.2s; min-width: 140px; text-align: center; 
+        }
+
+        .btn:hover { 
+            opacity: 0.9; 
+        }
+
+        .btn-disabled { 
+            opacity: 0.5; cursor: not-allowed; background-color: var(--border); 
+        }
+
+        .info-box {
+            background: rgba(59, 130, 246, 0.1); padding: 15px; border-radius: 6px; font-size: 0.9rem; margin-top: 15px; border-left: 3px solid var(--accent); 
+        }
+        .info-box p { margin: 5px 0 0 0; }
+        .info-box p + p { margin-top: 10px; }
+
+        code { 
+            background: #000; padding: 2px 6px; border-radius: 4px; color: #3b82f6; 
+        }
+
+        .app-preview-container {
+            display: flex; gap: 20px; align-items: flex-start; margin: 20px 0; flex-wrap: wrap;
+        }
+        .app-screenshot {
+            width: 300px; max-width: 100%; border-radius: 8px; border: 1px solid var(--border);
+        }
+        .app-features {
+            flex: 1; min-width: 250px;
+        }
+        .app-features .feature-section-title { margin-top: 0; }
+        .app-features ul { margin-top: 10px; }
+
+        .os-grid {
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); 
+            gap: 15px; 
             margin-top: 20px;
-            padding-top: 10px;
+        }
+        .os-card {
+            background: rgba(255,255,255,0.05); 
+            padding: 15px; 
+            border-radius: 8px; 
+            border: 1px solid var(--border);
+        }
+        .os-title { color: var(--accent); }
+        .os-note { font-size: 0.85rem; color: var(--text-muted); }
+        .os-cmd { display: block; margin-top: 5px; font-size: 0.8em; }
+        .linux-footer { text-align: center; margin-top: 20px; font-size: 0.85rem; color: var(--text-muted); opacity: 0.7; }
+
+        details {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+
+        summary {
+            padding: 12px 15px;
+            cursor: pointer;
+            font-weight: 600;
+            color: var(--accent);
+            list-style: none; 
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.95rem;
+        }
+        
+        summary::-webkit-details-marker { display: none; } 
+
+        summary::after {
+            content: '+'; 
+            font-weight: bold;
+            font-size: 1.2rem;
+        }
+
+        details[open] summary::after { content: '-'; }
+        details[open] { background: rgba(255, 255, 255, 0.05); }
+
+        .assembly-container {
+            padding: 15px;
             border-top: 1px solid var(--border);
         }
 
-        .global-item {
-            background: rgba(59, 130, 246, 0.05);
-            border: 1px solid var(--accent);
-        }
-
-        ol, ul { padding-left: 20px; }
-        li { margin-bottom: 8px; }
-
-        /* BUTTON STYLES UPDATED FOR FLEX LAYOUT */
-        .btn-container {
-            display: flex;
+        .assembly-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
             gap: 15px;
-            flex-wrap: wrap;
-            margin-top: 15px;
+            align-items: stretch;
         }
 
-        .btn {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            border: none;
-            background: var(--accent);
-            color: white;
-            padding: 12px 20px;
-            border-radius: 6px;
-            text-decoration: none;
-            font-weight: bold;
-            cursor: pointer;
-            transition: opacity 0.2s;
-            min-width: 140px;
+        .assembly-item {
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+            background: #000;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .assembly-img-wrapper {
+            flex: 1; 
+            display: flex;
+            align-items: center; 
+            justify-content: center; 
+            background: #000;
+            overflow: hidden;
+            min-height: 200px;
+        }
+
+        .assembly-item img {
+            width: 100%;
+            height: 100%;
+            display: block;
+            object-fit: contain;
+        }
+
+        .assembly-item img.real-photo {
+            object-fit: cover;
+        }
+
+        .assembly-caption {
+            padding: 8px;
+            font-size: 0.8rem;
+            color: var(--text-muted);
             text-align: center;
+            border-top: 1px solid var(--border);
+            background: var(--bg);
+            font-weight: 600;
+            flex-shrink: 0; 
         }
 
-        .btn:hover { opacity: 0.9; }
-        .btn-disabled { opacity: 0.5; cursor: not-allowed; background-color: var(--border); }
-
-        code { background: #000; padding: 2px 6px; border-radius: 4px; color: #3b82f6; }
-        
-        .info-box {
-            background: rgba(0,0,0,0.2);
-            padding: 10px 15px;
-            border-radius: 6px;
-            font-size: 0.9rem;
-            margin-top: 10px;
+        @media (max-width: 600px) {
+            .hardware-grid { grid-template-columns: repeat(2, 1fr); }
+            .assembly-grid { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -145,13 +411,175 @@
     <header>
         <h1>Tinytosh</h1>
         <p class="intro">
-            Tinytosh is an open-source, versatile desktop companion. It operates as a standalone smart display 
-            powered by USB-C or connects to your PC to act as a real-time hardware monitor.
+            Meet <strong>Tinytosh</strong>: The ultimate open-source <strong>desktop companion</strong> that brings your workspace to life. Whether functioning as a standalone smart display or a real-time PC hardware monitor, it delivers critical data at a glance. Best of all, it relies on <strong>100% free public APIs</strong> — no API keys, no accounts, and no authorization required.
         </p>
+
+        <div class="carousel-wrapper" id="carouselWrapper">
+            <button class="carousel-btn prev" id="prevBtn">❮</button>
+            <div class="carousel-track" id="track">
+                </div>
+            <button class="carousel-btn next" id="nextBtn">❯</button>
+        </div>
     </header>
 
     <section>
-        <h2>Step 1: Flash Firmware</h2>
+        <h2>Step 1: Hardware & Wiring</h2>
+        <div class="step">
+            <h3>Components Required</h3>
+            <ul style="margin-bottom: 20px;">
+                <li><strong>ESP32-C3 SuperMini</strong> (Microcontroller)</li>
+                <li><strong>0.96" OLED Display</strong> (I2C 128x64)</li>
+                <li><strong>Silicone Wires</strong> (30AWG recommended) or Jumper Wires</li>
+                <li><strong>TTP223 Touch Sensor</strong> (Optional, for button)</li>
+            </ul>
+
+            <div class="hardware-grid">
+                <div class="hw-card">
+                    <img src="img/esp32c3.jpg" alt="ESP32-C3 SuperMini">
+                    <div class="hw-name">ESP32-C3 SuperMini</div>
+                    <a href="https://www.aliexpress.com/w/wholesale-esp32-c3-supermini.html" target="_blank" class="hw-link">Find Online</a>
+                </div>
+                <div class="hw-card">
+                    <img src="img/oled.jpg" alt="0.96 OLED">
+                    <div class="hw-name">0.96" OLED I2C</div>
+                    <a href="https://www.aliexpress.com/w/wholesale-0.96-oled-i2c.html" target="_blank" class="hw-link">Find Online</a>
+                </div>
+                <div class="hw-card">
+                    <img src="img/wires.jpg" alt="Wires">
+                    <div class="hw-name">Silicone Wires</div>
+                    <a href="https://www.aliexpress.com/w/wholesale-30awg-silicone-wire.html" target="_blank" class="hw-link">Find Online</a>
+                </div>
+                <div class="hw-card">
+                    <img src="img/ttp223.jpg" alt="TTP223">
+                    <div class="hw-name">TTP223 (Optional)</div>
+                    <a href="https://www.aliexpress.com/w/wholesale-ttp223-touch-sensor.html" target="_blank" class="hw-link">Find Online</a>
+                </div>
+            </div>
+
+            <p style="margin-bottom: 5px;"><strong>Wiring Notes:</strong></p>
+            <ul style="margin-top: 5px; font-size: 0.9rem;">
+                <li>For a <strong>Basic Setup</strong> (Screen only), standard female-female jumper wires work perfectly. Soldering is optional but recommended for a cleaner, more durable build.</li>
+                <li>For the <strong>Full Setup</strong> (Screen + Button), soldering is required to share the limited power pins and ensure a reliable connection.</li>
+            </ul>
+
+            <img src="img/Tinytosh_bb.jpg" alt="Tinytosh Wiring Diagram" class="diagram-img">
+
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Component</th>
+                            <th>Pin Name</th>
+                            <th>ESP32 Connection</th>
+                            <th>Notes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>OLED Display</strong></td>
+                            <td>VCC</td>
+                            <td><span class="pin">3.3V</span> or <span class="pin">5V</span></td>
+                            <td>Power</td>
+                        </tr>
+                        <tr>
+                            <td></td>
+                            <td>GND</td>
+                            <td><span class="pin">G (GND)</span></td>
+                            <td>Ground</td>
+                        </tr>
+                        <tr>
+                            <td></td>
+                            <td>SCL</td>
+                            <td><span class="pin">GPIO 9</span></td>
+                            <td>I2C Clock</td>
+                        </tr>
+                        <tr>
+                            <td></td>
+                            <td>SDA</td>
+                            <td><span class="pin">GPIO 8</span></td>
+                            <td>I2C Data</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Button (Optional)</strong></td>
+                            <td>VCC</td>
+                            <td><span class="pin">3.3V</span></td>
+                            <td><strong>Do not</strong> use 5V for button</td>
+                        </tr>
+                        <tr>
+                            <td></td>
+                            <td>I/O (SIG)</td>
+                            <td><span class="pin">GPIO 10</span></td>
+                            <td>Input Signal</td>
+                        </tr>
+                        <tr>
+                            <td></td>
+                            <td>GND</td>
+                            <td><span class="pin">G (GND)</span></td>
+                            <td>Use Y-splitter or solder to share ground</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div style="margin-top: 25px;">
+                <h3>🛠️ Assembly in 5 Steps</h3>
+                <p style="margin-bottom: 10px;">The 3D-printed case is designed for a tool-free, <strong>screwless assembly</strong>:</p>
+                <ol style="padding-left: 20px; line-height: 1.6; color: var(--text-muted);">
+                    <li><strong>Print the Case:</strong> It consists of two parts (Main Body & Cover) designed with precise rails for a secure snap-fit.</li>
+                    <li><strong>Prepare Hardware:</strong> Solder or wire your components according to the table above.</li>
+                    <li><strong>Slide in Display:</strong> Insert the OLED into the dedicated guide slot from the top. Internal stoppers ensure it sits perfectly level at the bottom.</li>
+                    <li><strong>Snap & Close:</strong> Tuck the ESP32 inside, align the Cover with the rails on the Main Body, and snap it shut.</li>
+                    <li><strong>Connect:</strong> Plug a USB-C cable into the port cutout on the back.</li>
+                </ol>
+            </div>
+
+            <div class="info-box" style="margin-top: 25px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 15px;">
+                <div>
+                    <strong>🖨️ 3D Printed Case</strong><br>
+                    <p style="margin-top: 5px;">
+                        You can download the STL/3MF files for the case on MakerWorld. Includes a <strong>ready-to-print profile</strong> with optimized settings.
+                    </p>
+                </div>
+                <a href="#" class="btn" style="min-width: 140px; font-size: 0.9rem;">Download STL/3MF</a>
+            </div>
+
+            <details>
+                <summary>📸 View Assembly Images</summary>
+                <div class="assembly-container">
+                    <div class="assembly-grid">
+                        <div class="assembly-item">
+                            <div class="assembly-img-wrapper">
+                                <img src="img/assembly_1.jpg" alt="3D Printed Case" class="real-photo">
+                            </div>
+                            <div class="assembly-caption">1. The 3D printed case parts</div>
+                        </div>
+                        <div class="assembly-item">
+                            <div class="assembly-img-wrapper">
+                                <img src="img/assembly_2.jpg" alt="Wiring Setup" class="real-photo">
+                            </div>
+                            <div class="assembly-caption">2. ESP32 and Display wired with jumpers</div>
+                        </div>
+                        <div class="assembly-item">
+                            <div class="assembly-img-wrapper">
+                                <img src="img/assembly_3.jpg" alt="Assembly in progress" class="real-photo">
+                            </div>
+                            <div class="assembly-caption">3. Fitting components into the housing</div>
+                        </div>
+                         <div class="assembly-item">
+                            <div class="assembly-img-wrapper">
+                                <img src="img/assembly_4.jpg" alt="Finished Build" class="real-photo">
+                            </div>
+                            <div class="assembly-caption">4. Final Result</div>
+                        </div>
+                    </div>
+                </div>
+            </details>
+
+        </div>
+    </section>
+
+    <section>
+        <h2>Step 2: Flash Firmware</h2>
         <div class="step">
             <p>Connect your <strong>ESP32-C3</strong> to your computer via USB. Use a Chromium-based browser (Chrome, Edge, or Opera).</p>
             <esp-web-install-button manifest="manifest.json">
@@ -161,7 +589,7 @@
     </section>
 
     <section>
-        <h2>Step 2: Initial WiFi Setup</h2>
+        <h2>Step 3: Initial WiFi Setup</h2>
         <div class="step">
             <ol>
                 <li>Connect your Phone/PC to the WiFi network: <code>Tinytosh</code> (Password: <code>Tinytosh</code>).</li>
@@ -172,18 +600,18 @@
     </section>
 
     <section>
-        <h2>Step 3: Configure Your Screens</h2>
+        <h2>Step 4: Web Panel Configuration</h2>
         <p>Access the <strong>Web Panel</strong> by entering the device's IP address into your browser. Configure your device using the sections below:</p>
         
         <div class="feature-stack">
             
             <div class="feature-item global-item">
                 <div class="feature-header">⚙️ Global Settings & Location</div>
-                <div class="feature-section-title">Device Intervals</div>
+                <div class="feature-section-title">Control Logic</div>
                 <ul>
-                    <li><strong>Data Sync Interval:</strong> Frequency (in minutes) of data fetches for Weather, Air Quality, and Crypto.</li>
+                    <li><strong>Switch Screens Automatically:</strong> If checked, screens rotate automatically. If unchecked, the screen stays static until you press the hardware button.</li>
                     <li><strong>Screen Cycle Interval:</strong> Time (in seconds) each screen stays visible before rotating.</li>
-                    <li><strong>Time Format:</strong> <strong>12-hour (AM/PM)</strong> or <strong>24-hour</strong> time formats.</li>
+                    <li><strong>Data Sync Interval:</strong> Frequency (in minutes) of data fetches for Weather, Air Quality, and Crypto.</li>
                 </ul>
                 <div class="feature-section-title">Location & Timezone</div>
                 <p>Tinytosh uses these settings to provide accurate Clock, Weather, and Air Quality data.</p>
@@ -209,6 +637,26 @@
                     <strong>Standard:</strong> A balanced view showing time at the top (Size 3) and the date/day below. <br>
                     <strong>Minimalist:</strong> If the date is disabled, the clock switches to <strong>Jumbo Mode</strong> (Size 4), perfectly centered on both axes for maximum readability.
                 </p>
+
+                <details>
+                    <summary>📸 View Screen Preview</summary>
+                    <div class="assembly-container">
+                        <div class="assembly-grid">
+                            <div class="assembly-item">
+                                <div class="assembly-img-wrapper">
+                                    <img src="img/render_clock.png" alt="Clock Layout Render">
+                                </div>
+                                <div class="assembly-caption">Layout Render</div>
+                            </div>
+                            <div class="assembly-item">
+                                <div class="assembly-img-wrapper">
+                                    <img src="img/real_clock.jpg" alt="Clock Real Photo" class="real-photo">
+                                </div>
+                                <div class="assembly-caption">Real Photo</div>
+                            </div>
+                        </div>
+                    </div>
+                </details>
             </div>
 
             <div class="feature-item">
@@ -221,6 +669,26 @@
                 <div class="feature-section-title">Layout</div>
                 <p>Top: City and Time. Center: Big Temperature and condition icon/desc. Bottom: Feels like, Humidity (%), and Wind Speed (km/h).</p>
                 <span class="api-tag">Source: api.open-meteo.com</span>
+
+                <details>
+                    <summary>📸 View Screen Preview</summary>
+                    <div class="assembly-container">
+                        <div class="assembly-grid">
+                            <div class="assembly-item">
+                                <div class="assembly-img-wrapper">
+                                    <img src="img/render_weather.png" alt="Weather Layout Render">
+                                </div>
+                                <div class="assembly-caption">Layout Render</div>
+                            </div>
+                            <div class="assembly-item">
+                                <div class="assembly-img-wrapper">
+                                    <img src="img/real_weather.jpg" alt="Weather Real Photo" class="real-photo">
+                                </div>
+                                <div class="assembly-caption">Real Photo</div>
+                            </div>
+                        </div>
+                    </div>
+                </details>
             </div>
 
             <div class="feature-item">
@@ -233,6 +701,26 @@
                 <div class="feature-section-title">Layout</div>
                 <p>Top: City and Time. Center: AQI Value, Standard Type, and Status Icon. Bottom: Real-time PM2.5, PM10, and NO2 levels in µg/m³.</p>
                 <span class="api-tag">Source: air-quality-api.open-meteo.com</span>
+
+                <details>
+                    <summary>📸 View Screen Preview</summary>
+                    <div class="assembly-container">
+                        <div class="assembly-grid">
+                            <div class="assembly-item">
+                                <div class="assembly-img-wrapper">
+                                    <img src="img/render_aqi.png" alt="AQI Layout Render">
+                                </div>
+                                <div class="assembly-caption">Layout Render</div>
+                            </div>
+                            <div class="assembly-item">
+                                <div class="assembly-img-wrapper">
+                                    <img src="img/real_aqi.jpg" alt="AQI Real Photo" class="real-photo">
+                                </div>
+                                <div class="assembly-caption">Real Photo</div>
+                            </div>
+                        </div>
+                    </div>
+                </details>
             </div>
 
             <div class="feature-item">
@@ -242,25 +730,79 @@
                 <div class="feature-section-title">Layout</div>
                 <p>Shows the coin ticker (e.g., BTC), current price in USD, a trend icon, and the 24h percentage change.</p>
                 <span class="api-tag">Source: api.coinlore.net</span>
+
+                <details>
+                    <summary>📸 View Screen Preview</summary>
+                    <div class="assembly-container">
+                        <div class="assembly-grid">
+                            <div class="assembly-item">
+                                <div class="assembly-img-wrapper">
+                                    <img src="img/render_crypto.png" alt="Crypto Layout Render">
+                                </div>
+                                <div class="assembly-caption">Layout Render</div>
+                            </div>
+                            <div class="assembly-item">
+                                <div class="assembly-img-wrapper">
+                                    <img src="img/real_crypto.jpg" alt="Crypto Real Photo" class="real-photo">
+                                </div>
+                                <div class="assembly-caption">Real Photo</div>
+                            </div>
+                        </div>
+                    </div>
+                </details>
             </div>
 
             <div class="feature-item">
                 <div class="feature-header">🖥️ PC Monitor</div>
                 <div class="feature-section-title">Function</div>
-                <p>Connects to the Tinytosh Bridge software on your computer to stream hardware telemetry.</p>
+                <p>Connects to the Tinytosh Bridge software on your computer to stream hardware telemetry via USB.</p>
                 <div class="feature-section-title">Layout</div>
-                <p>Displays four horizontal bars: CPU Load (%), CPU Temp (°C), RAM usage (%), and Disk usage (%).</p>
+                <p>Displays four horizontal bars: CPU Load (%), RAM Usage (%), Disk Capacity (%), and Network Download Speed (KB/s or MB/s).</p>
                 <span class="api-tag">Source: Tinytosh Bridge</span>
+
+                <details>
+                    <summary>📸 View Screen Preview</summary>
+                    <div class="assembly-container">
+                        <div class="assembly-grid">
+                            <div class="assembly-item">
+                                <div class="assembly-img-wrapper">
+                                    <img src="img/render_pc.png" alt="PC Layout Render">
+                                </div>
+                                <div class="assembly-caption">Layout Render</div>
+                            </div>
+                            <div class="assembly-item">
+                                <div class="assembly-img-wrapper">
+                                    <img src="img/real_pc.jpg" alt="PC Real Photo" class="real-photo">
+                                </div>
+                                <div class="assembly-caption">Real Photo</div>
+                            </div>
+                        </div>
+                    </div>
+                </details>
             </div>
 
         </div>
     </section>
 
     <section>
-        <h2>Step 4: PC Bridge Software</h2>
+        <h2>Step 5: PC Bridge Software</h2>
         <div class="step">
-            <p>To enable <strong>PC Monitor</strong> mode, download the Bridge software for your operating system.</p>
+            <p>To enable <strong>PC Monitor</strong> mode, you need the Bridge software running on your computer. This lightweight app reads your system stats and sends them to Tinytosh over USB.</p>
             
+            <div class="app-preview-container">
+                <img src="img/tinytosh-pc.png" alt="Tinytosh Bridge App Screenshot" class="app-screenshot">
+                <div class="app-features">
+                    <div class="feature-section-title">Key Features</div>
+                    <ul>
+                        <li><strong>Real-time Dashboard:</strong> See exactly what data is being sent to your device.</li>
+                        <li><strong>Smart Auto-Connect:</strong> Automatically finds and connects to Tinytosh on startup.</li>
+                        <li><strong>Manual Control:</strong> Override port selection and toggle data streaming instantly.</li>
+                        <li><strong>System Tray:</strong> Minimizes quietly to the background; accessible anytime via the tray icon.</li>
+                        <li><strong>Start on Boot:</strong> Optional setting to launch automatically when you log in.</li>
+                    </ul>
+                </div>
+            </div>
+
             <div id="loading-text" style="color: var(--text-muted); font-size: 0.9rem;">Fetching latest version...</div>
 
             <div class="btn-container">
@@ -277,10 +819,36 @@
                 </a>
             </div>
 
-            <p style="margin-top:20px; font-size: 0.85rem; color: var(--text-muted);">
-                <strong>macOS Note:</strong> If the app says "Can't be opened" or "Damaged", move it to Applications, open Terminal, and run: <br>
-                <code>xattr -cr /Applications/tinytosh-bridge.app</code>
+            <div class="info-box" style="margin-top: 25px;">
+                <strong>⚠️ A Note on Security Warnings</strong><br>
+                <p>
+                    I am a hobbyist developer, not a corporation. I do not have expensive code-signing certificates from Microsoft or Apple. Because of this, your OS or browser may flag the app as "Unknown" or "Potentially Dangerous." This is standard behavior for unsigned open-source software.
+                </p>
+                <p>
+                    If you have concerns, the entire project is open-source. You are welcome (and encouraged!) to <a href="https://github.com/VladimirGitsarev/Tinytosh" target="_blank" style="color: var(--accent);">review the code on GitHub</a> to verify it is safe.
+                </p>
+            </div>
+
+            <div class="os-grid">
+                <div class="os-card">
+                    <strong class="os-title">Windows Users:</strong><br>
+                    <span class="os-note">
+                        Browser may block the download. Click <em>"Keep"</em> or <em>"More actions > Keep anyway"</em>. SmartScreen may also appear; click <em>"More Info > Run Anyway"</em>.
+                    </span>
+                </div>
+                <div class="os-card">
+                    <strong class="os-title">macOS Users:</strong><br>
+                    <span class="os-note">
+                        If you see "App is damaged" or "Can't be opened", move it to Applications, open Terminal, and run:<br>
+                        <code class="os-cmd">xattr -cr /Applications/TinytoshPC.app</code>
+                    </span>
+                </div>
+            </div>
+            
+            <p class="linux-footer">
+                🐧 <strong>Linux Users:</strong> God save Linux. Thanks, Linus Torvalds. It just works.
             </p>
+
         </div>
     </section>
 
@@ -291,24 +859,126 @@
 </div>
 
 <script>
-    // Configuration
-    const REPO = "VladimirGitsarev/Tinytosh";
+    const track = document.getElementById('track');
     
+    const images = [
+        'img/showcase_1.jpg',
+        'img/showcase_2.jpg',
+        'img/showcase_3.jpg',
+        'img/showcase_4.jpg',
+        'img/showcase_5.jpg'
+    ];
+    
+    const len = images.length;
+    let slidesHtml = '';
+    
+    slidesHtml += `<div class="carousel-slide"><img src="${images[len - 2]}"></div>`;
+    slidesHtml += `<div class="carousel-slide"><img src="${images[len - 1]}"></div>`;
+    
+    images.forEach(img => {
+        slidesHtml += `<div class="carousel-slide"><img src="${img}"></div>`;
+    });
+
+    slidesHtml += `<div class="carousel-slide"><img src="${images[0]}"></div>`;
+    slidesHtml += `<div class="carousel-slide"><img src="${images[1]}"></div>`;
+
+    track.innerHTML = slidesHtml;
+
+    const slides = document.querySelectorAll('.carousel-slide');
+    let currentIndex = 2;
+    let isTransitioning = false;
+
+    function updateCarousel(instantly = false) {
+        const isMobile = window.innerWidth <= 600;
+        const slideWidth = isMobile ? 89 : 60; 
+        const centerOffset = isMobile ? 5.5 : 20; 
+
+        const translateVal = - (currentIndex * slideWidth) + centerOffset;
+
+        track.style.transition = instantly ? 'none' : 'transform 0.5s ease-in-out';
+        track.style.transform = `translateX(${translateVal}%)`;
+
+        slides.forEach((slide, index) => {
+            slide.style.transition = instantly ? 'none' : 'all 0.5s ease-in-out';
+            slide.classList.remove('active');
+            if(index === currentIndex) {
+                slide.classList.add('active');
+            }
+        });
+        
+        if(instantly) {
+            void track.offsetWidth; 
+        }
+    }
+
+    updateCarousel(true);
+
+    document.getElementById('nextBtn').addEventListener('click', () => {
+        if(isTransitioning) return;
+        isTransitioning = true;
+        currentIndex++;
+        updateCarousel();
+    });
+
+    document.getElementById('prevBtn').addEventListener('click', () => {
+        if(isTransitioning) return;
+        isTransitioning = true;
+        currentIndex--;
+        updateCarousel();
+    });
+
+    track.addEventListener('transitionend', () => {
+        isTransitioning = false;
+        
+        const totalSlides = slides.length;
+        const realCount = images.length;
+
+        if (currentIndex >= totalSlides - 2) {
+            currentIndex = currentIndex - realCount; 
+            updateCarousel(true);
+        }
+        else if (currentIndex < 2) {
+            currentIndex = currentIndex + realCount; 
+            updateCarousel(true);
+        }
+    });
+
+    let touchStartX = 0;
+    let touchEndX = 0;
+
+    track.addEventListener('touchstart', e => {
+        touchStartX = e.changedTouches[0].screenX;
+    });
+
+    track.addEventListener('touchend', e => {
+        touchEndX = e.changedTouches[0].screenX;
+        handleSwipe();
+    });
+
+    function handleSwipe() {
+        if (touchEndX < touchStartX - 50) {
+            document.getElementById('nextBtn').click();
+        }
+        if (touchEndX > touchStartX + 50) {
+            document.getElementById('prevBtn').click();
+        }
+    }
+
+    window.addEventListener('resize', () => updateCarousel(true));
+
+    const REPO = "VladimirGitsarev/Tinytosh";
     async function fetchLatestRelease() {
         const loading = document.getElementById('loading-text');
         try {
-            // 1. Fetch release data from GitHub API
             const response = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`);
             if (!response.ok) throw new Error("Network response was not ok");
             
             const data = await response.json();
             
-            // 2. Find assets for each OS
             const winAsset = data.assets.find(a => a.name.endsWith('.exe') || a.name.endsWith('.msi'));
             const macAsset = data.assets.find(a => a.name.endsWith('.dmg'));
             const linAsset = data.assets.find(a => a.name.endsWith('.deb') || a.name.endsWith('.AppImage'));
 
-            // 3. Update buttons
             if (winAsset) {
                 const btn = document.getElementById('btn-win');
                 btn.href = winAsset.browser_download_url;
@@ -336,7 +1006,6 @@
                 document.getElementById('btn-linux').innerText = "Linux (Not Found)";
             }
 
-            // 4. Update status text
             loading.innerHTML = `Latest Version: <strong>${data.tag_name}</strong>`;
             loading.style.color = "var(--accent)";
 
@@ -346,7 +1015,6 @@
         }
     }
 
-    // Run on load
     fetchLatestRelease();
 </script>
 
