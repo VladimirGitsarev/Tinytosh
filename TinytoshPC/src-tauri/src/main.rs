@@ -7,7 +7,7 @@ use std::env;
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{TrayIconBuilder, TrayIconEvent, MouseButton};
 use tauri::{Manager, WindowEvent, Size, LogicalSize}; 
-use sysinfo::{System, Disks, Networks}; 
+use sysinfo::{System, Disks, Components};
 use serialport::{SerialPort, SerialPortType};
 use tauri_plugin_autostart::ManagerExt;
 
@@ -22,7 +22,7 @@ struct AppState {
 #[derive(serde::Serialize)]
 struct BridgeStats {
     cpu_percent: f32,
-    net_down_kb: u64, 
+    cpu_temp: f32,
     mem_percent: f64,
     disk_percent: u64,
 }
@@ -160,17 +160,21 @@ fn main() {
                 let state = app_handle.state::<AppState>();
                 let mut sys = System::new_all();
                 let mut disks = Disks::new_with_refreshed_list();
-                let mut networks = Networks::new_with_refreshed_list(); 
+                
+                // 1. Initialize Components instead of Networks
+                let mut components = Components::new_with_refreshed_list();
                 let mut scan_counter = 0;
 
                 loop {
-                    // 1. REFRESH DATA
+                    // 2. REFRESH DATA
                     sys.refresh_cpu_usage(); 
                     sys.refresh_memory();
                     disks.refresh_list(); 
-                    networks.refresh(); 
+                    
+                    // Refresh temperature sensors
+                    components.refresh();
 
-                    // 2. CALCULATE METRICS
+                    // 3. CALCULATE METRICS
                     let cpu = sys.global_cpu_usage(); 
                     let ram = sys.used_memory() as f64 / sys.total_memory() as f64 * 100.0;
                     
@@ -180,12 +184,17 @@ fn main() {
                         .map(|d| (d.total_space() - d.available_space()) * 100 / d.total_space())
                         .unwrap_or(0);
 
-                    let total_rx_bytes: u64 = networks.iter().map(|(_, n)| n.received()).sum();
-                    let download_kb = total_rx_bytes / 1024; 
+                    // LOGIC: Find the highest reported temperature
+                    // This usually grabs the CPU Package or the hottest core
+                    let temp: f32 = components.iter()
+                        .map(|c| c.temperature())
+                        .max_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+                        .unwrap_or(0.0);
 
+                    // Update struct
                     let data = BridgeStats { 
                         cpu_percent: cpu, 
-                        net_down_kb: download_kb, 
+                        cpu_temp: temp,  // Sending Temp instead of Network
                         mem_percent: ram, 
                         disk_percent: disk_usage 
                     };
