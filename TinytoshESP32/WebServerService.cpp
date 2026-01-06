@@ -110,6 +110,12 @@ String WebServerService::generateRootPageContent() {
   content += "fieldset { border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin-top: 15px; background: rgba(0,0,0,0.1); }";
   content += "legend { color: var(--accent); font-weight: 700; padding: 0 10px; font-size: 0.9rem; text-transform: uppercase; }";
 
+  // Animation Control Styles
+  content += ".anim-label { margin-top: 20px; margin-bottom: 10px; font-weight: 600; display: block; }";
+  content += ".anim-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 15px; padding: 0 12px 16px; background: rgba(255,255,255,0.05); border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); }";
+  content += ".anim-item { cursor: pointer; font-size: 0.9em; display: flex; align-items: center; }";
+  content += ".anim-item input { margin-right: 8px; }";
+
   // Buttons & Misc
   content += "button { background-color: var(--accent); color: white; padding: 16px; border: none; border-radius: 8px; cursor: pointer; margin-top: 30px; width: 100%; font-size: 1.1rem; font-weight: 700; transition: opacity 0.2s; }";
   content += "button:hover { opacity: 0.9; }";
@@ -137,12 +143,41 @@ String WebServerService::generateRootPageContent() {
   content += "<label style='margin: 10px 0 0; cursor:pointer; font-weight:600;'><input type='checkbox' id='autoCycle' name='auto_cycle' value='1' " + String(config.screen_auto_cycle ? "checked" : "") + "> Cycle Screens Automatically</label>";
   content += "<p style='font-size:0.8em; color:var(--text-muted); margin-top:8px;'>If disabled, screens will only change when you press the button.</p>";
   
-  // Screen Cycle Interval (Added ID 'screenIntInput' for JS targeting)
+  // Screen Cycle Interval
   content += "<label>Screen Cycle Interval (Secs):</label><input type='number' id='screenIntInput' name='screen_int' value='" + String(config.screen_interval_sec) + "'>";
 
+  // Animation Radio Buttons
+  content += "<label class='anim-label'>Transition Effect:</label>";
+  
+  // Container for the grid
+  content += "<div class='anim-grid'>";
+  
+  const char* animLabels[] = {
+      "🚫 None",
+      "↔️ Slide Horizontal",
+      "↕️ Slide Vertical",
+      "👾 Dissolve (Noise)",
+      "🎭 Curtain Open",
+      "🎹 Venetian Blinds",
+      "🎲 Random"
+  };
+
+  int animOrder[] = {6, 0, 1, 2, 3, 4, 5};
+
+  for (int i : animOrder) {
+      String checked = (config.animation_effect == i) ? "checked" : "";
+      
+      content += "<label class='anim-item'>";
+      content += "<input type='radio' name='anim_effect' value='" + String(i) + "' " + checked + ">";
+      content += String(animLabels[i]);
+      content += "</label>";
+  }
+  content += "</div>";
+
+  // --- UPDATED: Time Format Radios ---
   content += "<label>Time Format:</label><div style='display:flex; gap:15px; margin-top:8px;'>";
-  content += "<span><input type='radio' name='time_format' value='24' " + String(config.time_format == "24" ? "checked" : "") + "> 24-Hour</span>";
-  content += "<span><input type='radio' name='time_format' value='12' " + String(config.time_format == "12" ? "checked" : "") + "> 12-Hour</span></div>";
+  content += "<label style='cursor:pointer; display:flex; align-items:center;'><input type='radio' name='time_format' value='24' " + String(config.time_format == "24" ? "checked" : "") + " style='margin-right:6px;'> 24-Hour</label>";
+  content += "<label style='cursor:pointer; display:flex; align-items:center;'><input type='radio' name='time_format' value='12' " + String(config.time_format == "12" ? "checked" : "") + " style='margin-right:6px;'> 12-Hour</label></div>";
   content += "<p style='font-size:0.8em; color:var(--text-muted); margin-top:8px;'>Format affects both the OLED display and the Web Panel.</p>";
 
   content += "<hr style='border: 0; border-top: 1px solid var(--border); margin: 25px 0;'>";
@@ -189,7 +224,7 @@ String WebServerService::generateRootPageContent() {
   content += "<div class='tile-label'>Current Date</div>";
   content += "</div></div>";
 
-  content += "<label><input type='checkbox' name='date_display' value='1' " + String(config.date_display ? "checked" : "") + "> Display Date</label>";
+  content += "<label style='margin-top:10px; cursor:pointer;'><input type='checkbox' name='date_display' value='1' " + String(config.date_display ? "checked" : "") + "> Display Date</label>";
   content += "</div></div>";
 
   // 3. Weather Screen
@@ -207,10 +242,13 @@ String WebServerService::generateRootPageContent() {
       content += "</div>";
       content += "<div class='update-footer' id='weather-upd'>Last Update: " + weather.update_time + "</div>";
   }
+  
+  // --- UPDATED: Temperature Unit Radios ---
   content += "<label>Temperature Unit:</label><div style='display:flex; gap:15px; margin-top:8px;'>";
-  content += "<span><input type='radio' name='temp_unit' value='C' " + String(config.temp_unit == "C" ? "checked" : "") + "> °C</span>";
-  content += "<span><input type='radio' name='temp_unit' value='F' " + String(config.temp_unit == "F" ? "checked" : "") + "> °F</span></div>";
-  content += "<label><input type='checkbox' name='round_temps' value='1' " + String(config.round_temps ? "checked" : "") + "> Round Temperature Values</label>";
+  content += "<label style='cursor:pointer; display:flex; align-items:center;'><input type='radio' name='temp_unit' value='C' " + String(config.temp_unit == "C" ? "checked" : "") + " style='margin-right:6px;'> °C</label>";
+  content += "<label style='cursor:pointer; display:flex; align-items:center;'><input type='radio' name='temp_unit' value='F' " + String(config.temp_unit == "F" ? "checked" : "") + " style='margin-right:6px;'> °F</label></div>";
+  
+  content += "<label style='margin-top:10px; cursor:pointer;'><input type='checkbox' name='round_temps' value='1' " + String(config.round_temps ? "checked" : "") + "> Round Temperature Values</label>";
   content += "</div></div>";
 
   // 3. Air Quality Screen
@@ -230,9 +268,10 @@ String WebServerService::generateRootPageContent() {
       content += "<div class='update-footer' id='aqi-upd'>Last Update: " + weather.update_time + "</div>";
   }
 
+  // --- UPDATED: AQI Standard Radios ---
   content += "<label>AQI Standard:</label><div style='display:flex; gap:15px; margin-top:8px;'>";
-  content += "<span><input type='radio' name='aqi_type' value='EU' " + String(config.aqi_type == "EU" ? "checked" : "") + "> European Standard</span>";
-  content += "<span><input type='radio' name='aqi_type' value='US' " + String(config.aqi_type == "US" ? "checked" : "") + "> US Standard</span></div>";
+  content += "<label style='cursor:pointer; display:flex; align-items:center;'><input type='radio' name='aqi_type' value='US' " + String(config.aqi_type == "US" ? "checked" : "") + " style='margin-right:6px;'> US Standard</label>";
+  content += "<label style='cursor:pointer; display:flex; align-items:center;'><input type='radio' name='aqi_type' value='EU' " + String(config.aqi_type == "EU" ? "checked" : "") + " style='margin-right:6px;'> European Standard</label></div>";
   content += "<p style='font-size:0.8em; color:#888; margin-top:8px;'>EU: 0-100+ scale | US: 0-500 scale</p>";
 
   content += "</div></div>";
@@ -264,6 +303,7 @@ String WebServerService::generateRootPageContent() {
       content += "<div class='tile'><div class='tile-icon'>₿</div><div class='tile-value' id='crypto-price'>" + String((int)round(cryptoData.price_usd)) + "$</div><div class='tile-label' id='crypto-sym'>" + cryptoData.symbol + " Price</div></div>";
       content += "<div class='tile'><div class='tile-icon' id='crypto-trend-icon'>" + String(cryptoData.percent_change_24h >= 0 ? "📈" : "📉") + "</div><div class='tile-value' id='crypto-change'>" + String(cryptoData.percent_change_24h, 1) + "%</div><div class='tile-label'>24h Change</div></div>";
       content += "</div>";
+      content += "<div class='update-footer' id='weather-upd'>Last Update: " + weather.update_time + "</div>";
   }
   content += "<label>Track Cryptocurrency:</label><select name='crypto_id'>";
   for(auto coin : topCoins) {
@@ -362,6 +402,7 @@ void WebServerService::handleSave() {
   if (server.hasArg("aqi_type")) config.aqi_type = server.arg("aqi_type");
   if (server.hasArg("refresh_min")) config.refresh_interval_min = server.arg("refresh_min").toInt();
   if (server.hasArg("screen_int")) config.screen_interval_sec = server.arg("screen_int").toInt();
+  if (server.hasArg("anim_effect")) config.animation_effect = server.arg("anim_effect").toInt();
   if (server.hasArg("crypto_id")) config.crypto_id = server.arg("crypto_id").toInt();
 
   if (!config.auto_detect && server.hasArg("city")) {

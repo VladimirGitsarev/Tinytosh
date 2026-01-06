@@ -62,6 +62,7 @@ bool WeatherService::fetchWeather(const Config& config, WeatherData& data, const
       data.wind_speed = doc["current"]["wind_speed_10m"].as<float>();
       data.humidity = doc["current"]["relative_humidity_2m"].as<int>();
       data.weather_code = doc["current"]["weather_code"].as<int>();
+      data.is_day = doc["current"]["is_day"].as<bool>();
       data.update_time = updateTime;
       
       Serial.printf("WeatherService: Weather updated. Temp: %.1f %s\n", data.temp, config.temp_unit.c_str()); 

@@ -7,7 +7,6 @@ void ConfigManager::loadConfig(Config& config) {
   preferences.begin(PREF_NAMESPACE, true); 
 
   config.auto_detect = preferences.getBool("auto_detect", true);
-  config.screen_auto_cycle = preferences.getBool("auto_cycle", true);
   config.latitude = preferences.getFloat("latitude", 0.0);
   config.longitude = preferences.getFloat("longitude", 0.0);
   config.timezone = preferences.getString("timezone", ""); 
@@ -15,6 +14,8 @@ void ConfigManager::loadConfig(Config& config) {
   config.time_format = preferences.getString("time_format", "24");
   config.date_display = preferences.getBool("date_display", true);
   config.refresh_interval_min = preferences.getULong("refresh_min", 15); 
+  config.screen_auto_cycle = preferences.getBool("auto_cycle", true);
+  config.animation_effect = preferences.getInt("anim_effect", 6);
   config.round_temps = preferences.getBool("round_temps", true);
   config.temp_unit = preferences.getString("temp_unit", "C"); 
   config.aqi_type = preferences.getString("aqi_type", "EU");
@@ -36,7 +37,6 @@ void ConfigManager::saveConfig(const Config& config) {
   preferences.begin(PREF_NAMESPACE, false); 
 
   preferences.putBool("auto_detect", config.auto_detect);
-  preferences.putBool("auto_cycle", config.screen_auto_cycle);
   preferences.putFloat("latitude", config.latitude);
   preferences.putFloat("longitude", config.longitude);
   preferences.putString("timezone", config.timezone);
@@ -44,6 +44,8 @@ void ConfigManager::saveConfig(const Config& config) {
   preferences.putString("time_format", config.time_format);
   preferences.putBool("date_display", config.date_display);
   preferences.putULong("refresh_min", config.refresh_interval_min);
+  preferences.putBool("auto_cycle", config.screen_auto_cycle);
+  preferences.putInt("anim_effect", config.animation_effect);
   preferences.putBool("round_temps", config.round_temps);
   preferences.putString("temp_unit", config.temp_unit);
   preferences.putString("aqi_type", config.aqi_type);

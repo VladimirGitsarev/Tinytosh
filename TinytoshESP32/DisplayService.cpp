@@ -12,9 +12,19 @@ String DisplayService::getWeatherDescription(int wmo_code) {
     return "Unknown";
 }
 
-const unsigned char* DisplayService::getWeatherBitmap(int wmo_code) {
-    if (wmo_code == 0) return icon_sun;
-    else if (wmo_code >= 1 && wmo_code <= 3) return icon_cloud; 
+const unsigned char* DisplayService::getWeatherBitmap(int wmo_code, bool is_day) {
+    if (wmo_code == 0) {
+        if (is_day) {
+            return icon_sun;
+        }
+        return icon_moon;
+    }
+    else if (wmo_code >= 1 && wmo_code <= 3) {
+        if (is_day) {
+            return icon_cloud;
+        }
+        return icon_cloud_moon; 
+    }
     else if (wmo_code >= 45 && wmo_code <= 48) return icon_fog;
     else if (wmo_code >= 51 && wmo_code <= 67) return icon_rain;
     else if (wmo_code >= 71 && wmo_code <= 77) return icon_snow;
@@ -55,6 +65,7 @@ void DisplayService::showOLEDStatus(std::initializer_list<String> lines, bool cl
     display.setTextColor(SSD1306_WHITE);
     display.setTextSize(1);
     
+    int lineHeight = 10;
     int cursorY = 0;
     int16_t x1, y1;
     uint16_t w, h;
@@ -87,7 +98,6 @@ void DisplayService::drawTimeScreen(const Config& config, String timeStr, String
     uint16_t w, h;
 
     if (config.date_display) {
-        // Layout WITH Date
         display.setTextSize(3);
         display.getTextBounds(timeStr, 0, 0, &x1, &y1, &w, &h);
         display.setCursor((128 - w) / 2, 10); 
@@ -98,7 +108,6 @@ void DisplayService::drawTimeScreen(const Config& config, String timeStr, String
         display.setCursor((128 - w) / 2, 48); 
         display.print(dateStr);
     } else {
-        // Layout WITHOUT Date
         display.setTextSize(4);
         display.getTextBounds(timeStr, 0, 0, &x1, &y1, &w, &h);
 
@@ -108,8 +117,6 @@ void DisplayService::drawTimeScreen(const Config& config, String timeStr, String
         display.setCursor(xPos, yPos);
         display.print(timeStr);
     }
-
-    display.display();
 }
 
 void DisplayService::drawWeatherScreen(const Config& config, const WeatherData& data, const String& currentTime) {
@@ -164,7 +171,7 @@ void DisplayService::drawWeatherScreen(const Config& config, const WeatherData& 
     int xIcon = xRightEdge - iconSize; 
     int yIcon = yMiddleStart + 1; 
 
-    const unsigned char* iconBitmap = valid ? getWeatherBitmap(data.weather_code) : icon_cloud;
+    const unsigned char* iconBitmap = valid ? getWeatherBitmap(data.weather_code, data.is_day) : icon_cloud;
     display.drawBitmap(xIcon, yIcon, iconBitmap, iconSize, iconSize, SSD1306_WHITE); 
 
     // 3. Weather Description
@@ -184,10 +191,7 @@ void DisplayService::drawWeatherScreen(const Config& config, const WeatherData& 
     int x2_start = 48; 
     int x3_start = 91; 
 
-    // Feels Like
-    String feelsLikeVal = valid ? 
-                          (config.round_temps ? String((int)round(data.apparent_temperature)) : String(data.apparent_temperature, 1)) : 
-                          "--";
+    String feelsLikeVal = valid ? (config.round_temps ? String((int)round(data.apparent_temperature)) : String(data.apparent_temperature, 1)) : "--";
 
     display.drawBitmap(x1_start, yFooter, icon_feel, iconSmallSize, iconSmallSize, SSD1306_WHITE); 
     int x1_value = x1_start + iconSmallSize + 2; 
@@ -210,8 +214,6 @@ void DisplayService::drawWeatherScreen(const Config& config, const WeatherData& 
     int x3_value = x3_start + iconSmallSize + 2;
     display.setCursor(x3_value, yFooter + 1);
     display.print(windVal);
-
-    display.display();
 }
 
 void DisplayService::drawAQIScreen(const Config& config, const AirQualityData& data, const String& currentTime) {
@@ -254,14 +256,14 @@ void DisplayService::drawAQIScreen(const Config& config, const AirQualityData& d
     display.print(aqiStr);
 
     display.setTextSize(1);
-    int xLabel = xStartAqi + w + 4; // Position to the right of the big number
+    int xLabel = xStartAqi + w + 4;
 
     // Print the Type (US or EU) slightly higher
-    display.setCursor(xLabel + 2, yAqi + 4); 
+    display.setCursor(xLabel + 2, yAqi); 
     display.print(config.aqi_type); 
 
     // Print "AQI" directly below the type
-    display.setCursor(xLabel, yAqi + 14); 
+    display.setCursor(xLabel, yAqi + 9); 
     display.print("AQI");
 
     int iconSize = 24; 
@@ -288,12 +290,10 @@ void DisplayService::drawAQIScreen(const Config& config, const AirQualityData& d
     int iconSmallSize = 8;
     int unitIconSize = 8;
 
-    // Prepare values as strings without "km"
     String pm25Val = valid ? String((int)round(data.pm25)) : "--";
     String pm10Val = valid ? String((int)round(data.pm10)) : "--";
     String no2Val  = valid ? String((int)round(data.no2)) : "--";
 
-    // --- LEFT ALIGN (PM 2.5) ---
     int x1_icon = 2;
     display.drawBitmap(x1_icon, yFooter, icon_small_particles, iconSmallSize, iconSmallSize, SSD1306_WHITE);
     int x1_text = x1_icon + iconSmallSize + 2;
@@ -302,9 +302,7 @@ void DisplayService::drawAQIScreen(const Config& config, const AirQualityData& d
     display.getTextBounds(pm25Val.c_str(), 0, 0, &x1, &y1, &w, &h);
     display.drawBitmap(x1_text + w + 1, yFooter + 1, icon_ug, unitIconSize, unitIconSize, SSD1306_WHITE);
 
-    // --- CENTER ALIGN (PM 10) ---
     display.getTextBounds(pm10Val.c_str(), 0, 0, &x1, &y1, &w, &h);
-    // Total width = icon + spacing + text + spacing + unit icon
     int totalWidthCenter = iconSmallSize + 2 + w + 1 + unitIconSize;
     int x2_icon = (display.width() / 2) - (totalWidthCenter / 2);
     
@@ -314,18 +312,15 @@ void DisplayService::drawAQIScreen(const Config& config, const AirQualityData& d
     display.print(pm10Val);
     display.drawBitmap(x2_text + w + 1, yFooter + 1, icon_ug, unitIconSize, unitIconSize, SSD1306_WHITE);
 
-    // --- RIGHT ALIGN (NO2) ---
     display.getTextBounds(no2Val.c_str(), 0, 0, &x1, &y1, &w, &h);
     int totalWidthRight = iconSmallSize + 2 + w + 1 + unitIconSize;
     int x3_icon = display.width() - totalWidthRight - 2;
 
-    display.drawBitmap(x3_icon, yFooter, icon_no2, iconSmallSize, iconSmallSize, SSD1306_WHITE);
+    display.drawBitmap(x3_icon, yFooter, icon_gas, iconSmallSize, iconSmallSize, SSD1306_WHITE);
     int x3_text = x3_icon + iconSmallSize + 2;
     display.setCursor(x3_text, yFooter + 1);
     display.print(no2Val);
     display.drawBitmap(x3_text + w + 1, yFooter + 1, icon_ug, unitIconSize, unitIconSize, SSD1306_WHITE);
-
-    display.display();
 }
 
 void DisplayService::drawPcScreen(const PcStats& pcStats) {
@@ -392,8 +387,6 @@ void DisplayService::drawPcScreen(const PcStats& pcStats) {
     } else {
         display.print(String((int)pcStats.net_down_kb) + "K");
     }
-
-    display.display();
 }
 
 void DisplayService::drawCryptoScreen(const CryptoData& data) {
@@ -423,8 +416,6 @@ void DisplayService::drawCryptoScreen(const CryptoData& data) {
     // Add '+' sign for positive changes
     String trendPrefix = isPositive ? "+" : ""; 
     display.print(trendPrefix + String(data.percent_change_24h, 1) + "%");
-
-    display.display();
 }
 
 void DisplayService::drawNoData() {
@@ -438,8 +429,6 @@ void DisplayService::drawNoData() {
     display.setTextWrap(false);
     display.setCursor(23, 25);
     display.print("No data");
-
-    display.display();
 }
 
 bool DisplayService::isScreenEnabled(const Config& config, int screenIndex) {
@@ -451,4 +440,166 @@ bool DisplayService::isScreenEnabled(const Config& config, int screenIndex) {
         case SCREEN_CRYPTO:         return config.show_crypto;
         default:                    return false;
     }
+}
+
+void DisplayService::drawScreen(int screenIndex, const Config& config, TimeService& timeService, const WeatherData& weather, const AirQualityData& aqi, const PcStats& pc, const CryptoData& crypto) {
+  switch(screenIndex) {
+    case SCREEN_TIME:
+      drawTimeScreen(config, timeService.getCurrentTimeShort(config.time_format), timeService.getFullDate());
+      break;
+    case SCREEN_WEATHER:
+      drawWeatherScreen(config, weather, timeService.getCurrentTimeShort(config.time_format));
+      break;
+    case SCREEN_AIR_QUALITY:
+      drawAQIScreen(config, aqi, timeService.getCurrentTimeShort(config.time_format));
+      break;
+    case SCREEN_PC_MONITOR:
+      drawPcScreen(pc);
+      break;
+    case SCREEN_CRYPTO:
+      drawCryptoScreen(crypto);
+      break;
+  }
+}
+
+void DisplayService::animateTransition(int prevScreen, int nextScreen, int effect, const Config& config, TimeService& timeService, const WeatherData& weather, const AirQualityData& aqi, const PcStats& pc, const CryptoData& crypto) {
+    if (effect == ANIM_RANDOM) {
+        effect = random(1, 6);
+    }
+
+    switch(effect) {
+        case ANIM_SLIDE_HORIZONTAL:
+            animateHorizontal(prevScreen, nextScreen, config, timeService, weather, aqi, pc, crypto);
+            break;
+        case ANIM_SLIDE_VERTICAL:
+            animateVertical(prevScreen, nextScreen, config, timeService, weather, aqi, pc, crypto);
+            break;
+        case ANIM_DISSOLVE:
+            animateDissolve(prevScreen, nextScreen, config, timeService, weather, aqi, pc, crypto);
+            break;
+        case ANIM_CURTAIN:
+            animateCurtain(prevScreen, nextScreen, config, timeService, weather, aqi, pc, crypto);
+            break;
+        case ANIM_BLINDS:
+            animateBlinds(prevScreen, nextScreen, config, timeService, weather, aqi, pc, crypto);
+            break;
+        default:
+            display.clearDisplay();
+            drawScreen(nextScreen, config, timeService, weather, aqi, pc, crypto);
+            display.display();
+            break;
+    }
+}
+
+// Animations
+
+void DisplayService::animateHorizontal(int prev, int next, const Config& c, TimeService& t, const WeatherData& w, const AirQualityData& a, const PcStats& p, const CryptoData& cr) {
+  display.clearDisplay(); drawScreen(prev, c, t, w, a, p, cr); memcpy(screenBufferOld, display.getBuffer(), 1024);
+  display.clearDisplay(); drawScreen(next, c, t, w, a, p, cr); memcpy(screenBufferNew, display.getBuffer(), 1024);
+
+  int step = 8;
+  for (int offset = 0; offset <= 128; offset += step) {
+    uint8_t* displayBuf = display.getBuffer();
+    for (int page = 0; page < 8; page++) {
+      int start = page * 128; 
+      if (offset < 128) memcpy(&displayBuf[start], &screenBufferOld[start + offset], 128 - offset);
+      if (offset > 0) memcpy(&displayBuf[start + (128 - offset)], &screenBufferNew[start], offset);
+    }
+    display.display();
+  }
+}
+
+void DisplayService::animateVertical(int prev, int next, const Config& c, TimeService& t, const WeatherData& w, const AirQualityData& a, const PcStats& p, const CryptoData& cr) {
+  display.clearDisplay(); drawScreen(prev, c, t, w, a, p, cr); memcpy(screenBufferOld, display.getBuffer(), 1024);
+  display.clearDisplay(); drawScreen(next, c, t, w, a, p, cr); memcpy(screenBufferNew, display.getBuffer(), 1024);
+
+  for (int step = 0; step <= 8; step++) {
+    uint8_t* displayBuf = display.getBuffer();
+    for (int page = 0; page < 8; page++) {
+        int oldPageIdx = page + step;
+        int newPageIdx = page - (8 - step);
+        int destIndex = page * 128;
+
+        if (oldPageIdx < 8) memcpy(&displayBuf[destIndex], &screenBufferOld[oldPageIdx * 128], 128);
+        else if (newPageIdx >= 0) memcpy(&displayBuf[destIndex], &screenBufferNew[newPageIdx * 128], 128);
+    }
+    display.display();
+    delay(10); 
+  }
+}
+
+void DisplayService::animateDissolve(int prev, int next, const Config& c, TimeService& t, const WeatherData& w, const AirQualityData& a, const PcStats& p, const CryptoData& cr) {
+  display.clearDisplay(); drawScreen(prev, c, t, w, a, p, cr); memcpy(screenBufferOld, display.getBuffer(), 1024);
+  display.clearDisplay(); drawScreen(next, c, t, w, a, p, cr); memcpy(screenBufferNew, display.getBuffer(), 1024);
+
+  uint8_t* displayBuf = display.getBuffer();
+  for (int step = 0; step < 8; step++) {
+      uint8_t mask = 0;
+      switch(step) {
+          case 0: mask = 0b10000000; break;
+          case 1: mask = 0b11000000; break;
+          case 2: mask = 0b11100000; break;
+          case 3: mask = 0b11100100; break;
+          case 4: mask = 0b11110100; break;
+          case 5: mask = 0b11111100; break;
+          case 6: mask = 0b11111110; break;
+          case 7: mask = 0b11111111; break;
+      }
+      for (int i = 0; i < 1024; i++) {
+          displayBuf[i] = (screenBufferNew[i] & mask) | (screenBufferOld[i] & ~mask);
+      }
+      display.display();
+  }
+}
+
+void DisplayService::animateCurtain(int prev, int next, const Config& c, TimeService& t, const WeatherData& w, const AirQualityData& a, const PcStats& p, const CryptoData& cr) {
+  display.clearDisplay(); drawScreen(prev, c, t, w, a, p, cr); memcpy(screenBufferOld, display.getBuffer(), 1024);
+  display.clearDisplay(); drawScreen(next, c, t, w, a, p, cr); memcpy(screenBufferNew, display.getBuffer(), 1024);
+
+  int maxRadius = 80; 
+  int step = 4;
+  uint8_t* displayBuf = display.getBuffer();
+
+  for (int r = 0; r <= maxRadius; r += step) {
+      int startX = 64 - r; if (startX < 0) startX = 0;
+      int endX = 64 + r; if (endX > 128) endX = 128;
+      
+      for (int x = 0; x < 128; x++) {
+          bool insideCurtain = (x >= startX && x < endX);
+          for (int page = 0; page < 8; page++) {
+              int idx = x + (page * 128);
+              displayBuf[idx] = insideCurtain ? screenBufferNew[idx] : screenBufferOld[idx];
+          }
+      }
+      display.display();
+  }
+}
+
+void DisplayService::animateBlinds(int prev, int next, const Config& c, TimeService& t, const WeatherData& w, const AirQualityData& a, const PcStats& p, const CryptoData& cr) {
+  display.clearDisplay(); drawScreen(prev, c, t, w, a, p, cr); memcpy(screenBufferOld, display.getBuffer(), 1024);
+  display.clearDisplay(); drawScreen(next, c, t, w, a, p, cr); memcpy(screenBufferNew, display.getBuffer(), 1024);
+
+  uint8_t* displayBuf = display.getBuffer();
+  memcpy(displayBuf, screenBufferOld, 1024); 
+  display.display();
+
+  int blindWidth = 16;
+  int numBlinds = 8;
+  int stepSize = 2; 
+
+  for (int progress = 0; progress < blindWidth; progress += stepSize) {
+      for (int blind = 0; blind < numBlinds; blind++) {
+          int blindStartX = blind * blindWidth;
+          for (int i = 0; i < stepSize; i++) {
+              int currentX = blindStartX + progress + i;
+              if (currentX >= 128) continue;
+              for (int page = 0; page < 8; page++) {
+                  int idx = currentX + (page * 128);
+                  displayBuf[idx] = screenBufferNew[idx];
+              }
+          }
+      }
+      display.display();
+      delay(5);
+  }
 }

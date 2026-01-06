@@ -49,54 +49,31 @@ unsigned long lastDebounceTime = 0;
 
 // Helper Functions
 
-// Extracted drawing logic to be called by Timer OR Button
 void drawCurrentScreen() {
-  if (WiFi.status() != WL_CONNECTED) return; // Don't draw if WiFi lost
-
-  switch(currentScreen) {
-    case SCREEN_TIME:
-      displayService.drawTimeScreen(userConfig, timeService.getCurrentTimeShort(userConfig.time_format), timeService.getFullDate());
-      break;
-
-    case SCREEN_WEATHER:
-      displayService.drawWeatherScreen(userConfig, weatherData, timeService.getCurrentTimeShort(userConfig.time_format));
-      break;
-
-    case SCREEN_AIR_QUALITY:
-      displayService.drawAQIScreen(userConfig, airQualityData, timeService.getCurrentTimeShort(userConfig.time_format));
-      break;
-      
-    case SCREEN_PC_MONITOR:
-      displayService.drawPcScreen(pcStats);
-      break;
-
-    case SCREEN_CRYPTO:
-      displayService.drawCryptoScreen(cryptoData);
-      break;
-  }
+    displayService.drawScreen(currentScreen, userConfig, timeService, weatherData, airQualityData, pcStats, cryptoData);
 }
 
-// Logic to find the next ENABLED screen
 void switchToNextScreen() {
     int startScreen = currentScreen;
+    int nextScreenCandidate = currentScreen;
     bool foundVisible = false;
 
     do {
-        currentScreen++;
-        if (currentScreen >= NUM_SCREENS) {
-            currentScreen = 0;
-        }
-        
-        if (displayService.isScreenEnabled(userConfig, currentScreen)) {
+        nextScreenCandidate++;
+        if (nextScreenCandidate >= NUM_SCREENS) nextScreenCandidate = 0;
+        if (displayService.isScreenEnabled(userConfig, nextScreenCandidate)) {
             foundVisible = true;
             break;
         }
+    } while (nextScreenCandidate != startScreen);
 
-    } while (currentScreen != startScreen);
+    if (!foundVisible) return;
 
-    if (!foundVisible) {
-        currentScreen = SCREEN_TIME;
-    }
+    displayService.animateTransition(
+      currentScreen, nextScreenCandidate, userConfig.animation_effect, userConfig, timeService, weatherData, airQualityData, pcStats, cryptoData
+    );
+
+    currentScreen = nextScreenCandidate;
 }
 
 // Core Application Logic
@@ -155,7 +132,7 @@ void updateAllDataCallback() {
 
 void setup() {
   Serial.begin(115200);
-  pinMode(BUTTON_PIN, INPUT); // Initialize Button Pin
+  pinMode(BUTTON_PIN, INPUT);
   delay(100);
   // configManager.clearAllPreferences();
 
@@ -168,7 +145,6 @@ void setup() {
   configManager.loadConfig(userConfig); 
 
   // 3. Connect WiFi
-  // Set AP Callback to show setup instructions on OLED
   WiFiManager wm;
   // wm.resetSettings(); 
   wm.setAPCallback([](WiFiManager* m) {
@@ -211,12 +187,10 @@ void loop() {
   if ((millis() - lastDebounceTime) > DEBOUNCE_DELAY) {
     if (reading != buttonState) {
       buttonState = reading;
-
       if (buttonState == HIGH) {
         Serial.println("Button Pressed: Switching Screen");
         switchToNextScreen();
         lastScreenSwitch = millis();
-        drawCurrentScreen();
       }
     }
   }
@@ -241,7 +215,6 @@ void loop() {
   }
 
   // 2. Auto Screen Switching Logic
-  // Only auto-switch if enabled in config AND enough time has passed
   if (userConfig.screen_auto_cycle) {
       unsigned long intervalMs = userConfig.screen_interval_sec * 1000;
       if (millis() - lastScreenSwitch >= intervalMs) {
@@ -250,12 +223,11 @@ void loop() {
       }
   }
 
-  // 3. Screen Redraw Logic (Every 1 Second)
-  // Redraw every second to update clocks/dynamic data, 
-  // but button presses bypass this via the direct call above.
+  // 3. Screen Redraw Logic
   static unsigned long lastScreenUpdate = 0;
   if (millis() - lastScreenUpdate >= 1000) { 
     drawCurrentScreen();
+    displayService.display.display();
     lastScreenUpdate = millis();
   }
 }

@@ -528,8 +528,17 @@
                     <li><strong>Print the Case:</strong> It consists of two parts (Main Body & Cover) designed with precise rails for a secure snap-fit.</li>
                     <li><strong>Prepare Hardware:</strong> Solder or wire your components according to the table above.</li>
                     <li><strong>Slide in Display:</strong> Insert the OLED into the dedicated guide slot from the top. Internal stoppers ensure it sits perfectly level at the bottom.</li>
-                    <li><strong>Snap & Close:</strong> Tuck the ESP32 inside, align the Cover with the rails on the Main Body, and snap it shut.</li>
-                    <li><strong>Connect:</strong> Plug a USB-C cable into the port cutout on the back.</li>
+                    <li><strong>Insert ESP32 & Close:</strong> Place the microcontroller inside the case.
+                        <div style="margin: 8px 0; padding-left: 10px; border-left: 2px solid var(--accent); font-size: 0.9em; opacity: 0.9;">
+                            <strong>Design Note:</strong> The ESP32 floats freely inside the case without a tight mount. This is done deliberately to provide ample space for you to add extra sensors, batteries, or peripherals for your own projects. Despite this, the board hardly moves once the case is closed, ensuring no issues when inserting the USB cable.
+                        </div>
+                        Align the Cover with the rails on the Main Body and snap it shut.
+                    </li>
+                    <li><strong>Connect:</strong> Plug a USB-C cable into the port cutout on the back.
+                        <div style="margin: 8px 0; padding-left: 10px; border-left: 2px solid var(--accent); font-size: 0.9em; opacity: 0.9;">
+                            <strong>Troubleshooting:</strong> If the device constantly connects and disconnects (boot loop) when plugged in, unplug it, hold the button labeled <strong>BOOT</strong> on the board, plug it back in while holding, and wait 2 seconds before releasing. This forces "Download Mode" so you can flash it.
+                        </div>
+                    </li>
                 </ol>
             </div>
 
@@ -605,14 +614,23 @@
         
         <div class="feature-stack">
             
-            <div class="feature-item global-item">
+           <div class="feature-item global-item">
                 <div class="feature-header">⚙️ Global Settings & Location</div>
+                
                 <div class="feature-section-title">Control Logic</div>
                 <ul>
                     <li><strong>Switch Screens Automatically:</strong> If checked, screens rotate automatically. If unchecked, the screen stays static until you press the hardware button.</li>
                     <li><strong>Screen Cycle Interval:</strong> Time (in seconds) each screen stays visible before rotating.</li>
                     <li><strong>Data Sync Interval:</strong> Frequency (in minutes) of data fetches for Weather, Air Quality, and Crypto.</li>
                 </ul>
+
+                <div class="feature-section-title">Visual Effects</div>
+                <p>Customize how the device transitions between different screens:</p>
+                <ul>
+                    <li><strong>Transition Effect:</strong> Choose from 5 distinct animations (Slide, Dissolve, Curtain, Blinds) or select <strong>🎲 Random</strong> to cycle through all of them.</li>
+                    <li><strong>Time Format:</strong> Toggle between 12-hour (AM/PM) and 24-hour clock formats for both the device and web panel.</li>
+                </ul>
+
                 <div class="feature-section-title">Location & Timezone</div>
                 <p>Tinytosh uses these settings to provide accurate Clock, Weather, and Air Quality data.</p>
                 <ul>
@@ -794,6 +812,7 @@
                 <div class="app-features">
                     <div class="feature-section-title">Key Features</div>
                     <ul>
+                        <li><strong>Native Monitoring:</strong> Reads system stats (CPU, RAM, Network) directly — no AIDA64, LibreHardwareMonitor, HWiNFO, or third-party tools required.</li>
                         <li><strong>Real-time Dashboard:</strong> See exactly what data is being sent to your device.</li>
                         <li><strong>Smart Auto-Connect:</strong> Automatically finds and connects to Tinytosh on startup.</li>
                         <li><strong>Manual Control:</strong> Override port selection and toggle data streaming instantly.</li>

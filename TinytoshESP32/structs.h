@@ -18,10 +18,12 @@ struct Config {
   unsigned long refresh_interval_min = 15;
   int screen_interval_sec = 15;
   bool screen_auto_cycle = true;
+  int animation_effect = 1;
+
   bool round_temps = true; 
   String temp_unit = "C";
 
-  String aqi_type = "EU";
+  String aqi_type = "US";
   
   bool show_time = true;
   bool show_weather = true;
@@ -36,6 +38,7 @@ struct WeatherData {
   float wind_speed = NAN;
   int humidity = 0;
   int weather_code = -1; 
+  bool is_day = NAN;
   String update_time = "N/A";
 };
 
@@ -84,6 +87,16 @@ enum ScreenType {
   SCREEN_CRYPTO,
   SCREEN_PC_MONITOR,
   NUM_SCREENS
+};
+
+enum AnimType {
+  ANIM_NONE,
+  ANIM_SLIDE_HORIZONTAL,
+  ANIM_SLIDE_VERTICAL,
+  ANIM_DISSOLVE,
+  ANIM_CURTAIN,
+  ANIM_BLINDS,
+  ANIM_RANDOM
 };
 
 #endif

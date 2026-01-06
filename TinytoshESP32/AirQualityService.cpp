@@ -42,7 +42,7 @@ String AirQualityService::getAQIDescription(int val, bool is_eu) {
         if (val <= 40)  return "Fair";
         if (val <= 60)  return "Moderate";
         if (val <= 80)  return "Poor";
-        if (val <= 100) return "V. Poor";
+        if (val <= 100) return "Very Poor";
         return "Extreme";
     } else {
         if (val <= 50)  return "Good";
