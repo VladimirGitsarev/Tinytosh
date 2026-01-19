@@ -81,7 +81,7 @@ The case is designed to be **screwless**—everything snaps together.
 
 You can download the STL/3MF files and view the full bill of materials on MakerWorld:
 
-[**📥 Download 3D Models on MakerWorld**](https://makerworld.com/en/@hitsarau/upload)
+[**📥 Download 3D Models on MakerWorld**](https://makerworld.com/en/models/2270326-tinytosh-mini-retro-pc-smart-wifi-display-esp32#profileId-2474693)
 
 ---
 
