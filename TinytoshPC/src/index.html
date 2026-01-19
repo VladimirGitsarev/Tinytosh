@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tinytosh PC</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script type="module" src="/main.js" defer></script>
+  </head>
+
+  <body>
+    <div class="container">
+      <div class="app-header">Tinytosh PC</div>
+
+      <div class="dashboard-grid">
+        <div class="tile">
+          <div class="tile-value" id="cpu">--%</div>
+          <div class="tile-label">CPU</div>
+        </div>
+        <div class="tile">
+          <div class="tile-value" id="ram">--%</div>
+          <div class="tile-label">RAM</div>
+        </div>
+        <div class="tile">
+          <div class="tile-value" id="disk">--%</div>
+          <div class="tile-label">Disk</div>
+        </div>
+        <div class="tile">
+          <div class="tile-value">
+              <span id="dl-val">--</span>
+              <span id="dl-unit" style="font-size: 0.75rem; color: #888;">KB/s</span>
+          </div>
+          <div class="tile-label">Net</div>
+        </div>
+      </div>
+
+      <div class="controls">
+        <label for="port-select" style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 5px; display:block;">SERIAL PORT</label>
+        <select id="port-select">
+          <option value="">Scanning...</option>
+        </select>
+        
+        <div class="checkbox-wrapper">
+          <input type="checkbox" id="autostart-cb">
+          <label for="autostart-cb">Start on Boot</label>
+        </div>
+        
+        <button id="conn-btn" class="btn-blue">Connect</button>
+        <p id="status-text">Waiting for connection...</p>
+      </div>
+
+    </div>
+  </body>
+</html>

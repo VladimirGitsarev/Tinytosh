@@ -1,0 +1,1081 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tinytosh Setup | Guide</title>
+    <script type="module" src="https://unpkg.com/esp-web-tools@10/dist/web/install-button.js?module"></script>
+    <style>
+        :root {
+            --bg: #0f172a;
+            --card: #1e293b;
+            --accent: #3b82f6;
+            --text: #f1f5f9;
+            --text-muted: #cbd5e1; 
+            --border: #334155;
+            --table-header: #2d3b4e;
+            --btn-github: #24292e;
+            --btn-makerworld: #00ae42;
+            --warning-bg: rgba(245, 158, 11, 0.1);
+            --warning-border: #f59e0b;
+            --idea-bg: rgba(16, 185, 129, 0.1);
+            --idea-border: #10b981;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        .wrapper {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        header {
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 20px;
+            margin-bottom: 40px;
+        }
+
+        h1 { margin: 0; font-size: 2.5rem; color: var(--accent); }
+        h2 { border-left: 4px solid var(--accent); padding-left: 15px; margin-top: 50px; scroll-margin-top: 20px; }
+        h3 { color: var(--text); margin-top: 0; font-size: 1.2rem; }
+        
+        /* Helper for colored subtitles */
+        .step-subtitle { margin-bottom: 10px; color: var(--accent); }
+        
+        .intro { font-size: 1.1rem; color: var(--text-muted); }
+
+        /* Carousel Styles */
+        .carousel-wrapper { position: relative; margin-top: 30px; padding: 20px 0; overflow: hidden; }
+        .carousel-track { display: flex; align-items: center; will-change: transform; }
+        .carousel-slide { flex: 0 0 55%; margin: 0 2.5%; position: relative; transition: all 0.5s ease-in-out; opacity: 0.4; transform: scale(0.85); border-radius: 12px; overflow: hidden; box-shadow: 0 10px 20px rgba(0,0,0,0.3); }
+        .carousel-slide.active { opacity: 1; transform: scale(1.1); z-index: 5; box-shadow: 0 0 20px rgba(59, 130, 246, 0.4); border: 1px solid var(--accent); }
+        .carousel-slide img { width: 100%; height: 100%; display: block; object-fit: cover; aspect-ratio: 16/9; }
+        .carousel-btn { position: absolute; top: 50%; transform: translateY(-50%); background: rgba(15, 23, 42, 0.8); color: var(--accent); border: 1px solid var(--border); cursor: pointer; width: 45px; height: 45px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; z-index: 10; transition: all 0.2s; }
+        .carousel-btn:hover { background: var(--accent); color: white; }
+        .prev { left: 10px; }
+        .next { right: 10px; }
+        @media (max-width: 600px) { .carousel-slide { flex: 0 0 85%; margin: 0 2%; } .carousel-btn { display: none; } }
+
+        /* Step & Card Styles */
+        .step { background: var(--card); border-radius: 12px; padding: 25px; margin-bottom: 20px; border: 1px solid var(--border); }
+        .step-divider { border: 0; border-top: 1px solid var(--border); margin: 30px 0 25px; }
+        
+        .hardware-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 25px; margin-top: 20px; }
+        .hw-card { background: rgba(2, 6, 23, 0.5); border: 1px solid var(--border); border-radius: 10px; padding: 15px 10px; text-align: center; display: flex; flex-direction: column; align-items: center; height: 100%; box-sizing: border-box; justify-content: space-between; }
+        .hw-card img { width: 100%; height: 80px; object-fit: contain; margin-bottom: 10px; }
+        .hw-name { font-size: 0.85rem; font-weight: 600; margin-bottom: 10px; color: var(--text); min-height: 40px; display: flex; align-items: center; justify-content: center; line-height: 1.2; }
+        .hw-link { font-size: 0.75rem; color: var(--accent); text-decoration: none; border: 1px solid var(--accent); padding: 4px 12px; border-radius: 4px; transition: all 0.2s; width: fit-content; }
+        .hw-link:hover { background: var(--accent); color: white; }
+
+        .diagram-img { display: block; margin: 20px auto; max-width: 100%; width: auto; border-radius: 8px; border: 1px solid var(--border); }
+
+        /* Wiring & Assembly Specifics */
+        .wiring-title { margin-bottom: 5px; font-weight: bold; }
+        .wiring-list { margin-top: 5px; font-size: 0.9rem; margin-bottom: 20px; }
+        .assembly-section { margin-top: 25px; }
+        .assembly-intro { margin-bottom: 10px; }
+        .assembly-steps { padding-left: 20px; line-height: 1.6; color: var(--text-muted); }
+        
+        /* Note Boxes (Design, Warning, Alert, Info) */
+        .note-box { margin: 8px 0; padding: 8px 10px; font-size: 0.9em; border-left-width: 2px; border-left-style: solid; }
+        .note-box.design { border-left-color: var(--accent); opacity: 0.9; }
+        .note-box.warning { border-left-color: #f97316; opacity: 0.9; } /* Orange/Red */
+        .note-box.alert { background: var(--warning-bg); border-left: 3px solid var(--warning-border); } /* Yellow */
+        
+        .info-box { background: rgba(59, 130, 246, 0.1); padding: 15px; border-radius: 6px; font-size: 0.9rem; margin-top: 15px; border-left: 3px solid var(--accent); }
+        .info-box p { margin: 5px 0 0 0; }
+        .info-box p + p { margin-top: 10px; }
+        
+        .info-box.flex-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 15px; }
+        .info-box.source-code { background: rgba(255,255,255,0.05); border-left: 4px solid #6e7681; margin-top: 0; }
+        .info-box.idea { margin-top: 25px; border-left: 4px solid var(--idea-border); background: var(--idea-bg); }
+        
+        .small-desc { font-size: 0.85rem; color: var(--text-muted); }
+        .small-note { font-size: 0.85em; color: var(--text-muted); }
+
+        /* Tables */
+        .table-container { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; margin-top: 15px; border-radius: 8px; border: 1px solid var(--border); }
+        table { width: 100%; border-collapse: collapse; font-size: 0.9rem; min-width: 500px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid var(--border); }
+        th { background: var(--table-header); color: var(--accent); white-space: nowrap; }
+        td { color: var(--text-muted); }
+        tr:last-child td { border-bottom: none; }
+        .pin { font-family: monospace; color: var(--text); background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; display: inline-block; }
+
+        /* Features List */
+        .feature-stack { display: flex; flex-direction: column; gap: 24px; margin-top: 20px; }
+        .feature-item { background: rgba(30, 41, 59, 0.5); padding: 25px; border-radius: 12px; border: 1px solid var(--border); }
+        .feature-header { display: flex; align-items: center; gap: 12px; margin-bottom: 15px; font-size: 1.25rem; color: var(--accent); font-weight: bold; }
+        .feature-section-title { font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px; color: var(--accent); margin-top: 15px; margin-bottom: 5px; font-weight: 700; }
+        .api-tag { font-size: 0.75rem; color: var(--text-muted); font-family: monospace; display: block; margin-top: 20px; padding-top: 10px; border-top: 1px solid var(--border); }
+        .global-item { background: rgba(59, 130, 246, 0.05); border: 1px solid var(--accent); }
+        
+        /* Highlight Feature Block */
+        .highlight-feature { background: linear-gradient(to right, rgba(59, 130, 246, 0.15), rgba(30, 41, 59, 0.3)); border: 1px solid var(--accent); border-left-width: 6px; padding: 25px; border-radius: 12px; margin-bottom: 30px; }
+        .highlight-feature .feature-header { margin-bottom: 10px; }
+        .highlight-feature p { margin: 0; }
+        .highlight-feature p.desc { margin-top: 10px; }
+        .highlight-feature p.example { margin-top: 10px; font-size: 0.9em; opacity: 0.8; }
+        
+        ol, ul { padding-left: 20px; }
+        li { margin-bottom: 8px; }
+
+        /* Buttons & Info */
+        .btn-container { display: flex; gap: 15px; flex-wrap: wrap; margin-top: 15px; }
+        .btn-container.centered { justify-content: center; margin-top: 20px; gap: 15px; }
+        .btn { display: inline-flex; align-items: center; justify-content: center; border: none; background: var(--accent); color: white; padding: 12px 20px; border-radius: 6px; text-decoration: none; font-weight: bold; cursor: pointer; transition: opacity 0.2s; min-width: 140px; text-align: center; }
+        .btn:hover { opacity: 0.9; }
+        .btn-disabled { opacity: 0.5; cursor: not-allowed; background-color: var(--border); }
+        
+        .btn-github { background-color: var(--btn-github); font-size: 0.9rem; }
+        .btn-makerworld { background-color: var(--btn-makerworld); min-width: 160px; }
+        .btn-wide { min-width: 160px; }
+        
+        .btn-icon-spacer { margin-right: 8px; }
+        
+        code { background: #000; padding: 2px 6px; border-radius: 4px; color: #3b82f6; }
+
+        /* App Preview */
+        .app-preview-container { display: flex; gap: 20px; align-items: flex-start; margin: 20px 0; flex-wrap: wrap; }
+        .app-screenshot { width: 300px; max-width: 100%; border-radius: 8px; border: 1px solid var(--border); }
+        .app-features { flex: 1; min-width: 250px; }
+        .app-features .feature-section-title { margin-top: 0; }
+        .app-features ul { margin-top: 10px; }
+        
+        #loading-text { color: var(--text-muted); font-size: 0.9rem; }
+        .security-warning { margin-top: 25px; }
+
+        /* OS Grid */
+        .os-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px; margin-top: 20px; }
+        .os-card { background: rgba(255,255,255,0.05); padding: 15px; border-radius: 8px; border: 1px solid var(--border); }
+        .os-title { color: var(--accent); }
+        .os-note { font-size: 0.85rem; color: var(--text-muted); }
+        .os-cmd { display: block; margin-top: 5px; font-size: 0.8em; }
+        .linux-footer { text-align: center; margin-top: 20px; font-size: 0.85rem; color: var(--text-muted); opacity: 0.7; }
+
+        /* Accordion / Assembly Styles */
+        details { background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border); border-radius: 8px; margin-top: 20px; overflow: hidden; /* Important for animation */ }
+        details.dark-mode { background: rgba(0,0,0,0.2); border-color: rgba(255,255,255,0.1); }
+        
+        summary { padding: 12px 15px; cursor: pointer; font-weight: 600; color: var(--accent); list-style: none; display: flex; justify-content: space-between; align-items: center; font-size: 0.95rem; background: rgba(30, 41, 59, 0.3); position: relative; z-index: 2; transition: background 0.2s; }
+        summary:hover { background: rgba(59, 130, 246, 0.1); }
+        summary::-webkit-details-marker { display: none; } 
+        summary::after { content: '+'; font-weight: bold; font-size: 1.2rem; transition: transform 0.3s; }
+        details[open] summary::after { content: '-'; }
+
+        /* The container that gets animated */
+        .assembly-container { 
+            padding: 15px; 
+            border-top: 1px solid var(--border); 
+            /* Start state for JS animation */
+            transition: height 0.3s cubic-bezier(0.4, 0, 0.2, 1), 
+                        opacity 0.3s ease, 
+                        padding 0.3s ease,
+                        border-width 0.3s ease;
+            overflow: hidden;
+            background: rgba(0,0,0,0.2);
+        }
+        
+        .dark-mode .assembly-container { border-color: rgba(255,255,255,0.1); }
+
+        .assembly-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; align-items: stretch; }
+        .assembly-item { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: #000; height: 100%; display: flex; flex-direction: column; }
+        .assembly-img-wrapper { flex: 1; display: flex; align-items: center; justify-content: center; background: #000; overflow: hidden; min-height: 200px; }
+        .assembly-item img { width: 100%; height: 100%; display: block; object-fit: contain; }
+        .assembly-item img.real-photo { object-fit: cover; }
+        .assembly-caption { padding: 8px; font-size: 0.8rem; color: var(--text-muted); text-align: center; border-top: 1px solid var(--border); background: var(--bg); font-weight: 600; flex-shrink: 0; }
+
+        /* Success Step specific */
+        .success-img-container { text-align: center; margin-bottom: 20px; }
+        .success-img { max-width: 100%; height: auto; border-radius: 8px; }
+        .step-subtitle-make { margin-top: 25px; color: var(--accent); }
+        .make-list { margin-top: 10px; }
+
+        /* Footer */
+        .page-footer { margin-top: 60px; padding-bottom: 40px; font-size: 0.8rem; color: var(--text-muted); }
+        .footer-link { color: var(--accent); text-decoration: none; }
+
+        @media (max-width: 600px) { .hardware-grid { grid-template-columns: repeat(2, 1fr); } .assembly-grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+
+<div class="wrapper">
+    <header>
+        <h1>Tinytosh</h1>
+        <p class="intro">
+            Meet <strong>Tinytosh</strong>: The ultimate open-source <strong>desktop companion</strong> that brings your workspace to life. Whether functioning as a standalone smart display or a real-time PC hardware monitor, it delivers critical data at a glance. Best of all, it relies on <strong>100% free public APIs</strong> — no API keys, no accounts, and no authorization required.
+        </p>
+
+        <div class="carousel-wrapper" id="carouselWrapper">
+            <button class="carousel-btn prev" id="prevBtn">❮</button>
+            <div class="carousel-track" id="track"></div>
+            <button class="carousel-btn next" id="nextBtn">❯</button>
+        </div>
+    </header>
+
+    <section>
+        <h2>Step 1: Hardware & Wiring</h2>
+        <div class="step">
+            <h3>Components Required</h3>
+            <ul class="wiring-list" style="margin-bottom: 20px;">
+                <li><strong>ESP32-C3 SuperMini</strong> (Microcontroller)</li>
+                <li><strong>0.96" OLED Display</strong> (I2C 128x64)</li>
+                <li><strong>Silicone Wires</strong> (30AWG recommended) or Jumper Wires</li>
+                <li><strong>TTP223 Touch Sensor</strong> (Optional, for button)</li>
+            </ul>
+
+            <div class="hardware-grid">
+                <div class="hw-card">
+                    <img src="img/esp32c3.jpg" alt="ESP32-C3 SuperMini">
+                    <div class="hw-name">ESP32-C3 SuperMini</div>
+                    <a href="https://www.aliexpress.com/w/wholesale-esp32-c3-supermini.html" target="_blank" class="hw-link">Find Online</a>
+                </div>
+                <div class="hw-card">
+                    <img src="img/oled.jpg" alt="0.96 OLED">
+                    <div class="hw-name">0.96" OLED I2C</div>
+                    <a href="https://www.aliexpress.com/w/wholesale-0.96-oled-i2c.html" target="_blank" class="hw-link">Find Online</a>
+                </div>
+                <div class="hw-card">
+                    <img src="img/wires.jpg" alt="Wires">
+                    <div class="hw-name">Silicone Wires</div>
+                    <a href="https://www.aliexpress.com/w/wholesale-30awg-silicone-wire.html" target="_blank" class="hw-link">Find Online</a>
+                </div>
+                <div class="hw-card">
+                    <img src="img/ttp223.jpg" alt="TTP223">
+                    <div class="hw-name">TTP223 (Optional)</div>
+                    <a href="https://www.aliexpress.com/w/wholesale-ttp223-touch-sensor.html" target="_blank" class="hw-link">Find Online</a>
+                </div>
+            </div>
+
+            <p class="wiring-title">Wiring Notes:</p>
+            <ul class="wiring-list">
+                <li>For a <strong>Basic Setup</strong> (Screen only), standard female-female jumper wires work perfectly. Soldering is optional but recommended for a cleaner, more durable build.</li>
+                <li>For the <strong>Full Setup</strong> (Screen + Button), soldering is required to share the limited power pins and ensure a reliable connection.</li>
+            </ul>
+
+            <img src="img/Tinytosh_bb.jpg" alt="Tinytosh Wiring Diagram" class="diagram-img">
+            
+
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Component</th>
+                            <th>Pin Name</th>
+                            <th>ESP32 Connection</th>
+                            <th>Notes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>OLED Display</strong></td>
+                            <td>VCC</td>
+                            <td><span class="pin">3.3V</span> or <span class="pin">5V</span></td>
+                            <td>Power</td>
+                        </tr>
+                        <tr>
+                            <td></td>
+                            <td>GND</td>
+                            <td><span class="pin">G (GND)</span></td>
+                            <td>Ground</td>
+                        </tr>
+                        <tr>
+                            <td></td>
+                            <td>SCL</td>
+                            <td><span class="pin">GPIO 9</span></td>
+                            <td>I2C Clock</td>
+                        </tr>
+                        <tr>
+                            <td></td>
+                            <td>SDA</td>
+                            <td><span class="pin">GPIO 8</span></td>
+                            <td>I2C Data</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Button (Optional)</strong></td>
+                            <td>VCC</td>
+                            <td><span class="pin">3.3V</span></td>
+                            <td><strong>Do not</strong> use 5V for button</td>
+                        </tr>
+                        <tr>
+                            <td></td>
+                            <td>I/O (SIG)</td>
+                            <td><span class="pin">GPIO 10</span></td>
+                            <td>Input Signal</td>
+                        </tr>
+                        <tr>
+                            <td></td>
+                            <td>GND</td>
+                            <td><span class="pin">G (GND)</span></td>
+                            <td>Use Y-splitter or solder to share ground</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="assembly-section">
+                <h3>🛠️ Assembly in 5 Steps</h3>
+                <p class="assembly-intro">The 3D-printed case is designed for a tool-free, <strong>screwless assembly</strong>:</p>
+                <ol class="assembly-steps">
+                    <li><strong>Print the Case:</strong> It consists of two parts (Main Body & Cover) designed with precise rails for a secure snap-fit.</li>
+                    <li><strong>Prepare Hardware:</strong> Solder or wire your components according to the table above.</li>
+                    <li><strong>Slide in Display:</strong> Insert the OLED into the dedicated guide slot from the top. Internal stoppers ensure it sits perfectly level at the bottom.</li>
+                    <li><strong>Insert Electronics:</strong> Place the microcontroller inside the case.
+                        
+                        <div style="margin: 8px 0; font-size: 0.95em;">
+                            <strong>Touch Button Tip:</strong> If installed, position the sensor against the top of the case. If your wires are rigid, it will naturally rest against the roof; otherwise, use a drop of glue or a piece of tape to secure it.
+                        </div>
+
+                        <div class="note-box design">
+                            <strong>Design Note:</strong> The ESP32 floats freely inside the case without a tight mount. This is done deliberately to provide ample space for you to add extra sensors, batteries, or peripherals for your own projects. Despite this, the board hardly moves once the case is closed, ensuring no issues when inserting the USB cable.
+                        </div>
+                        Align the Cover with the rails on the Main Body and snap it shut.
+                    </li>
+                    <li><strong>Connect:</strong> Plug a USB-C cable into the port cutout on the back.
+                        <div class="note-box warning">
+                            <strong>Troubleshooting:</strong> If the device constantly connects and disconnects (boot loop) when plugged in, unplug it, hold the button labeled <strong>BOOT</strong> on the board, plug it back in while holding, and wait 2 seconds before releasing. This forces "Download Mode" so you can flash it.
+                        </div>
+                    </li>
+                </ol>
+            </div>
+
+            <div class="info-box flex-row" style="margin-top: 25px;">
+                <div>
+                    <strong>🖨️ 3D Printed Case</strong><br>
+                    <p style="margin-top: 5px;">
+                        You can download the STL/3MF files for the case on MakerWorld. Includes a <strong>ready-to-print profile</strong> with optimized settings.
+                    </p>
+                </div>
+                <a href="#" class="btn" style="min-width: 140px; font-size: 0.9rem;">Download STL/3MF</a>
+            </div>
+
+            <details>
+                <summary>📸 View Assembly Images</summary>
+                <div class="assembly-container">
+                    <div class="assembly-grid">
+                        <div class="assembly-item">
+                            <div class="assembly-img-wrapper">
+                                <img src="img/assembly_0.jpg" alt="3D Printed Case Parts" class="real-photo">
+                            </div>
+                            <div class="assembly-caption">1. The 3D printed case parts</div>
+                        </div>
+                        <div class="assembly-item">
+                            <div class="assembly-img-wrapper">
+                                <img src="img/assembly_1.jpg" alt="Snap Fit Mechanism" class="real-photo">
+                            </div>
+                            <div class="assembly-caption">2. Case parts designed for snap-fit</div>
+                        </div>
+                        <div class="assembly-item">
+                            <div class="assembly-img-wrapper">
+                                <img src="img/assembly_2.jpg" alt="Wiring with Jumpers" class="real-photo">
+                            </div>
+                            <div class="assembly-caption">3. Option A: Wired with jumpers</div>
+                        </div>
+                        <div class="assembly-item">
+                            <div class="assembly-img-wrapper">
+                                <img src="img/assembly_3.jpg" alt="Soldered Wiring" class="real-photo">
+                            </div>
+                            <div class="assembly-caption">4. Option B: Soldered connection with button</div>
+                        </div>
+                        <div class="assembly-item">
+                            <div class="assembly-img-wrapper">
+                                <img src="img/assembly_4.jpg" alt="Fitting Jumpers" class="real-photo">
+                            </div>
+                            <div class="assembly-caption">5. Installing components (Jumpers)</div>
+                        </div>
+                        <div class="assembly-item">
+                            <div class="assembly-img-wrapper">
+                                <img src="img/assembly_5.jpg" alt="Fitting Soldered" class="real-photo">
+                            </div>
+                            <div class="assembly-caption">6. Installing components (Soldered + Button)</div>
+                        </div>
+                        <div class="assembly-item">
+                            <div class="assembly-img-wrapper">
+                                <img src="img/assembly_6.jpg" alt="Final Result Front" class="real-photo">
+                            </div>
+                            <div class="assembly-caption">7. Final Result</div>
+                        </div>
+                         <div class="assembly-item">
+                            <div class="assembly-img-wrapper">
+                                <img src="img/assembly_7.jpg" alt="Back View USB" class="real-photo">
+                            </div>
+                            <div class="assembly-caption">8. Rear view with USB-C connected</div>
+                        </div>
+                    </div>
+                </div>
+            </details>
+
+        </div>
+    </section>
+
+    <section>
+        <h2>Step 2: Flash Firmware</h2>
+        <div class="step">
+            <h3 class="step-subtitle">Web Installer</h3>
+            <p>The easiest way to get started. Connect your <strong>ESP32-C3</strong> to your computer via USB and click the button below. Note: Requires a Chromium-based browser (Chrome, Edge, Opera).</p>
+            
+            <esp-web-install-button manifest="manifest.json">
+                <button slot="activate" class="btn">Connect & Flash Device</button>
+            </esp-web-install-button>
+
+            <hr class="step-divider">
+
+            <h3 class="step-subtitle">Manual Installation</h3>
+            <p>
+                If the web installer doesn't work for you, or if you prefer to customize the firmware using <strong>Arduino IDE</strong> or <strong>PlatformIO</strong>, you can download the source code directly.
+            </p>
+            
+            <div class="info-box flex-row source-code">
+                <div>
+                    <strong>📦 Source Code</strong><br>
+                    <span class="small-desc">Get the latest code from the GitHub repository.</span>
+                </div>
+                <a href="https://github.com/VladimirGitsarev/Tinytosh" target="_blank" class="btn btn-github">
+                    <span class="btn-icon-spacer">★</span> Download on GitHub
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <section>
+        <h2>Step 3: Initial WiFi Setup</h2>
+        <div class="step">
+            <ol>
+                <li>
+                    <strong>Connect to Device:</strong> On your Phone or PC, search for the WiFi network named <code>Tinytosh</code> and connect.
+                    <br>🔑 Password: <code>Tinytosh</code>
+                </li>
+                <li>
+                    <strong>Configure Credentials:</strong> A "Captive Portal" page should open automatically.
+                    <br><span class="small-note"><em>(If it doesn't open, type <code>192.168.4.1</code> into your browser).</em></span>
+                    <br>Click the <strong>Configure WiFi</strong> button, select your home network, and enter your password.
+                </li>
+                <li>
+                    <strong>Catch the IP Address:</strong> The device will attempt to connect. Watch the OLED screen closely! 
+                    <br>Upon success, it will display <strong>"Connected"</strong> followed by its <strong>Local IP Address</strong> (e.g., <code>192.168.0.100</code>).
+                    <div class="note-box alert">
+                        ⚠️ <strong>Note:</strong> The IP is displayed for only <strong>3 seconds</strong>. If you miss it, simply unplug and replug the device to see it again.
+                    </div>
+                </li>
+                <li>
+                    <strong>Access Panel:</strong> Connect your Phone/PC back to your <strong>Home WiFi</strong> (the same one Tinytosh is on). Type that IP address into your browser to open the Web Panel.
+                </li>
+            </ol>
+
+            <details>
+                <summary>📸 View Connection Walkthrough</summary>
+                <div class="assembly-container">
+                    <div class="assembly-grid">
+                        <div class="assembly-item">
+                            <div class="assembly-img-wrapper">
+                                <img src="img/connection_1.jpg" alt="OLED showing AP Mode" class="real-photo">
+                            </div>
+                            <div class="assembly-caption">1. Screen shows "Not Connected"</div>
+                        </div>
+                        <div class="assembly-item">
+                            <div class="assembly-img-wrapper">
+                                <img src="img/connection_2.jpg" alt="WiFi Settings on Phone" class="real-photo">
+                            </div>
+                            <div class="assembly-caption">2. Connect to "Tinytosh" Network</div>
+                        </div>
+                        <div class="assembly-item">
+                            <div class="assembly-img-wrapper">
+                                <img src="img/connection_3.jpg" alt="WiFi Manager Portal" class="real-photo">
+                            </div>
+                            <div class="assembly-caption">3. Click "Configure WiFi"</div>
+                        </div>
+                         <div class="assembly-item">
+                            <div class="assembly-img-wrapper">
+                                <img src="img/connection_4.jpg" alt="Entering Credentials" class="real-photo">
+                            </div>
+                            <div class="assembly-caption">4. Enter Home WiFi Details</div>
+                        </div>
+                        <div class="assembly-item">
+                            <div class="assembly-img-wrapper">
+                                <img src="img/connection_5.jpg" alt="OLED showing IP" class="real-photo">
+                            </div>
+                            <div class="assembly-caption">5. Success! Note the IP Address</div>
+                        </div>
+                        <div class="assembly-item">
+                            <div class="assembly-img-wrapper">
+                                <img src="img/connection_6.jpg" alt="Web Panel Open" class="real-photo">
+                            </div>
+                            <div class="assembly-caption">6. Open IP in Browser</div>
+                        </div>
+                    </div>
+                </div>
+            </details>
+        </div>
+    </section>
+
+    <section>
+        <h2>Step 4: Web Panel Configuration</h2>
+        <p>Access the <strong>Web Panel</strong> by entering the device's IP address into your browser. Configure your device using the sections below:</p>
+        
+        <div class="highlight-feature">
+            <div class="feature-header">✨ Core Concept: Modular Dashboard</div>
+            <p>
+                Tinytosh is designed to be fully customizable. Every screen listed below (Time, Weather, PC, etc.) acts as a <strong>standalone module</strong>. 
+            </p>
+            <p class="desc">
+                <strong>How it works:</strong> Each section in the Web Panel has a main <strong>Enable Checkbox</strong>. 
+                <br>• <strong>Uncheck it:</strong> The screen is completely removed from the rotation and the settings collapse.
+                <br>• <strong>Check it:</strong> The settings expand, and the screen is added to the cycle.
+            </p>
+            <p class="example">
+                <em>Example: Disable everything except "PC Monitor" to turn Tinytosh into a dedicated hardware tracker, or enable everything for a complete smart hub.</em>
+            </p>
+
+            <details class="dark-mode">
+                <summary>🎥 View Interface Demo</summary>
+                <div class="assembly-container">
+                    <div class="assembly-item">
+                        <div class="assembly-img-wrapper">
+                            <img src="img/web_panel_demo.gif" alt="Web Panel Interaction Demo" style="width: 100%; height: auto; object-fit: contain;">
+                        </div>
+                    </div>
+                </div>
+            </details>
+        </div>
+
+        <div class="feature-stack">
+            
+            <div class="feature-item global-item">
+                <div class="feature-header">⚙️ Global Settings & Location</div>
+                
+                <div class="feature-section-title">Control Logic</div>
+                <ul>
+                    <li><strong>Switch Screens Automatically:</strong> If checked, screens rotate automatically. If unchecked, the screen stays static until you press the hardware button.</li>
+                    <li><strong>Screen Cycle Interval:</strong> Time (in seconds) each screen stays visible before rotating.</li>
+                    <li><strong>Data Sync Interval:</strong> Frequency (in minutes) of data fetches for Weather, Air Quality, and Crypto.</li>
+                </ul>
+
+                <div class="feature-section-title">Visual Effects</div>
+                <p>Customize how the device transitions between different screens:</p>
+                <ul>
+                    <li><strong>Active Animations:</strong> Select exactly which effects you want to enable (Slide, Dissolve, Curtain, Blinds). If multiple are checked, the device will randomly cycle through your specific selection.</li>
+                    <li><strong>Time Format:</strong> Toggle between 12-hour (AM/PM) and 24-hour clock formats for both the device and web panel.</li>
+                </ul>
+
+                <div class="feature-section-title">Location & Timezone</div>
+                <p>Tinytosh uses these settings to provide accurate Clock, Weather, and Air Quality data.</p>
+                <ul>
+                    <li><strong>Auto-Detect:</strong> Uses your IP address to automatically determine location and timezone.</li>
+                    <li><strong>Manual Entry:</strong> Override with specific City names, Latitude/Longitude coordinates, and Timezone strings.</li>
+                </ul>
+                <span class="api-tag">Source: ip-api.com</span>
+
+                <details>
+                    <summary>🎥 View Animation Demo</summary>
+                    <div class="assembly-container">
+                        <div class="assembly-item">
+                            <div class="assembly-img-wrapper">
+                                <img src="img/animations.gif" alt="Screen Transitions Demo" style="width: 100%; height: auto; object-fit: contain;">
+                            </div>
+                        </div>
+                    </div>
+                </details>
+            </div>
+
+            <div class="feature-item">
+                <div class="feature-header">🕒 Simple Clock</div>
+                <div class="feature-section-title">Settings</div>
+                <p>
+                    While location and timezone are managed in <strong>Global Settings</strong>, this screen offers specific customization:
+                </p>
+                <ul>
+                    <li><strong>Date Toggle:</strong> Choose to display the full date or hide it for a cleaner look.</li>
+                </ul>
+
+                <div class="feature-section-title">Layout</div>
+                <p>
+                    <strong>Standard:</strong> A balanced view showing time at the top (Size 3) and the date/day below. <br>
+                    <strong>Minimalist:</strong> If the date is disabled, the clock switches to <strong>Jumbo Mode</strong> (Size 4), perfectly centered on both axes for maximum readability.
+                </p>
+
+                <details>
+                    <summary>📸 View Screen Preview</summary>
+                    <div class="assembly-container">
+                        <div class="assembly-grid">
+                            <div class="assembly-item">
+                                <div class="assembly-img-wrapper">
+                                    <img src="img/render_clock.png" alt="Clock Layout Render">
+                                </div>
+                                <div class="assembly-caption">Layout Render</div>
+                            </div>
+                            <div class="assembly-item">
+                                <div class="assembly-img-wrapper">
+                                    <img src="img/real_clock.jpg" alt="Clock Real Photo" class="real-photo">
+                                </div>
+                                <div class="assembly-caption">Real Photo</div>
+                            </div>
+                        </div>
+                    </div>
+                </details>
+            </div>
+
+            <div class="feature-item">
+                <div class="feature-header">🌤️ Weather Station</div>
+                <div class="feature-section-title">Settings</div>
+                <ul>
+                    <li><strong>Temperature Unit:</strong> Toggle between Celsius (°C) and Fahrenheit (°F).</li>
+                    <li><strong>Round Values:</strong> Choose between rounded integers (22°) or precise decimals (21.8°).</li>
+                </ul>
+                <div class="feature-section-title">Layout</div>
+                <p>Top: City and Time. Center: Big Temperature and condition icon/desc. Bottom: Feels like, Humidity (%), and Wind Speed (km/h).</p>
+                <span class="api-tag">Source: api.open-meteo.com</span>
+
+                <details>
+                    <summary>📸 View Screen Preview</summary>
+                    <div class="assembly-container">
+                        <div class="assembly-grid">
+                            <div class="assembly-item">
+                                <div class="assembly-img-wrapper">
+                                    <img src="img/render_weather.png" alt="Weather Layout Render">
+                                </div>
+                                <div class="assembly-caption">Layout Render</div>
+                            </div>
+                            <div class="assembly-item">
+                                <div class="assembly-img-wrapper">
+                                    <img src="img/real_weather.jpg" alt="Weather Real Photo" class="real-photo">
+                                </div>
+                                <div class="assembly-caption">Real Photo</div>
+                            </div>
+                        </div>
+                    </div>
+                </details>
+            </div>
+
+            <div class="feature-item">
+                <div class="feature-header">🍃 Air Quality</div>
+                <div class="feature-section-title">Settings</div>
+                <p>Choose your preferred AQI standard (US or EU).</p>
+                <div class="info-box">
+                    <strong>Standard Difference:</strong> US AQI (0-500) focuses on health risk thresholds. European AQI (0-100+) tracks specific pollutant concentrations (PM2.5, PM10, NO2).
+                </div>
+                <div class="feature-section-title">Layout</div>
+                <p>Top: City and Time. Center: AQI Value, Standard Type, and Status Icon. Bottom: Real-time PM2.5, PM10, and NO2 levels in µg/m³.</p>
+                <span class="api-tag">Source: air-quality-api.open-meteo.com</span>
+
+                <details>
+                    <summary>📸 View Screen Preview</summary>
+                    <div class="assembly-container">
+                        <div class="assembly-grid">
+                            <div class="assembly-item">
+                                <div class="assembly-img-wrapper">
+                                    <img src="img/render_aqi.png" alt="AQI Layout Render">
+                                </div>
+                                <div class="assembly-caption">Layout Render</div>
+                            </div>
+                            <div class="assembly-item">
+                                <div class="assembly-img-wrapper">
+                                    <img src="img/real_aqi.jpg" alt="AQI Real Photo" class="real-photo">
+                                </div>
+                                <div class="assembly-caption">Real Photo</div>
+                            </div>
+                        </div>
+                    </div>
+                </details>
+            </div>
+
+            <div class="feature-item">
+                <div class="feature-header">📈 Crypto Tracker</div>
+                <div class="feature-section-title">Settings</div>
+                <p>Select your preferred coin from the top 30 global cryptocurrencies to track live market data.</p>
+                <div class="feature-section-title">Layout</div>
+                <p>Shows the coin ticker (e.g., BTC), current price in USD, a trend icon, and the 24h percentage change.</p>
+                <span class="api-tag">Source: api.coinlore.net</span>
+
+                <details>
+                    <summary>📸 View Screen Preview</summary>
+                    <div class="assembly-container">
+                        <div class="assembly-grid">
+                            <div class="assembly-item">
+                                <div class="assembly-img-wrapper">
+                                    <img src="img/render_crypto.png" alt="Crypto Layout Render">
+                                </div>
+                                <div class="assembly-caption">Layout Render</div>
+                            </div>
+                            <div class="assembly-item">
+                                <div class="assembly-img-wrapper">
+                                    <img src="img/real_crypto.jpg" alt="Crypto Real Photo" class="real-photo">
+                                </div>
+                                <div class="assembly-caption">Real Photo</div>
+                            </div>
+                        </div>
+                    </div>
+                </details>
+            </div>
+
+            <div class="feature-item">
+                <div class="feature-header">🖥️ PC Monitor</div>
+                <div class="feature-section-title">Function</div>
+                <p>Connects to the Tinytosh Bridge software on your computer to stream hardware telemetry via USB.</p>
+                <div class="feature-section-title">Layout</div>
+                <p>Displays four horizontal bars: CPU Load (%), RAM Usage (%), Disk Capacity (%), and Network Download Speed (KB/s or MB/s).</p>
+                <span class="api-tag">Source: Tinytosh Bridge</span>
+
+                <details>
+                    <summary>📸 View Screen Preview</summary>
+                    <div class="assembly-container">
+                        <div class="assembly-grid">
+                            <div class="assembly-item">
+                                <div class="assembly-img-wrapper">
+                                    <img src="img/render_pc.png" alt="PC Layout Render">
+                                </div>
+                                <div class="assembly-caption">Layout Render</div>
+                            </div>
+                            <div class="assembly-item">
+                                <div class="assembly-img-wrapper">
+                                    <img src="img/real_pc.jpg" alt="PC Real Photo" class="real-photo">
+                                </div>
+                                <div class="assembly-caption">Real Photo</div>
+                            </div>
+                        </div>
+                    </div>
+                </details>
+            </div>
+
+        </div>
+    </section>
+
+    <section>
+        <h2>Step 5: PC Bridge Software</h2>
+        <div class="step">
+            <p>To enable <strong>PC Monitor</strong> mode, you need the Bridge software running on your computer. This lightweight app reads your system stats and sends them to Tinytosh over USB.</p>
+            
+            <div class="app-preview-container">
+                <img src="img/tinytosh-pc.png" alt="Tinytosh Bridge App Screenshot" class="app-screenshot">
+                <div class="app-features">
+                    <div class="feature-section-title">Key Features</div>
+                    <ul>
+                        <li><strong>Native Monitoring:</strong> Reads system stats (CPU, RAM, Network) directly — no AIDA64, LibreHardwareMonitor, HWiNFO, or third-party tools required.</li>
+                        <li><strong>Real-time Dashboard:</strong> See exactly what data is being sent to your device.</li>
+                        <li><strong>Smart Auto-Connect:</strong> Automatically finds and connects to Tinytosh on startup.</li>
+                        <li><strong>Manual Control:</strong> Override port selection and toggle data streaming instantly.</li>
+                        <li><strong>System Tray:</strong> Minimizes quietly to the background; accessible anytime via the tray icon.</li>
+                        <li><strong>Start on Boot:</strong> Optional setting to launch automatically when you log in.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div id="loading-text">Fetching latest version...</div>
+
+            <div class="btn-container">
+                <a href="https://github.com/VladimirGitsarev/Tinytosh/releases/latest" id="btn-win" class="btn">
+                    Windows (.exe)
+                </a>
+
+                <a href="https://github.com/VladimirGitsarev/Tinytosh/releases/latest" id="btn-mac" class="btn">
+                    macOS (.dmg)
+                </a>
+
+                <a href="https://github.com/VladimirGitsarev/Tinytosh/releases/latest" id="btn-linux" class="btn">
+                    Linux (.deb)
+                </a>
+            </div>
+
+            <div class="info-box security-warning">
+                <strong>⚠️ A Note on Security Warnings</strong><br>
+                <p>
+                    I am a hobbyist developer, not a corporation. I do not have expensive code-signing certificates from Microsoft or Apple. Because of this, your OS or browser may flag the app as "Unknown" or "Potentially Dangerous." This is standard behavior for unsigned open-source software.
+                </p>
+                <p>
+                    If you have concerns, the entire project is open-source. You are welcome (and encouraged!) to <a href="https://github.com/VladimirGitsarev/Tinytosh" target="_blank" style="color: var(--accent);">review the code on GitHub</a> to verify it is safe.
+                </p>
+            </div>
+
+            <div class="os-grid">
+                <div class="os-card">
+                    <strong class="os-title">Windows Users:</strong><br>
+                    <span class="os-note">
+                        Browser may block the download. Click <em>"Keep"</em> or <em>"More actions > Keep anyway"</em>. SmartScreen may also appear; click <em>"More Info > Run Anyway"</em>.
+                    </span>
+                </div>
+                <div class="os-card">
+                    <strong class="os-title">macOS Users:</strong><br>
+                    <span class="os-note">
+                        If you see "App is damaged" or "Can't be opened", move it to Applications, open Terminal, and run:<br>
+                        <code class="os-cmd">xattr -cr /Applications/TinytoshPC.app</code>
+                    </span>
+                </div>
+            </div>
+            
+            <p class="linux-footer">
+                🐧 <strong>Linux Users:</strong> God save Linux. Thanks, Linus Torvalds. It just works.
+            </p>
+
+        </div>
+    </section>
+
+    <section>
+        <h2>Step 6: Enjoy & Innovate</h2>
+        <div class="step">
+            <p>
+                <strong>Congratulations!</strong> Your Tinytosh is now up and running.
+            </p>
+            <div class="success-img-container">
+                <img src="img/success.gif" alt="Success!" class="success-img">
+            </div>
+            <p>
+                Tinytosh is <strong>Open Source</strong> for a reason — it is designed to be a playground for your creativity. You are not limited to the features provided out of the box.
+            </p>
+            
+            <h3 class="step-subtitle-make">Make it Yours</h3>
+            <ul class="make-list">
+                <li><strong>Modify the Code:</strong> Hack the source, tweak fonts, or adjust animation speeds.</li>
+                <li><strong>Build New Modules:</strong> Create your screen, design new animation, or add customization.</li>
+                <li><strong>Share Your Work:</strong> Show off your build, remix the case, or contribute new features.</li>
+            </ul>
+
+            <div class="info-box idea">
+                <strong>💡 Have an idea?</strong><br>
+                The best features come from user suggestions. If you have an idea for a new screen, found a bug, or just want to show off your build, join the conversation on your preferred platform.
+            </div>
+
+            <div class="btn-container centered">
+                <a href="https://makerworld.com/en/@hitsarau/upload" target="_blank" class="btn btn-makerworld">
+                    MakerWorld
+                </a>
+
+                <a href="https://github.com/VladimirGitsarev/Tinytosh/issues" target="_blank" class="btn btn-github btn-wide">
+                    GitHub Issues
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <footer class="page-footer">
+        Tinytosh is an open-source DIY project. All data is fetched via free APIs. <br>
+        <a href="https://github.com/VladimirGitsarev/Tinytosh" class="footer-link">View Source on GitHub</a>
+    </footer>
+</div>
+
+<script>
+    const track = document.getElementById('track');
+    
+    const images = [
+        'img/showcase_1.jpg',
+        'img/showcase_2.jpg',
+        'img/showcase_3.jpg',
+        'img/showcase_4.jpg',
+        'img/showcase_5.jpg',
+        'img/showcase_6.jpg',
+        'img/showcase_7.jpg',
+        'img/showcase_8.jpg',
+    ];
+    
+    const len = images.length;
+    let slidesHtml = '';
+    
+    slidesHtml += `<div class="carousel-slide"><img src="${images[len - 2]}"></div>`;
+    slidesHtml += `<div class="carousel-slide"><img src="${images[len - 1]}"></div>`;
+    
+    images.forEach(img => {
+        slidesHtml += `<div class="carousel-slide"><img src="${img}"></div>`;
+    });
+
+    slidesHtml += `<div class="carousel-slide"><img src="${images[0]}"></div>`;
+    slidesHtml += `<div class="carousel-slide"><img src="${images[1]}"></div>`;
+
+    track.innerHTML = slidesHtml;
+
+    const slides = document.querySelectorAll('.carousel-slide');
+    let currentIndex = 2;
+    let isTransitioning = false;
+
+    function updateCarousel(instantly = false) {
+        const isMobile = window.innerWidth <= 600;
+        const slideWidth = isMobile ? 89 : 60; 
+        const centerOffset = isMobile ? 5.5 : 20; 
+
+        const translateVal = - (currentIndex * slideWidth) + centerOffset;
+
+        track.style.transition = instantly ? 'none' : 'transform 0.5s ease-in-out';
+        track.style.transform = `translateX(${translateVal}%)`;
+
+        slides.forEach((slide, index) => {
+            slide.style.transition = instantly ? 'none' : 'all 0.5s ease-in-out';
+            slide.classList.remove('active');
+            if(index === currentIndex) {
+                slide.classList.add('active');
+            }
+        });
+        
+        if(instantly) {
+            void track.offsetWidth; 
+        }
+    }
+
+    updateCarousel(true);
+
+    document.getElementById('nextBtn').addEventListener('click', () => {
+        if(isTransitioning) return;
+        isTransitioning = true;
+        currentIndex++;
+        updateCarousel();
+    });
+
+    document.getElementById('prevBtn').addEventListener('click', () => {
+        if(isTransitioning) return;
+        isTransitioning = true;
+        currentIndex--;
+        updateCarousel();
+    });
+
+    track.addEventListener('transitionend', () => {
+        isTransitioning = false;
+        
+        const totalSlides = slides.length;
+        const realCount = images.length;
+
+        if (currentIndex >= totalSlides - 2) {
+            currentIndex = currentIndex - realCount; 
+            updateCarousel(true);
+        }
+        else if (currentIndex < 2) {
+            currentIndex = currentIndex + realCount; 
+            updateCarousel(true);
+        }
+    });
+
+    let touchStartX = 0;
+    let touchEndX = 0;
+
+    track.addEventListener('touchstart', e => {
+        touchStartX = e.changedTouches[0].screenX;
+    });
+
+    track.addEventListener('touchend', e => {
+        touchEndX = e.changedTouches[0].screenX;
+        handleSwipe();
+    });
+
+    function handleSwipe() {
+        if (touchEndX < touchStartX - 50) {
+            document.getElementById('nextBtn').click();
+        }
+        if (touchEndX > touchStartX + 50) {
+            document.getElementById('prevBtn').click();
+        }
+    }
+
+    window.addEventListener('resize', () => updateCarousel(true));
+
+    document.querySelectorAll('details').forEach((el) => {
+        const summary = el.querySelector('summary');
+        const content = el.querySelector('.assembly-container');
+
+        summary.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (el.hasAttribute('open')) {
+                const startHeight = content.offsetHeight;
+                content.style.height = `${startHeight}px`;
+                requestAnimationFrame(() => {
+                    content.style.height = '0px';
+                    content.style.opacity = '0';
+                    content.style.paddingTop = '0';
+                    content.style.paddingBottom = '0';
+                    content.style.borderTopWidth = '0';
+                });
+                content.addEventListener('transitionend', function onEnd() {
+                    el.removeAttribute('open');
+                    content.style.removeProperty('height');
+                    content.style.removeProperty('opacity');
+                    content.style.removeProperty('padding-top');
+                    content.style.removeProperty('padding-bottom');
+                    content.style.removeProperty('border-top-width');
+                    content.removeEventListener('transitionend', onEnd);
+                }, { once: true });
+            } else {
+                el.setAttribute('open', '');
+                const endHeight = content.scrollHeight;
+                content.style.height = '0px';
+                content.style.opacity = '0';
+                content.style.paddingTop = '0';
+                content.style.paddingBottom = '0';
+                content.style.borderTopWidth = '0';
+                
+                requestAnimationFrame(() => {
+                    content.style.height = `${endHeight}px`;
+                    content.style.opacity = '1';
+                    content.style.paddingTop = '15px';
+                    content.style.paddingBottom = '15px';
+                    content.style.borderTopWidth = '1px';
+                });
+                
+                content.addEventListener('transitionend', function onEnd() {
+                    content.style.height = 'auto';
+                    content.style.removeProperty('opacity');
+                    content.style.removeProperty('padding-top');
+                    content.style.removeProperty('padding-bottom');
+                    content.style.removeProperty('border-top-width');
+                    content.removeEventListener('transitionend', onEnd);
+                }, { once: true });
+            }
+        });
+    });
+
+    const REPO = "VladimirGitsarev/Tinytosh";
+    async function fetchLatestRelease() {
+        const loading = document.getElementById('loading-text');
+        try {
+            const response = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`);
+            if (!response.ok) throw new Error("Network response was not ok");
+            
+            const data = await response.json();
+            
+            const winAsset = data.assets.find(a => a.name.endsWith('.exe') || a.name.endsWith('.msi'));
+            const macAsset = data.assets.find(a => a.name.endsWith('.dmg'));
+            const linAsset = data.assets.find(a => a.name.endsWith('.deb') || a.name.endsWith('.AppImage'));
+
+            if (winAsset) {
+                const btn = document.getElementById('btn-win');
+                btn.href = winAsset.browser_download_url;
+                btn.title = `Download ${winAsset.name}`;
+            } else {
+                document.getElementById('btn-win').classList.add('btn-disabled');
+                document.getElementById('btn-win').innerText = "Win (Not Found)";
+            }
+
+            if (macAsset) {
+                const btn = document.getElementById('btn-mac');
+                btn.href = macAsset.browser_download_url;
+                btn.title = `Download ${macAsset.name}`;
+            } else {
+                document.getElementById('btn-mac').classList.add('btn-disabled');
+                document.getElementById('btn-mac').innerText = "Mac (Not Found)";
+            }
+
+            if (linAsset) {
+                const btn = document.getElementById('btn-linux');
+                btn.href = linAsset.browser_download_url;
+                btn.title = `Download ${linAsset.name}`;
+            } else {
+                document.getElementById('btn-linux').classList.add('btn-disabled');
+                document.getElementById('btn-linux').innerText = "Linux (Not Found)";
+            }
+
+            loading.innerHTML = `Latest Version: <strong>${data.tag_name}</strong>`;
+            loading.style.color = "var(--accent)";
+
+        } catch (error) {
+            console.error("Failed to fetch release:", error);
+            loading.innerText = "Could not fetch direct links. Please verify on GitHub.";
+        }
+    }
+
+    fetchLatestRelease();
+</script>
+
+</body>
+</html>
