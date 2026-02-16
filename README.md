@@ -47,11 +47,54 @@ The firmware is designed to be **non-blocking** and **modular**.
 * **Smart Wifi Manager:** Uses a Captive Portal for initial setup. If WiFi drops, it auto-reconnects without freezing the UI.
 * **Preference Storage:** Configuration (selected screens, location, animation speed) is saved to the ESP32's Non-Volatile Storage (NVS) using a custom bitmask system for efficiency.
 
-**Build it yourself:**
-```bash
-# Using PlatformIO (Recommended)
-pio run -t upload
+#### 🏗️ Build & Compile Guide
+
+**Web Installer: No Coding Required**
+
+This is the fastest way to get started. You do not need to install VS Code, Arduino, or any drivers.
+1.  Connect your ESP32-C3 to your computer via USB.
+2.  Open the **[Tinytosh Web Installer](https://vladimirgitsarev.github.io/Tinytosh/)** in a Chromium-based browser (Chrome, Edge, Opera, Brave).
+3.  Click **"Connect"** and select your device from the list.
+4.  Click **"Install Tinytosh"** to flash the latest firmware automatically.
+
+You can build this project using **PlatformIO** (VS Code) or the **Arduino IDE**.
+
+**Option A: PlatformIO** This is the "Gold Standard" as it manages dependencies automatically. Simply open the project in VS Code and copy the following into your `platformio.ini`:
+
+```ini
+[env:esp32-c3-supermini]
+platform = espressif32
+board = esp32-c3-devkitm-1
+framework = arduino
+monitor_speed = 115200
+build_flags = 
+    -D ARDUINO_USB_MODE=1
+    -D ARDUINO_USB_CDC_ON_BOOT=1
+lib_deps =
+    [https://github.com/tzapu/WiFiManager.git](https://github.com/tzapu/WiFiManager.git)
+    bblanchon/ArduinoJson @ ^6.21.0
+    adafruit/Adafruit SSD1306 @ ^2.5.7
+    adafruit/Adafruit GFX Library @ ^1.11.5
+    adafruit/Adafruit BusIO @ ^1.14.1
 ```
+
+**Option B: Arduino IDE** If you prefer the Arduino IDE, you must install the external libraries manually via the Library Manager (`Sketch` -> `Include Library` -> `Manage Libraries...`).:
+
+| Library Name | Author | Purpose |
+| :--- | :--- | :--- |
+| **WiFiManager** | *tzapu* | Captive portal for WiFi setup |
+| **ArduinoJson** | *Benoit Blanchon* | Parsing API data and settings |
+| **Adafruit SSD1306** | *Adafruit* | Driver for the OLED screen |
+| **Adafruit GFX Library** | *Adafruit* | Core graphics and text support |
+
+> ⚠️ **Important:** When installing `Adafruit SSD1306`, the IDE may ask if you want to install dependencies like **"Adafruit BusIO"**. Click **"Install All"** to ensure the screen works correctly.
+
+**Note on Built-in Libraries:** The following libraries are required but **do not** need to be installed separately. They are included in the ESP32 Board Package:
+* `WiFi.h` & `WiFiServer.h`
+* `HTTPClient.h`
+* `Preferences.h`
+* `Wire.h` (I2C)
+* `time.h`
 
 ### 2. PC Bridge App (Desktop)
 *Written in Rust 🦀 & Tauri.*
