@@ -323,6 +323,85 @@ void DisplayService::drawAQIScreen(const Config& config, const AirQualityData& d
     display.drawBitmap(x3_text + w + 1, yFooter + 1, icon_ug, unitIconSize, unitIconSize, SSD1306_WHITE);
 }
 
+void DisplayService::drawCryptoScreen(const CryptoData& data) {
+    display.clearDisplay();
+    display.setTextColor(1);
+    display.setTextWrap(false);
+
+    // 1. Symbol
+    display.setTextSize(3);
+    display.setCursor(4, 6);
+    display.print(data.symbol);
+
+    // 2. Price
+    display.setTextSize(2);
+    display.setCursor(4, 44);
+    display.print("$" + String(data.price_usd));
+
+    // 3. Arrow
+    bool isPositive = (data.percent_change_24h >= 0);
+    const unsigned char* arrowIcon = isPositive ? icon_arrow_up : icon_arrow_down;
+    display.drawBitmap(102, 3, arrowIcon, 15, 15, 1);
+
+    // 4. Percentage Change
+    display.setTextSize(1);
+    display.setCursor(95, 22);
+    
+    // Add '+' sign for positive changes
+    String trendPrefix = isPositive ? "+" : ""; 
+    display.print(trendPrefix + String(data.percent_change_24h, 1) + "%");
+}
+
+void DisplayService::drawCurrencyScreen(const Config& config, const CurrencyData& data) {
+    display.clearDisplay();
+    display.setTextColor(1);
+    display.setTextWrap(false);
+
+    // 1. Base Currency Symbol (e.g., "USD")
+    display.setTextSize(3);
+    display.setCursor(4, 6);
+    display.print(data.base);
+
+    // 2. Calculate the multiplied rate
+    float displayRate = data.rate * config.currency_multiplier;
+
+    int decimals = 0;
+    if (displayRate < 10.0) {
+        decimals = 3;        // e.g., 0.085 or 1.234
+    } else if (displayRate < 100.0) {
+        decimals = 2;        // e.g., 10.50
+    } else if (displayRate < 1000.0) {
+        decimals = 1;        // e.g., 150.5
+    } else {
+        decimals = 0;        // e.g., 1500 (No decimals needed)
+    }
+
+    // 3. Rate and Target Currency (e.g., "0.085 EUR")
+    display.setTextSize(2);
+    display.setCursor(4, 44);
+    display.print(String(displayRate, decimals) + " " + data.target);
+
+    // 4. Context helper (e.g., "1000 ARS")
+    display.setTextSize(1);
+    String topText = String(config.currency_multiplier) + " " + data.base;
+    
+    int16_t x1, y1; uint16_t wTop, hTop;
+    display.getTextBounds(topText, 0, 0, &x1, &y1, &wTop, &hTop);
+    
+    int topTextX = 128 - wTop - 4;
+    display.setCursor(topTextX, 8); 
+    display.print(topText);
+
+    // 5. Equals sign
+    String eqText = "=";
+    uint16_t wEq, hEq;
+    display.getTextBounds(eqText, 0, 0, &x1, &y1, &wEq, &hEq);
+    
+    int centerOfTopText = topTextX + (wTop / 2);
+    display.setCursor(centerOfTopText - (wEq / 2), 19); 
+    display.print(eqText);
+}
+
 void DisplayService::drawPcScreen(const PcStats& pcStats) {
     bool isInvalid = (isnan(pcStats.cpu_percent) || pcStats.cpu_percent == 0) &&
                      (isnan(pcStats.mem_percent) || pcStats.mem_percent == 0); 
@@ -389,35 +468,6 @@ void DisplayService::drawPcScreen(const PcStats& pcStats) {
     }
 }
 
-void DisplayService::drawCryptoScreen(const CryptoData& data) {
-    display.clearDisplay();
-    display.setTextColor(1);
-    display.setTextWrap(false);
-
-    // 1. Symbol
-    display.setTextSize(3);
-    display.setCursor(4, 6);
-    display.print(data.symbol);
-
-    // 2. Price
-    display.setTextSize(2);
-    display.setCursor(4, 44);
-    display.print("$" + String(data.price_usd));
-
-    // 3. Arrow
-    bool isPositive = (data.percent_change_24h >= 0);
-    const unsigned char* arrowIcon = isPositive ? icon_arrow_up : icon_arrow_down;
-    display.drawBitmap(102, 3, arrowIcon, 15, 15, 1);
-
-    // 4. Percentage Change
-    display.setTextSize(1);
-    display.setCursor(95, 22);
-    
-    // Add '+' sign for positive changes
-    String trendPrefix = isPositive ? "+" : ""; 
-    display.print(trendPrefix + String(data.percent_change_24h, 1) + "%");
-}
-
 void DisplayService::drawNoData() {
     display.clearDisplay();
 
@@ -436,13 +486,14 @@ bool DisplayService::isScreenEnabled(const Config& config, int screenIndex) {
         case SCREEN_TIME:           return config.show_time;
         case SCREEN_WEATHER:        return config.show_weather;
         case SCREEN_AIR_QUALITY:    return config.show_aqi;
-        case SCREEN_PC_MONITOR:     return config.show_pc;
         case SCREEN_CRYPTO:         return config.show_crypto;
+        case SCREEN_CURRENCY:       return config.show_currency;
+        case SCREEN_PC_MONITOR:     return config.show_pc;
         default:                    return false;
     }
 }
 
-void DisplayService::drawScreen(int screenIndex, const Config& config, TimeService& timeService, const WeatherData& weather, const AirQualityData& aqi, const PcStats& pc, const CryptoData& crypto) {
+void DisplayService::drawScreen(int screenIndex, const Config& config, TimeService& timeService, const WeatherData& weather, const AirQualityData& aqi, const PcStats& pc, const CryptoData& crypto, const CurrencyData& currency) {
   switch(screenIndex) {
     case SCREEN_TIME:
       drawTimeScreen(config, timeService.getCurrentTimeShort(config.time_format), timeService.getFullDate());
@@ -453,11 +504,14 @@ void DisplayService::drawScreen(int screenIndex, const Config& config, TimeServi
     case SCREEN_AIR_QUALITY:
       drawAQIScreen(config, aqi, timeService.getCurrentTimeShort(config.time_format));
       break;
-    case SCREEN_PC_MONITOR:
-      drawPcScreen(pc);
-      break;
     case SCREEN_CRYPTO:
       drawCryptoScreen(crypto);
+      break;
+    case SCREEN_CURRENCY:
+      drawCurrencyScreen(config, currency);
+      break;
+    case SCREEN_PC_MONITOR:
+      drawPcScreen(pc);
       break;
   }
 }
@@ -478,28 +532,28 @@ int DisplayService::getNextAnimationEffect(uint16_t mask) {
     return enabledAnims[randomIndex];
 }
 
-void DisplayService::animateTransition(int prevScreen, int nextScreen, const Config& config, TimeService& timeService, const WeatherData& weather, const AirQualityData& aqi, const PcStats& pc, const CryptoData& crypto) {
+void DisplayService::animateTransition(int prevScreen, int nextScreen, const Config& config, TimeService& timeService, const WeatherData& weather, const AirQualityData& aqi, const PcStats& pc, const CryptoData& crypto, const CurrencyData& currency) {
     int selectedEffect = getNextAnimationEffect(config.anim_mask);
 
     switch(selectedEffect) {
         case ANIM_SLIDE_HORIZONTAL:
-            animateHorizontal(prevScreen, nextScreen, config, timeService, weather, aqi, pc, crypto);
+            animateHorizontal(prevScreen, nextScreen, config, timeService, weather, aqi, pc, crypto, currency);
             break;
         case ANIM_SLIDE_VERTICAL:
-            animateVertical(prevScreen, nextScreen, config, timeService, weather, aqi, pc, crypto);
+            animateVertical(prevScreen, nextScreen, config, timeService, weather, aqi, pc, crypto, currency);
             break;
         case ANIM_DISSOLVE:
-            animateDissolve(prevScreen, nextScreen, config, timeService, weather, aqi, pc, crypto);
+            animateDissolve(prevScreen, nextScreen, config, timeService, weather, aqi, pc, crypto, currency);
             break;
         case ANIM_CURTAIN:
-            animateCurtain(prevScreen, nextScreen, config, timeService, weather, aqi, pc, crypto);
+            animateCurtain(prevScreen, nextScreen, config, timeService, weather, aqi, pc, crypto, currency);
             break;
         case ANIM_BLINDS:
-            animateBlinds(prevScreen, nextScreen, config, timeService, weather, aqi, pc, crypto);
+            animateBlinds(prevScreen, nextScreen, config, timeService, weather, aqi, pc, crypto, currency);
             break;
         default:
             display.clearDisplay();
-            drawScreen(nextScreen, config, timeService, weather, aqi, pc, crypto);
+            drawScreen(nextScreen, config, timeService, weather, aqi, pc, crypto, currency);
             display.display();
             break;
     }
@@ -507,9 +561,9 @@ void DisplayService::animateTransition(int prevScreen, int nextScreen, const Con
 
 // Animations
 
-void DisplayService::animateHorizontal(int prev, int next, const Config& c, TimeService& t, const WeatherData& w, const AirQualityData& a, const PcStats& p, const CryptoData& cr) {
-  display.clearDisplay(); drawScreen(prev, c, t, w, a, p, cr); memcpy(screenBufferOld, display.getBuffer(), 1024);
-  display.clearDisplay(); drawScreen(next, c, t, w, a, p, cr); memcpy(screenBufferNew, display.getBuffer(), 1024);
+void DisplayService::animateHorizontal(int prev, int next, const Config& c, TimeService& t, const WeatherData& w, const AirQualityData& a, const PcStats& p, const CryptoData& cr, const CurrencyData& cd) {
+  display.clearDisplay(); drawScreen(prev, c, t, w, a, p, cr, cd); memcpy(screenBufferOld, display.getBuffer(), 1024);
+  display.clearDisplay(); drawScreen(next, c, t, w, a, p, cr, cd); memcpy(screenBufferNew, display.getBuffer(), 1024);
 
   int step = 8;
   for (int offset = 0; offset <= 128; offset += step) {
@@ -523,9 +577,9 @@ void DisplayService::animateHorizontal(int prev, int next, const Config& c, Time
   }
 }
 
-void DisplayService::animateVertical(int prev, int next, const Config& c, TimeService& t, const WeatherData& w, const AirQualityData& a, const PcStats& p, const CryptoData& cr) {
-  display.clearDisplay(); drawScreen(prev, c, t, w, a, p, cr); memcpy(screenBufferOld, display.getBuffer(), 1024);
-  display.clearDisplay(); drawScreen(next, c, t, w, a, p, cr); memcpy(screenBufferNew, display.getBuffer(), 1024);
+void DisplayService::animateVertical(int prev, int next, const Config& c, TimeService& t, const WeatherData& w, const AirQualityData& a, const PcStats& p, const CryptoData& cr, const CurrencyData& cd) {
+  display.clearDisplay(); drawScreen(prev, c, t, w, a, p, cr, cd); memcpy(screenBufferOld, display.getBuffer(), 1024);
+  display.clearDisplay(); drawScreen(next, c, t, w, a, p, cr, cd); memcpy(screenBufferNew, display.getBuffer(), 1024);
 
   for (int step = 0; step <= 8; step++) {
     uint8_t* displayBuf = display.getBuffer();
@@ -542,9 +596,9 @@ void DisplayService::animateVertical(int prev, int next, const Config& c, TimeSe
   }
 }
 
-void DisplayService::animateDissolve(int prev, int next, const Config& c, TimeService& t, const WeatherData& w, const AirQualityData& a, const PcStats& p, const CryptoData& cr) {
-  display.clearDisplay(); drawScreen(prev, c, t, w, a, p, cr); memcpy(screenBufferOld, display.getBuffer(), 1024);
-  display.clearDisplay(); drawScreen(next, c, t, w, a, p, cr); memcpy(screenBufferNew, display.getBuffer(), 1024);
+void DisplayService::animateDissolve(int prev, int next, const Config& c, TimeService& t, const WeatherData& w, const AirQualityData& a, const PcStats& p, const CryptoData& cr, const CurrencyData& cd) {
+  display.clearDisplay(); drawScreen(prev, c, t, w, a, p, cr, cd); memcpy(screenBufferOld, display.getBuffer(), 1024);
+  display.clearDisplay(); drawScreen(next, c, t, w, a, p, cr, cd); memcpy(screenBufferNew, display.getBuffer(), 1024);
 
   uint8_t* displayBuf = display.getBuffer();
   for (int step = 0; step < 8; step++) {
@@ -566,9 +620,9 @@ void DisplayService::animateDissolve(int prev, int next, const Config& c, TimeSe
   }
 }
 
-void DisplayService::animateCurtain(int prev, int next, const Config& c, TimeService& t, const WeatherData& w, const AirQualityData& a, const PcStats& p, const CryptoData& cr) {
-  display.clearDisplay(); drawScreen(prev, c, t, w, a, p, cr); memcpy(screenBufferOld, display.getBuffer(), 1024);
-  display.clearDisplay(); drawScreen(next, c, t, w, a, p, cr); memcpy(screenBufferNew, display.getBuffer(), 1024);
+void DisplayService::animateCurtain(int prev, int next, const Config& c, TimeService& t, const WeatherData& w, const AirQualityData& a, const PcStats& p, const CryptoData& cr, const CurrencyData& cd) {
+  display.clearDisplay(); drawScreen(prev, c, t, w, a, p, cr, cd); memcpy(screenBufferOld, display.getBuffer(), 1024);
+  display.clearDisplay(); drawScreen(next, c, t, w, a, p, cr, cd); memcpy(screenBufferNew, display.getBuffer(), 1024);
 
   int maxRadius = 80; 
   int step = 4;
@@ -589,9 +643,9 @@ void DisplayService::animateCurtain(int prev, int next, const Config& c, TimeSer
   }
 }
 
-void DisplayService::animateBlinds(int prev, int next, const Config& c, TimeService& t, const WeatherData& w, const AirQualityData& a, const PcStats& p, const CryptoData& cr) {
-  display.clearDisplay(); drawScreen(prev, c, t, w, a, p, cr); memcpy(screenBufferOld, display.getBuffer(), 1024);
-  display.clearDisplay(); drawScreen(next, c, t, w, a, p, cr); memcpy(screenBufferNew, display.getBuffer(), 1024);
+void DisplayService::animateBlinds(int prev, int next, const Config& c, TimeService& t, const WeatherData& w, const AirQualityData& a, const PcStats& p, const CryptoData& cr, const CurrencyData& cd) {
+  display.clearDisplay(); drawScreen(prev, c, t, w, a, p, cr, cd); memcpy(screenBufferOld, display.getBuffer(), 1024);
+  display.clearDisplay(); drawScreen(next, c, t, w, a, p, cr, cd); memcpy(screenBufferNew, display.getBuffer(), 1024);
 
   uint8_t* displayBuf = display.getBuffer();
   memcpy(displayBuf, screenBufferOld, 1024); 

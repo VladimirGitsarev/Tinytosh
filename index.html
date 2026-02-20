@@ -563,7 +563,7 @@
                 <ul>
                     <li><strong>Switch Screens Automatically:</strong> If checked, screens rotate automatically. If unchecked, the screen stays static until you press the hardware button.</li>
                     <li><strong>Screen Cycle Interval:</strong> Time (in seconds) each screen stays visible before rotating.</li>
-                    <li><strong>Data Sync Interval:</strong> Frequency (in minutes) of data fetches for Weather, Air Quality, and Crypto.</li>
+                    <li><strong>Data Sync Interval:</strong> Frequency (in minutes) of data fetches for Weather, Air Quality, Crypto, and Currencies.</li>
                 </ul>
 
                 <div class="feature-section-title">Visual Effects</div>
@@ -697,7 +697,7 @@
             <div class="feature-item">
                 <div class="feature-header">📈 Crypto Tracker</div>
                 <div class="feature-section-title">Settings</div>
-                <p>Select your preferred coin from the top 30 global cryptocurrencies to track live market data.</p>
+                <p>Select your preferred coin from the top 75 global cryptocurrencies to track live market data.</p>
                 <div class="feature-section-title">Layout</div>
                 <p>Shows the coin ticker (e.g., BTC), current price in USD, a trend icon, and the 24h percentage change.</p>
                 <span class="api-tag">Source: api.coinlore.net</span>
@@ -723,6 +723,38 @@
                 </details>
             </div>
 
+            <div class="feature-item">
+                <div class="feature-header">💱 Currency Tracker</div>
+                <div class="feature-section-title">Settings</div>
+                <p>Track live exchange rates between over 150 global fiat currencies.</p>
+                <ul>
+                    <li><strong>Base & Target:</strong> Select your currency pair (e.g., USD to EUR).</li>
+                    <li><strong>Multiplier Amount:</strong> Essential for viewing exchange rates with large differences. Instead of viewing the tiny fraction for 1 unit, you can track the rate for 10, 100, 1,000, or 10,000 units for better readability.</li>
+                </ul>
+                <div class="feature-section-title">Layout</div>
+                <p>Top Left: Base Currency (Large). Bottom Left: Target Rate. Right Side: Multiplier context aligned to the edge (e.g., "1 USD =", "1000 ARS =").</p>
+                <span class="api-tag">Source: cdn.jsdelivr.net/@fawazahmed0/currency-api</span>
+
+                <details>
+                    <summary>📸 View Screen Preview</summary>
+                    <div class="assembly-container">
+                        <div class="assembly-grid">
+                            <div class="assembly-item">
+                                <div class="assembly-img-wrapper">
+                                    <img src="img/render_currency.png" alt="Currency Layout Render">
+                                </div>
+                                <div class="assembly-caption">Layout Render</div>
+                            </div>
+                            <div class="assembly-item">
+                                <div class="assembly-img-wrapper">
+                                    <img src="img/real_currency.jpg" alt="Currency Real Photo" class="real-photo">
+                                </div>
+                                <div class="assembly-caption">Real Photo</div>
+                            </div>
+                        </div>
+                    </div>
+                </details>
+            </div>
             <div class="feature-item">
                 <div class="feature-header">🖥️ PC Monitor</div>
                 <div class="feature-section-title">Function</div>

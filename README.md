@@ -24,8 +24,9 @@
 **Tinytosh** is a DIY project that fits a smart dashboard inside a tiny, 3D-printed Macintosh-style case. It connects to your WiFi to display useful information or hooks up to your PC via USB to show real-time hardware stats.
 
 ### ✨ Key Features
-* **Modular Dashboard:** Enable/Disable screens on the fly via a Web Panel.
-* **Zero Config APIs:** Uses free public APIs for Crypto, Weather, and Air Quality. No API keys required.
+* **Modular Dashboard:** Enable/Disable screens on the fly via a Web Panel. 
+* **Zero Config APIs:** Uses free public APIs for Crypto, Currency, Weather, and Air Quality. No API keys required.
+* **Currency & Crypto Tracker:** Track top cryptocurrencies and over 150 fiat currency exchange rates with custom multipliers. 
 * **PC Monitoring:** View CPU, RAM, Disk, and Network usage via the USB Bridge.
 * **Visuals:** Smooth OLED animations (Slide, Dissolve, Curtain, Blinds) and 60fps refresh rates.
 * **Privacy First:** No accounts, no cloud tracking. Everything runs locally on the ESP32.
@@ -149,8 +150,16 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 * Weather data provided by [Open-Meteo](https://open-meteo.com/).
 * Crypto data provided by [CoinLore](https://www.coinlore.com/cryptocurrency-data-api).
 * IP Geolocation by [ip-api](https://ip-api.com/).
+* Fiat Currency data provided by [fawazahmed0/currency-api](https://github.com/fawazahmed0/exchange-api).
 
 ---
+
+## 📅 Changelog
+
+| Version | Date | Key Changes |
+| :--- | :--- | :--- |
+| **v1.0.1** | *Feb 2026* | 💱 Added **Currency Tracker** module (150+ fiat pairs), introduced dynamic multipliers for large conversion gaps, and optimized logging. Expanded Crypto list to top 75. |
+| **v1.0.0** | *Initial* | 🚀 Initial release: Time, Weather, AQI, Crypto, and PC Monitor modules. Web panel, firmware flasher, and 3D printable case released. |
 
 <p align="center">
   <sub>Built with ❤️ and too much coffee.</sub>

@@ -40,12 +40,13 @@ String WebServerService::getWeatherIcon(int wmo_code) {
 WebServerService::WebServerService(int port, ConfigSaveCallback callback) : 
   server(port), saveCallback(callback), sharedConfig(nullptr), sharedWeather(nullptr) {}
 
-void WebServerService::setSharedData(Config* config, WeatherData* weather, PcStats* pcStats, CryptoData* cryptoData, AirQualityData* airQualityData) {
+void WebServerService::setSharedData(Config* config, WeatherData* weather, AirQualityData* airQualityData, CryptoData* cryptoData, CurrencyData* currencyData, PcStats* pcStats) {
   sharedConfig = config;
   sharedWeather = weather;
-  sharedPcStats = pcStats;
-  sharedCrypto = cryptoData;
   sharedAirQuality = airQualityData;
+  sharedCrypto = cryptoData;
+  sharedCurrency = currencyData;
+  sharedPcStats = pcStats;
 }
 
 void WebServerService::begin() {
@@ -62,18 +63,20 @@ void WebServerService::handleClient() {
 
 String WebServerService::generateRootPageContent() {
   String content;
-  content.reserve(24000); 
+  content.reserve(28000); // Bumped up slightly to fit the new HTML
   
   const Config& config = *sharedConfig;
   const WeatherData& weather = *sharedWeather;
   const AirQualityData& airQualityData = *sharedAirQuality;
   const PcStats& pcStats = *sharedPcStats;
   const CryptoData& cryptoData = *sharedCrypto;
+  const CurrencyData& currencyData = *sharedCurrency; // NEW: Currency Pointer
   
   bool weatherValid = !isnan(weather.temp);
   bool aqiValid = !isnan(airQualityData.pm25) && !isnan(airQualityData.pm10) && !isnan(airQualityData.no2);
   bool pcValid = pcStats.cpu_percent > 0.1; 
   bool cryptoValid = !isnan(cryptoData.price_usd) && cryptoData.price_usd > 0;
+  bool currencyValid = currencyData.updated; // NEW: Currency check
 
   content += "<html><head><title>Tinytosh | Web Panel</title>";
   content += "<meta name='viewport' content='width=device-width, initial-scale=1'><meta charset='UTF-8'>";
@@ -249,7 +252,6 @@ String WebServerService::generateRootPageContent() {
       content += "<div class='update-footer' id='weather-upd'>Last Update: " + weather.update_time + "</div>";
   }
   
-  // --- UPDATED: Temperature Unit Radios ---
   content += "<label>Temperature Unit:</label><div style='display:flex; gap:15px; margin-top:8px;'>";
   content += "<label style='cursor:pointer; display:flex; align-items:center;'><input type='radio' name='temp_unit' value='C' " + String(config.temp_unit == "C" ? "checked" : "") + " style='margin-right:6px;'> °C</label>";
   content += "<label style='cursor:pointer; display:flex; align-items:center;'><input type='radio' name='temp_unit' value='F' " + String(config.temp_unit == "F" ? "checked" : "") + " style='margin-right:6px;'> °F</label></div>";
@@ -257,7 +259,7 @@ String WebServerService::generateRootPageContent() {
   content += "<label style='margin-top:10px; cursor:pointer;'><input type='checkbox' name='round_temps' value='1' " + String(config.round_temps ? "checked" : "") + "> Round Temperature Values</label>";
   content += "</div></div>";
 
-  // 3. Air Quality Screen
+  // 4. Air Quality Screen
   content += "<div class='panel'>";
   content += "<label style='margin:0; cursor:pointer;'><input type='checkbox' id='showAQI' name='show_aqi' value='1' " + String(config.show_aqi ? "checked" : "") + "> Air Quality Screen</label>";
   content += "<div id='aqiContent' class='collapsible'>";
@@ -274,7 +276,6 @@ String WebServerService::generateRootPageContent() {
       content += "<div class='update-footer' id='aqi-upd'>Last Update: " + weather.update_time + "</div>";
   }
 
-  // --- UPDATED: AQI Standard Radios ---
   content += "<label>AQI Standard:</label><div style='display:flex; gap:15px; margin-top:8px;'>";
   content += "<label style='cursor:pointer; display:flex; align-items:center;'><input type='radio' name='aqi_type' value='US' " + String(config.aqi_type == "US" ? "checked" : "") + " style='margin-right:6px;'> US Standard</label>";
   content += "<label style='cursor:pointer; display:flex; align-items:center;'><input type='radio' name='aqi_type' value='EU' " + String(config.aqi_type == "EU" ? "checked" : "") + " style='margin-right:6px;'> European Standard</label></div>";
@@ -282,7 +283,77 @@ String WebServerService::generateRootPageContent() {
 
   content += "</div></div>";
 
-  // 4. PC Screen
+  // 5. Crypto Screen
+  content += "<div class='panel'>";
+  content += "<label style='margin:0; cursor:pointer;'><input type='checkbox' id='showCrypto' name='show_crypto' value='1' " + String(config.show_crypto ? "checked" : "") + "> Crypto Tracking Screen</label>";
+  content += "<div id='cryptoContent' class='collapsible'>";
+  if (!cryptoValid) {
+      content += "<div class='no-data-tile'>💰 Crypto data will be available after sync</div>";
+  } else {
+      content += "<div class='dashboard-grid'>";
+      content += "<div class='tile'><div class='tile-icon'>₿</div><div class='tile-value' id='crypto-price'>" + String((int)round(cryptoData.price_usd)) + "$</div><div class='tile-label' id='crypto-sym'>" + cryptoData.symbol + " Price</div></div>";
+      content += "<div class='tile'><div class='tile-icon' id='crypto-trend-icon'>" + String(cryptoData.percent_change_24h >= 0 ? "📈" : "📉") + "</div><div class='tile-value' id='crypto-change'>" + String(cryptoData.percent_change_24h, 1) + "%</div><div class='tile-label'>24h Change</div></div>";
+      content += "</div>";
+  }
+  content += "<label>Track Cryptocurrency:</label><select name='crypto_id'>";
+  for(auto coin : topCoins) {
+      content += "<option value='" + String(coin.id) + "' " + (config.crypto_id == coin.id ? "selected" : "") + ">" + String(coin.sym) + "</option>";
+  }
+  content += "</select></div></div>";
+
+  // 6. Currency Screen
+  content += "<div class='panel'>";
+  content += "<label style='margin:0; cursor:pointer;'><input type='checkbox' id='showCurrency' name='show_currency' value='1' " + String(config.show_currency ? "checked" : "") + "> Currency Exchange Screen</label>";
+  content += "<div id='currencyContent' class='collapsible'>";
+  
+  if (!currencyValid) {
+      content += "<div class='no-data-tile'>💱 Currency data will be available after sync</div>";
+  } else {
+      content += "<div class='dashboard-grid'>";
+      
+      float displayRate = currencyData.rate * config.currency_multiplier;
+      int decimals = 0;
+      if (displayRate < 10.0) decimals = 3;
+      else if (displayRate < 100.0) decimals = 2;
+      else if (displayRate < 1000.0) decimals = 1;
+
+      content += "<div class='tile'><div class='tile-icon'>💵</div><div class='tile-value' id='currency-base-val'>" + String(config.currency_multiplier) + " " + currencyData.base + "</div><div class='tile-label'>Base Amount</div></div>";
+      content += "<div class='tile'><div class='tile-icon'>💱</div><div class='tile-value' id='currency-target-val'>" + String(displayRate, decimals) + " " + currencyData.target + "</div><div class='tile-label'>Exchange Rate</div></div>";
+      
+      content += "</div>";
+      content += "<div class='update-footer' id='currency-upd'>Rates updated: " + currencyData.date + "</div>";
+  }
+
+  // Base & Target Dropdowns
+  content += "<div class='dashboard-grid' style='margin-top: 10px;'>";
+  
+  content += "<div><label style='margin-top: 0;'>Base Currency:</label><select name='currency_base'>";
+  for (auto c : allCurrencies) {
+      String codeUpper = String(c.code);
+      codeUpper.toUpperCase();
+      content += "<option value='" + String(c.code) + "' " + (String(config.currency_base) == String(c.code) ? "selected" : "") + ">" + codeUpper + " - " + String(c.name) + "</option>";
+  }
+  content += "</select></div>";
+
+  content += "<div><label style='margin-top: 0;'>Target Currency:</label><select name='currency_target'>";
+  for (auto c : allCurrencies) {
+      String codeUpper = String(c.code);
+      codeUpper.toUpperCase();
+      content += "<option value='" + String(c.code) + "' " + (String(config.currency_target) == String(c.code) ? "selected" : "") + ">" + codeUpper + " - " + String(c.name) + "</option>";
+  }
+  content += "</select></div>";
+  
+  content += "</div>";
+
+  // Multiplier Dropdown
+  content += "<label>Multiplier Amount:</label><select name='currency_multiplier'>";
+  int multipliers[] = {1, 10, 100, 1000, 10000, 100000};
+  for (int m : multipliers) {
+      content += "<option value='" + String(m) + "' " + (config.currency_multiplier == m ? "selected" : "") + ">" + String(m) + "</option>";
+  }
+  content += "</select></div></div>";
+
+  // 7. PC Screen
   content += "<div class='panel'>";
   content += "<label style='margin:0; cursor:pointer;'><input type='checkbox' id='showPc' name='show_pc' value='1' " + String(config.show_pc ? "checked" : "") + "> PC Monitoring Screen</label>";
   content += "<div id='pcContent' class='collapsible'>";
@@ -298,31 +369,12 @@ String WebServerService::generateRootPageContent() {
   }
   content += "</div></div>";
 
-  // 5. Crypto Screen
-  content += "<div class='panel'>";
-  content += "<label style='margin:0; cursor:pointer;'><input type='checkbox' id='showCrypto' name='show_crypto' value='1' " + String(config.show_crypto ? "checked" : "") + "> Crypto Tracking Screen</label>";
-  content += "<div id='cryptoContent' class='collapsible'>";
-  if (!cryptoValid) {
-      content += "<div class='no-data-tile'>💰 Crypto data will be available after sync</div>";
-  } else {
-      content += "<div class='dashboard-grid'>";
-      content += "<div class='tile'><div class='tile-icon'>₿</div><div class='tile-value' id='crypto-price'>" + String((int)round(cryptoData.price_usd)) + "$</div><div class='tile-label' id='crypto-sym'>" + cryptoData.symbol + " Price</div></div>";
-      content += "<div class='tile'><div class='tile-icon' id='crypto-trend-icon'>" + String(cryptoData.percent_change_24h >= 0 ? "📈" : "📉") + "</div><div class='tile-value' id='crypto-change'>" + String(cryptoData.percent_change_24h, 1) + "%</div><div class='tile-label'>24h Change</div></div>";
-      content += "</div>";
-      content += "<div class='update-footer' id='weather-upd'>Last Update: " + weather.update_time + "</div>";
-  }
-  content += "<label>Track Cryptocurrency:</label><select name='crypto_id'>";
-  for(auto coin : topCoins) {
-      content += "<option value='" + String(coin.id) + "' " + (config.crypto_id == coin.id ? "selected" : "") + ">" + String(coin.sym) + "</option>";
-  }
-  content += "</select></div></div>";
-
   content += "<button type='submit'>💾 Save & Apply All Settings</button></form>";
   
   content += "<script>";
   content += "function updateVisibility(){";
   
-  content += "  var pairs = [['autoDetect','manualFields',true], ['showTime', 'timeContent',false], ['showWeather','weatherContent',false], ['showPc','pcContent',false], ['showCrypto','cryptoContent',false], ['showAQI','aqiContent',false]];";
+  content += "  var pairs = [['autoDetect','manualFields',true], ['showTime', 'timeContent',false], ['showWeather','weatherContent',false], ['showPc','pcContent',false], ['showCrypto','cryptoContent',false], ['showCurrency','currencyContent',false], ['showAQI','aqiContent',false]];";
   content += "  pairs.forEach(p => {";
   content += "    var ch = document.getElementById(p[0]); if(!ch) return;";
   content += "    var target = document.getElementById(p[1]);";
@@ -337,7 +389,8 @@ String WebServerService::generateRootPageContent() {
 
   content += "}";
   
-  content += "['autoDetect', 'showTime', 'showWeather', 'showPc', 'showCrypto', 'showAQI', 'autoCycle'].forEach(id => { var el=document.getElementById(id); if(el) el.addEventListener('change', updateVisibility); });";
+  // ADDED 'showCurrency' to event listeners array
+  content += "['autoDetect', 'showTime', 'showWeather', 'showPc', 'showCrypto', 'showCurrency', 'showAQI', 'autoCycle'].forEach(id => { var el=document.getElementById(id); if(el) el.addEventListener('change', updateVisibility); });";
   content += "updateVisibility();";
 
   // Handle "None" Checkbox Logic
@@ -416,6 +469,12 @@ String WebServerService::generateRootPageContent() {
   content += "    set('crypto-change', d.crypto_change + '%');";
   content += "    set('crypto-trend-icon', d.crypto_change >= 0 ? '📈' : '📉');";
   content += "  }";
+
+  content += "  if (d.currency_base_text !== undefined) {";
+  content += "    set('currency-base-val', d.currency_base_text);";
+  content += "    set('currency-target-val', d.currency_target_text);";
+  content += "    set('currency-upd', 'Rates updated: ' + d.currency_date);";
+  content += "  }";
     
   content += "}).catch(e => console.log('Sync error:', e)); } setInterval(updateData, 15000); updateData();";
   content += "</script></div></body></html>";
@@ -439,6 +498,7 @@ void WebServerService::handleSave() {
   config.show_aqi = server.hasArg("show_aqi");
   config.show_crypto = server.hasArg("show_crypto");
   config.show_pc = server.hasArg("show_pc");
+  config.show_currency = server.hasArg("show_currency"); // NEW
 
   if (config.show_time) config.date_display = server.hasArg("date_display");
   if (config.show_weather) config.round_temps = server.hasArg("round_temps");
@@ -451,6 +511,18 @@ void WebServerService::handleSave() {
   if (server.hasArg("screen_int")) config.screen_interval_sec = server.arg("screen_int").toInt();
   if (server.hasArg("anim_mask")) config.anim_mask = server.arg("anim_mask").toInt();
   if (server.hasArg("crypto_id")) config.crypto_id = server.arg("crypto_id").toInt();
+
+  // NEW: Currency Settings
+  if (server.hasArg("currency_base")) {
+      // Assuming you defined these as Strings or char arrays with String assignment overrides
+      config.currency_base = server.arg("currency_base"); 
+  }
+  if (server.hasArg("currency_target")) {
+      config.currency_target = server.arg("currency_target");
+  }
+  if (server.hasArg("currency_multiplier")) {
+      config.currency_multiplier = server.arg("currency_multiplier").toInt();
+  }
 
   if (!config.auto_detect && server.hasArg("city")) {
     config.city = server.arg("city"); 
@@ -486,6 +558,11 @@ void WebServerService::handleSave() {
     sharedCrypto->percent_change_24h = NAN;
   }
 
+  if (!config.show_currency) {
+    sharedCurrency->rate = NAN;
+    sharedCurrency->updated = false;
+  }
+
   if (config.refresh_interval_min <= 0) config.refresh_interval_min = 1; 
 
   if (saveCallback) {
@@ -502,8 +579,10 @@ void WebServerService::handleUpdate() {
   const AirQualityData& airQualityData = *sharedAirQuality;
   const PcStats& pcStats = *sharedPcStats;
   const CryptoData& cryptoData = *sharedCrypto;
+  const CurrencyData& currencyData = *sharedCurrency;
 
-  DynamicJsonDocument doc(512);
+  DynamicJsonDocument doc(768); 
+  
   doc["time"] = getCurrentTimeShort(config.time_format);
   doc["date"] = getFullDate();
   
@@ -531,6 +610,18 @@ void WebServerService::handleUpdate() {
   doc["crypto_price"] = String(cryptoData.price_usd);
   doc["crypto_change"] = String(cryptoData.percent_change_24h);
   
+  if (currencyData.updated) {
+      float displayRate = currencyData.rate * config.currency_multiplier;
+      
+      int decimals = 0;
+      if (displayRate < 10.0) decimals = 3;
+      else if (displayRate < 100.0) decimals = 2;
+      else if (displayRate < 1000.0) decimals = 1;
+      
+      doc["currency_base_text"] = String(config.currency_multiplier) + " " + currencyData.base;
+      doc["currency_target_text"] = String(displayRate, decimals) + " " + currencyData.target;
+      doc["currency_date"] = currencyData.date;
+  }
   
   String jsonResponse;
   serializeJson(doc, jsonResponse);

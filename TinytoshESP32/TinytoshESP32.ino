@@ -8,8 +8,9 @@
 #include "AirQualityService.h"
 #include "DisplayService.h"
 #include "WebServerService.h"
-#include "PcMonitorService.h"
 #include "CryptoService.h"
+#include "CurrencyService.h"
+#include "PcMonitorService.h"
 
 // Global Constants
 const char* AP_SSID = "Tinytosh";
@@ -25,6 +26,7 @@ Config userConfig;
 WeatherData weatherData;
 AirQualityData airQualityData;
 CryptoData cryptoData;
+CurrencyData currencyData;
 PcStats pcStats;
 
 // Forward declaration of callback for WebServerService
@@ -37,8 +39,9 @@ WeatherService weatherService;
 AirQualityService airQualityService;
 DisplayService displayService(128, 64, -1);
 WebServerService webServerService(80, updateAllDataCallback);
-PcMonitorService pcMonitorService;
 CryptoService cryptoService;
+CurrencyService currencyService;
+PcMonitorService pcMonitorService;
 
 unsigned long lastScreenSwitch = 0;
 int currentScreen = SCREEN_TIME;
@@ -50,7 +53,7 @@ unsigned long lastDebounceTime = 0;
 // Helper Functions
 
 void drawCurrentScreen() {
-    displayService.drawScreen(currentScreen, userConfig, timeService, weatherData, airQualityData, pcStats, cryptoData);
+    displayService.drawScreen(currentScreen, userConfig, timeService, weatherData, airQualityData, pcStats, cryptoData, currencyData);
 }
 
 void switchToNextScreen() {
@@ -70,7 +73,7 @@ void switchToNextScreen() {
     if (!foundVisible) return;
 
     displayService.animateTransition(
-      currentScreen, nextScreenCandidate, userConfig, timeService, weatherData, airQualityData, pcStats, cryptoData
+      currentScreen, nextScreenCandidate, userConfig, timeService, weatherData, airQualityData, pcStats, cryptoData, currencyData
     );
 
     currentScreen = nextScreenCandidate;
@@ -110,10 +113,21 @@ void updateAllData() {
     cryptoService.fetchPrice(userConfig.crypto_id, cryptoData);
   }
 
-  // 6. Save Everything
+  // 6. Fetch Currency (Independent)
+  if (userConfig.show_currency) { 
+    String baseUpper = String(userConfig.currency_base);
+    baseUpper.toUpperCase();
+    String targetUpper = String(userConfig.currency_target);
+    targetUpper.toUpperCase();
+
+    displayService.showOLEDStatus({"\n", "\n", "Updating Currency...", "\n", baseUpper + " -> " + targetUpper}, true);
+    currencyService.fetchRate(String(userConfig.currency_base), String(userConfig.currency_target), currencyData);
+  }
+
+  // 7. Save Everything
   configManager.saveConfig(userConfig);
 
-  // 7. Find the first enabled screen to show immediately
+  // 8. Find the first enabled screen to show immediately
   currentScreen = SCREEN_TIME;
   for (int i = 0; i < NUM_SCREENS; i++) {
       if (displayService.isScreenEnabled(userConfig, i)) {
@@ -167,7 +181,7 @@ void setup() {
   }
 
   // 5. Initialize Web Server
-  webServerService.setSharedData(&userConfig, &weatherData, &pcStats, &cryptoData, &airQualityData);
+  webServerService.setSharedData(&userConfig, &weatherData, &airQualityData, &cryptoData, &currencyData, &pcStats);
   webServerService.begin();
 }
 
@@ -209,6 +223,10 @@ void loop() {
 
     if (userConfig.show_crypto) {
       cryptoService.fetchPrice(userConfig.crypto_id, cryptoData);
+    }
+
+    if (userConfig.show_currency) {
+      currencyService.fetchRate(userConfig.currency_base, userConfig.currency_target, currencyData);
     }
 
     lastDataUpdate = millis();

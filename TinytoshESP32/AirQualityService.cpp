@@ -14,24 +14,37 @@ bool AirQualityService::fetchAirQuality(const Config& config, AirQualityData &da
                "&current=pm2_5,pm10,nitrogen_dioxide," + typeParam;
   
   Serial.println("AirQualityService: Requesting Air Quality data from: " + url); 
+  http.setReuse(false); 
   http.begin(url);
   http.setTimeout(10000); 
   int httpCode = http.GET();
 
   if (httpCode == 200) {
+    String payload = http.getString();
     DynamicJsonDocument doc(1024);
-    deserializeJson(doc, http.getString());
+    DeserializationError error = deserializeJson(doc, payload);
     
-    JsonObject current = doc["current"];
-    data.aqi = current[typeParam];
-    data.pm25 = current["pm2_5"];
-    data.pm10 = current["pm10"];
-    data.no2 = current["nitrogen_dioxide"];
-    data.status = getAQIDescription(data.aqi, config.aqi_type == "EU");
-    
-    http.end();
-    return true;
+    if (!error) {
+      JsonObject current = doc["current"];
+      data.aqi = current[typeParam].as<int>();
+      data.pm25 = current["pm2_5"].as<float>();
+      data.pm10 = current["pm10"].as<float>();
+      data.no2 = current["nitrogen_dioxide"].as<float>();
+      data.status = getAQIDescription(data.aqi, config.aqi_type == "EU");
+      
+      Serial.printf("AirQualityService: Success! %s AQI: %d (%s), PM2.5: %.1f, PM10: %.1f, NO2: %.1f\n", 
+                    config.aqi_type.c_str(), data.aqi, data.status.c_str(), 
+                    data.pm25, data.pm10, data.no2);
+                    
+      http.end();
+      return true;
+    } else {
+      Serial.printf("AirQualityService: JSON parsing failed: %s\n", error.c_str());
+    }
+  } else {
+    Serial.printf("AirQualityService: API failed, HTTP Code: %d\n", httpCode);
   }
+  
   http.end();
   return false;
 }

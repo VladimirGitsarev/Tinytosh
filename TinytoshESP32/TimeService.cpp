@@ -26,7 +26,8 @@ bool TimeService::fetchLocationData(Config& config) {
       config.longitude = doc["lon"].as<float>();
       config.timezone = doc["timezone"].as<String>();
       config.city = doc["city"].as<String>(); 
-      Serial.printf("WeatherService: Detected: %s, Lat: %.4f, Lon: %.4f, TZ: %s\n", 
+      
+      Serial.printf("TimeService: Success! Location: %s (Lat: %.4f, Lon: %.4f), TZ: %s\n", 
                     config.city.c_str(), config.latitude, 
                     config.longitude, config.timezone.c_str());
       return true;
@@ -72,8 +73,11 @@ void TimeService::syncNTP(const String& ianaTimezone) {
   if (now > 1672531200L) { 
     struct tm timeinfo;
     localtime_r(&now, &timeinfo);
-    Serial.print("TimeService: Time synced. Current local time: ");
-    Serial.println(asctime(&timeinfo));
+    
+    char timeStr[64];
+    strftime(timeStr, sizeof(timeStr), "%a %b %d %H:%M:%S %Y", &timeinfo);
+    
+    Serial.printf("TimeService: Success! Time synced: %s\n", timeStr);
   } else {
     Serial.println("TimeService: NTP time sync failed or timed out.");
   }

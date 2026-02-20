@@ -38,6 +38,7 @@ bool WeatherService::fetchWeather(const Config& config, WeatherData& data, const
                "&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,apparent_temperature,is_day";
   
   Serial.println("WeatherService: Requesting weather data from: " + url); 
+  http.setReuse(false); 
   http.begin(url);
   http.setTimeout(10000); 
   int httpCode = http.GET();
@@ -65,7 +66,11 @@ bool WeatherService::fetchWeather(const Config& config, WeatherData& data, const
       data.is_day = doc["current"]["is_day"].as<bool>();
       data.update_time = updateTime;
       
-      Serial.printf("WeatherService: Weather updated. Temp: %.1f %s\n", data.temp, config.temp_unit.c_str()); 
+      Serial.printf("WeatherService: Success! Temp: %.1f%s, Feels Like: %.1f%s, Humidity: %d%%, Wind: %.1f km/h, Code: %d\n", 
+                    data.temp, config.temp_unit.c_str(), 
+                    data.apparent_temperature, config.temp_unit.c_str(), 
+                    data.humidity, data.wind_speed, data.weather_code);
+                    
       http.end();
       return true;
       
