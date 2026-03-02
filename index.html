@@ -563,7 +563,7 @@
                 <ul>
                     <li><strong>Switch Screens Automatically:</strong> If checked, screens rotate automatically. If unchecked, the screen stays static until you press the hardware button.</li>
                     <li><strong>Screen Cycle Interval:</strong> Time (in seconds) each screen stays visible before rotating.</li>
-                    <li><strong>Data Sync Interval:</strong> Frequency (in minutes) of data fetches for Weather, Air Quality, Crypto, and Currencies.</li>
+                    <li><strong>Data Sync Interval:</strong> Frequency (in minutes) of data fetches for Weather, Air Quality, Crypto, Stocks, and Currencies.</li>
                 </ul>
 
                 <div class="feature-section-title">Visual Effects</div>
@@ -698,8 +698,11 @@
                 <div class="feature-header">📈 Crypto Tracker</div>
                 <div class="feature-section-title">Settings</div>
                 <p>Select your preferred coin from the top 75 global cryptocurrencies to track live market data.</p>
+                <ul>
+                    <li><strong>Display Format:</strong> Toggle between the clean, standard Ticker (e.g., BTC) or displaying the Full Coin Name (e.g., Bitcoin).</li>
+                </ul>
                 <div class="feature-section-title">Layout</div>
-                <p>Shows the coin ticker (e.g., BTC), current price in USD, a trend icon, and the 24h percentage change.</p>
+                <p>Shows the coin ticker/name, current price in USD, a daily trend icon, and the 24h percentage change.</p>
                 <span class="api-tag">Source: api.coinlore.net</span>
 
                 <details>
@@ -730,6 +733,7 @@
                 <ul>
                     <li><strong>Base & Target:</strong> Select your currency pair (e.g., USD to EUR).</li>
                     <li><strong>Multiplier Amount:</strong> Essential for viewing exchange rates with large differences. Instead of viewing the tiny fraction for 1 unit, you can track the rate for 10, 100, 1,000, or 10,000 units for better readability.</li>
+                    <li><strong>Display Format:</strong> Toggle between the Base Currency Code (e.g., USD) or displaying the Full Currency Name (e.g., US Dollar).</li>
                 </ul>
                 <div class="feature-section-title">Layout</div>
                 <p>Top Left: Base Currency (Large). Bottom Left: Target Rate. Right Side: Multiplier context aligned to the edge (e.g., "1 USD =", "1000 ARS =").</p>
@@ -755,6 +759,40 @@
                     </div>
                 </details>
             </div>
+            
+            <div class="feature-item">
+                <div class="feature-header">📊 Stock Tracker</div>
+                <div class="feature-section-title">Settings</div>
+                <p>Track live market data for ~100 top global assets, including US Mega-Cap Tech, broad market ETFs, and international ADRs.</p>
+                <ul>
+                    <li><strong>Asset Selection:</strong> Choose your preferred stock or ETF from the curated dropdown.</li>
+                    <li><strong>Display Format:</strong> Toggle between showing the minimalist Ticker (e.g., AAPL) or the Full Company Name (e.g., Apple Inc.).</li>
+                </ul>
+                <div class="feature-section-title">Layout</div>
+                <p>Shows the stock ticker/name, current price in USD, a daily trend icon, and the percentage change since the previous close.</p>
+                <span class="api-tag">Source: stooq.com</span>
+
+                <details>
+                    <summary>📸 View Screen Preview</summary>
+                    <div class="assembly-container">
+                        <div class="assembly-grid">
+                            <div class="assembly-item">
+                                <div class="assembly-img-wrapper">
+                                    <img src="img/render_stock.png" alt="Stock Layout Render">
+                                </div>
+                                <div class="assembly-caption">Layout Render</div>
+                            </div>
+                            <div class="assembly-item">
+                                <div class="assembly-img-wrapper">
+                                    <img src="img/real_stock.jpg" alt="Stock Real Photo" class="real-photo">
+                                </div>
+                                <div class="assembly-caption">Real Photo</div>
+                            </div>
+                        </div>
+                    </div>
+                </details>
+            </div>
+
             <div class="feature-item">
                 <div class="feature-header">🖥️ PC Monitor</div>
                 <div class="feature-section-title">Function</div>

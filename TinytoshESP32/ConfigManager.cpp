@@ -25,6 +25,7 @@ void ConfigManager::loadConfig(Config& config) {
   config.show_aqi = preferences.getBool("show_aqi", true);
   config.show_crypto = preferences.getBool("show_crypto", true);
   config.show_currency = preferences.getBool("show_curr", true);
+  config.show_stock = preferences.getBool("show_stock", true);
   config.show_pc = preferences.getBool("show_pc", true);
 
   // Weather & AQI Settings
@@ -32,11 +33,15 @@ void ConfigManager::loadConfig(Config& config) {
   config.temp_unit = preferences.getString("temp_unit", "C"); 
   config.aqi_type = preferences.getString("aqi_type", "EU");
 
-  // Crypto & Currency Settings
+  // Crypto, Currency & Stock Settings
   config.crypto_id = preferences.getInt("crypto_id", 90);
   config.currency_base = preferences.getString("cur_base", "usd");
   config.currency_target = preferences.getString("cur_targ", "eur");
   config.currency_multiplier = preferences.getInt("cur_m", 1);
+  config.stock_symbol = preferences.getString("stock_sym", "GOOG");
+  config.crypto_fn = preferences.getBool("crypto_fn", true);
+  config.currency_fn = preferences.getBool("cur_fn", true);
+  config.stock_fn = preferences.getBool("stock_fn", true);
   
   // Animation Settings
   config.anim_mask = preferences.getUShort("anim_mask", 62);
@@ -68,6 +73,7 @@ void ConfigManager::saveConfig(const Config& config) {
   preferences.putBool("show_aqi", config.show_aqi);
   preferences.putBool("show_crypto", config.show_crypto);
   preferences.putBool("show_curr", config.show_currency);
+  preferences.putBool("show_stock", config.show_stock);
   preferences.putBool("show_pc", config.show_pc);
 
   // Weather & AQI Settings
@@ -75,11 +81,15 @@ void ConfigManager::saveConfig(const Config& config) {
   preferences.putString("temp_unit", config.temp_unit);
   preferences.putString("aqi_type", config.aqi_type);
 
-  // Crypto & Currency Settings
+  // Crypto, Currency & Stock Settings
   preferences.putInt("crypto_id", config.crypto_id);
   preferences.putString("cur_base", config.currency_base);
   preferences.putString("cur_targ", config.currency_target);
   preferences.putInt("cur_m", config.currency_multiplier);
+  preferences.putString("stock_sym", config.stock_symbol);
+  preferences.putBool("crypto_fn", config.crypto_fn);
+  preferences.putBool("cur_fn", config.currency_fn);
+  preferences.putBool("stock_fn", config.stock_fn);
 
   // Animation Settings
   preferences.putUShort("anim_mask", config.anim_mask);

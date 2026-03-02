@@ -25,8 +25,8 @@
 
 ### ✨ Key Features
 * **Modular Dashboard:** Enable/Disable screens on the fly via a Web Panel. 
-* **Zero Config APIs:** Uses free public APIs for Crypto, Currency, Weather, and Air Quality. No API keys required.
-* **Currency & Crypto Tracker:** Track top cryptocurrencies and over 150 fiat currency exchange rates with custom multipliers. 
+* **Zero Config APIs:** Uses free public APIs for Stocks, Crypto, Currency, Weather, and Air Quality. No API keys required.
+* **Finance, Crypto & Currency Tracker:** Track ~100 global assets (ETFs, Mega-Cap Tech, ADRs), top cryptocurrencies, and over 150 fiat currency exchange rates with custom multipliers. 
 * **PC Monitoring:** View CPU, RAM, Disk, and Network usage via the USB Bridge.
 * **Visuals:** Smooth OLED animations (Slide, Dissolve, Curtain, Blinds) and 60fps refresh rates.
 * **Privacy First:** No accounts, no cloud tracking. Everything runs locally on the ESP32.
@@ -72,7 +72,7 @@ build_flags =
     -D ARDUINO_USB_MODE=1
     -D ARDUINO_USB_CDC_ON_BOOT=1
 lib_deps =
-    [https://github.com/tzapu/WiFiManager.git](https://github.com/tzapu/WiFiManager.git)
+    https://github.com/tzapu/WiFiManager.git
     bblanchon/ArduinoJson @ ^6.21.0
     adafruit/Adafruit SSD1306 @ ^2.5.7
     adafruit/Adafruit GFX Library @ ^1.11.5
@@ -147,8 +147,9 @@ If you encounter bugs or have feature suggestions, please [Open an Issue](https:
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-* Weather data provided by [Open-Meteo](https://open-meteo.com/).
+* Weather and AQI data provided by [Open-Meteo](https://open-meteo.com/).
 * Crypto data provided by [CoinLore](https://www.coinlore.com/cryptocurrency-data-api).
+* Stock data provided by [Stooq](https://stooq.com/).
 * IP Geolocation by [ip-api](https://ip-api.com/).
 * Fiat Currency data provided by [fawazahmed0/currency-api](https://github.com/fawazahmed0/exchange-api).
 
@@ -158,6 +159,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 | Version | Date | Key Changes |
 | :--- | :--- | :--- |
+| **v1.0.2** | *Mar 2026* | 📈 Added **Stock Tracker** module (~100 global assets, ETFs, Mega-Cap Tech, ADRs). Added customizable "Full Name" layout toggles for Crypto, Currency, and Stock screens. Fixed an animation bug for single-screen setups. |
 | **v1.0.1** | *Feb 2026* | 💱 Added **Currency Tracker** module (150+ fiat pairs), introduced dynamic multipliers for large conversion gaps, and optimized logging. Expanded Crypto list to top 75. |
 | **v1.0.0** | *Initial* | 🚀 Initial release: Time, Weather, AQI, Crypto, and PC Monitor modules. Web panel, firmware flasher, and 3D printable case released. |
 

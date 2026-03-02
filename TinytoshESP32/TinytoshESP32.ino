@@ -10,6 +10,7 @@
 #include "WebServerService.h"
 #include "CryptoService.h"
 #include "CurrencyService.h"
+#include "StockService.h"
 #include "PcMonitorService.h"
 
 // Global Constants
@@ -27,6 +28,7 @@ WeatherData weatherData;
 AirQualityData airQualityData;
 CryptoData cryptoData;
 CurrencyData currencyData;
+StockData stockData;
 PcStats pcStats;
 
 // Forward declaration of callback for WebServerService
@@ -41,6 +43,7 @@ DisplayService displayService(128, 64, -1);
 WebServerService webServerService(80, updateAllDataCallback);
 CryptoService cryptoService;
 CurrencyService currencyService;
+StockService stockService;
 PcMonitorService pcMonitorService;
 
 unsigned long lastScreenSwitch = 0;
@@ -53,7 +56,7 @@ unsigned long lastDebounceTime = 0;
 // Helper Functions
 
 void drawCurrentScreen() {
-    displayService.drawScreen(currentScreen, userConfig, timeService, weatherData, airQualityData, pcStats, cryptoData, currencyData);
+    displayService.drawScreen(currentScreen, userConfig, timeService, weatherData, airQualityData, cryptoData, currencyData, stockData, pcStats);
 }
 
 void switchToNextScreen() {
@@ -64,6 +67,7 @@ void switchToNextScreen() {
     do {
         nextScreenCandidate++;
         if (nextScreenCandidate >= NUM_SCREENS) nextScreenCandidate = 0;
+        
         if (displayService.isScreenEnabled(userConfig, nextScreenCandidate)) {
             foundVisible = true;
             break;
@@ -71,11 +75,12 @@ void switchToNextScreen() {
     } while (nextScreenCandidate != startScreen);
 
     if (!foundVisible) return;
+    if (currentScreen == nextScreenCandidate) return;
 
     displayService.animateTransition(
-      currentScreen, nextScreenCandidate, userConfig, timeService, weatherData, airQualityData, pcStats, cryptoData, currencyData
+      currentScreen, nextScreenCandidate, userConfig, timeService, weatherData, airQualityData, cryptoData, currencyData, stockData, pcStats
     );
-
+    
     currentScreen = nextScreenCandidate;
 }
 
@@ -109,7 +114,7 @@ void updateAllData() {
 
   // 5. Fetch Crypto (Independent)
   if (userConfig.show_crypto) { 
-    displayService.showOLEDStatus({"\n", "\n", "Updating Crypto...", "\n", "Ticker ID", String(userConfig.crypto_id)}, true);
+    displayService.showOLEDStatus({"\n", "\n", "Updating Crypto...", "\n", "Ticker ID:", String(userConfig.crypto_id)}, true);
     cryptoService.fetchPrice(userConfig.crypto_id, cryptoData);
   }
 
@@ -120,14 +125,20 @@ void updateAllData() {
     String targetUpper = String(userConfig.currency_target);
     targetUpper.toUpperCase();
 
-    displayService.showOLEDStatus({"\n", "\n", "Updating Currency...", "\n", baseUpper + " -> " + targetUpper}, true);
+    displayService.showOLEDStatus({"\n", "\n", "Updating Currency...", "\n", "Currencies:", baseUpper + " -> " + targetUpper}, true);
     currencyService.fetchRate(String(userConfig.currency_base), String(userConfig.currency_target), currencyData);
   }
 
-  // 7. Save Everything
+  // 7. Fetch Stocks (Independent)
+  if (userConfig.show_stock) {
+    displayService.showOLEDStatus({"\n", "\n", "Updating Stocks...", "\n", "Stock:", userConfig.stock_symbol}, true);
+    stockService.fetchStock(userConfig.stock_symbol, stockData);
+  }
+
+  // 8. Save Everything
   configManager.saveConfig(userConfig);
 
-  // 8. Find the first enabled screen to show immediately
+  // 9. Find the first enabled screen to show immediately
   currentScreen = SCREEN_TIME;
   for (int i = 0; i < NUM_SCREENS; i++) {
       if (displayService.isScreenEnabled(userConfig, i)) {
@@ -181,7 +192,7 @@ void setup() {
   }
 
   // 5. Initialize Web Server
-  webServerService.setSharedData(&userConfig, &weatherData, &airQualityData, &cryptoData, &currencyData, &pcStats);
+  webServerService.setSharedData(&userConfig, &weatherData, &airQualityData, &cryptoData, &currencyData, &stockData, &pcStats);
   webServerService.begin();
 }
 
@@ -227,6 +238,10 @@ void loop() {
 
     if (userConfig.show_currency) {
       currencyService.fetchRate(userConfig.currency_base, userConfig.currency_target, currencyData);
+    }
+
+    if (userConfig.show_stock) {
+      stockService.fetchStock(userConfig.stock_symbol, stockData);
     }
 
     lastDataUpdate = millis();

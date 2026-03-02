@@ -7,6 +7,7 @@ bool CryptoService::fetchPrice(int id, CryptoData &data) {
     String url = String(CRYPTO_API_URL) + "?id=" + String(id);
 
     Serial.printf("CryptoService: Requesting Crypto Data from CoinLore: %d\n", id); 
+    Serial.printf("CryptoService: URL: %s\n", url.c_str()); 
     http.setReuse(false); 
     http.begin(url);
     http.setTimeout(10000);
