@@ -23,8 +23,8 @@ public:
     void drawPcScreen(const PcStats& pcStats);
     void drawNoData();
 
-    void drawScreen(int screenIndex, const Config& config, TimeService& timeService, const WeatherData& weather, const AirQualityData& aqi, const CryptoData& crypto, const CurrencyData& currency, const StockData& stock, const PcStats& pc);
-    void animateTransition(int prevScreen, int nextScreen, const Config& config, TimeService& timeService, const WeatherData& weather, const AirQualityData& aqi, const CryptoData& crypto, const CurrencyData& currency, const StockData& stock, const PcStats& pc);
+    void drawScreen(int screenIndex, const AppState& state, TimeService& timeService);
+    void animateTransition(int prevScreen, int nextScreen, const AppState& state, TimeService& timeService);
 
     bool isScreenEnabled(const Config& config, int screenIndex);
 
@@ -33,11 +33,11 @@ private:
     uint8_t screenBufferNew[1024];
 
     int getNextAnimationEffect(uint16_t mask);
-    void animateHorizontal(int prev, int next, const Config& c, TimeService& t, const WeatherData& w, const AirQualityData& a, const CryptoData& cr, const CurrencyData& cd, const StockData& s, const PcStats& p);
-    void animateVertical(int prev, int next, const Config& c, TimeService& t, const WeatherData& w, const AirQualityData& a, const CryptoData& cr, const CurrencyData& cd, const StockData& s, const PcStats& p);
-    void animateDissolve(int prev, int next, const Config& c, TimeService& t, const WeatherData& w, const AirQualityData& a, const CryptoData& cr, const CurrencyData& cd, const StockData& s, const PcStats& p);
-    void animateCurtain(int prev, int next, const Config& c, TimeService& t, const WeatherData& w, const AirQualityData& a, const CryptoData& cr, const CurrencyData& cd, const StockData& s, const PcStats& p);
-    void animateBlinds(int prev, int next, const Config& c, TimeService& t, const WeatherData& w, const AirQualityData& a, const CryptoData& cr, const CurrencyData& cd, const StockData& s, const PcStats& p);
+    void animateHorizontal(int prev, int next, const AppState& state, TimeService& t);
+    void animateVertical(int prev, int next, const AppState& state, TimeService& t);
+    void animateDissolve(int prev, int next, const AppState& state, TimeService& t);
+    void animateCurtain(int prev, int next, const AppState& state, TimeService& t);
+    void animateBlinds(int prev, int next, const AppState& state, TimeService& t);
 
     String getWeatherDescription(int wmo_code);
     const unsigned char* getWeatherBitmap(int wmo_code, bool is_day);

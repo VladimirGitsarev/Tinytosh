@@ -12,7 +12,7 @@ public:
     WebServerService(int port, ConfigSaveCallback callback);
     void begin();
     void handleClient();
-    void setSharedData(Config* config, WeatherData* weather, AirQualityData* airQualityData, CryptoData* cryptoData, CurrencyData* currencyData, StockData* stockData, PcStats* pcStats);
+    void setAppState(AppState* appState);
     
     void handleRoot();
     void handleSave();
@@ -20,20 +20,12 @@ public:
 
     String generateRootPageContent();
     
-    Config getUpdatedConfig() const { return *sharedConfig; } 
-
 private:
     WebServer server;
     WiFiManager wm;
     ConfigSaveCallback saveCallback;
     
-    Config* sharedConfig;
-    WeatherData* sharedWeather;
-    AirQualityData* sharedAirQuality;
-    CryptoData* sharedCrypto;
-    CurrencyData* sharedCurrency;
-    StockData* sharedStock;
-    PcStats* sharedPcStats;
+    AppState* state;
     
     String getWeatherIcon(int wmo_code);
     String getCurrentTimeShort(String format);

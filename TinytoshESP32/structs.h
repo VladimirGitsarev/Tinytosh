@@ -7,11 +7,21 @@ enum ScreenType {
   SCREEN_TIME,
   SCREEN_WEATHER,
   SCREEN_AIR_QUALITY,
+  SCREEN_STOCK,
   SCREEN_CRYPTO,
   SCREEN_CURRENCY,
-  SCREEN_STOCK,
   SCREEN_PC_MONITOR,
   NUM_SCREENS
+};
+
+inline constexpr const char* SCREEN_NAMES[] = {
+  "Time & Date",
+  "Weather",
+  "Air Quality",
+  "Stock Tracking",
+  "Crypto Tracking",
+  "Currency Exchange",
+  "PC Monitor"
 };
 
 enum AnimType {
@@ -38,13 +48,14 @@ struct Config {
   // Screens Settings
   bool screen_auto_cycle = true;
   int screen_interval_sec = 15;
+  int screen_order[NUM_SCREENS] = {0, 1, 2, 3, 4, 5, 6};
 
   bool show_time = true;
   bool show_weather = true;
   bool show_aqi = true;
+  bool show_stock = true;
   bool show_crypto = true;
   bool show_currency = true;
-  bool show_stock = true;
   bool show_pc = true;
 
   // Weather & AQI Settings
@@ -64,6 +75,12 @@ struct Config {
 
   // Animation Settings
   uint16_t anim_mask = 62;
+
+  // Night Mode Settings
+  bool night_mode = false;
+  String night_start = "22:00";
+  String night_end = "06:00";
+  int night_action = 1; // 0: None, 1: Dim, 2: Off
 };
 
 struct WeatherData {
@@ -84,6 +101,15 @@ struct AirQualityData {
   String status = "N/A";
 };
 
+struct StockData {
+    String symbol;
+    String name;
+    float price;
+    float previous_close;
+    float percent_change;
+    bool updated = false;
+};
+
 struct CryptoData {
     String name;
     String symbol;
@@ -100,20 +126,16 @@ struct CurrencyData {
     bool updated = false;
 };
 
-struct StockData {
-    String symbol;
-    String name;
-    float price;
-    float previous_close;
-    float percent_change;
-    bool updated = false;
-};
-
 struct PcStats {
     float cpu_percent = NAN;
     float mem_percent = NAN;
     float disk_percent = NAN;
     float net_down_kb = NAN;
+};
+
+struct StockOption {
+    const char* name;
+    const char* ticker;
 };
 
 struct CoinOption { 
@@ -126,9 +148,59 @@ struct CurrencyOption {
     const char* name;
 };
 
-struct StockOption {
-    const char* name;
-    const char* ticker;
+inline constexpr StockOption topStocks[] = {
+  // Broad Market & Sector ETFs
+  {"S&P 500 ETF", "SPY"}, {"Invesco QQQ (Tech)", "QQQ"}, {"Dow Jones ETF", "DIA"},
+  {"Vanguard Total Stock", "VTI"}, {"Vanguard S&P 500", "VOO"}, 
+  {"Semiconductor ETF", "SMH"}, {"Financial Select", "XLF"}, 
+  {"Health Care Select", "XLV"}, {"Energy Select", "XLE"},
+
+  // Mega-Cap Tech & Semiconductors
+  {"Apple Inc.", "AAPL"}, {"Microsoft Corp.", "MSFT"}, {"NVIDIA Corp.", "NVDA"},
+  {"Alphabet Inc.", "GOOG"}, {"Amazon.com Inc.", "AMZN"}, {"Meta Platforms", "META"},
+  {"Tesla Inc.", "TSLA"}, {"Taiwan Semiconductor", "TSM"}, {"Broadcom Inc.", "AVGO"},
+  {"ASML Holding", "ASML"}, {"Intel Corp.", "INTC"}, {"Qualcomm Inc.", "QCOM"},
+  {"Texas Instruments", "TXN"}, {"Micron Technology", "MU"}, {"ARM Holdings", "ARM"},
+
+  // Software, Cloud & Cybersecurity
+  {"Salesforce Inc.", "CRM"}, {"Adobe Inc.", "ADBE"}, {"ServiceNow", "NOW"},
+  {"Snowflake Inc.", "SNOW"}, {"CrowdStrike", "CRWD"}, {"Palo Alto Networks", "PANW"},
+  {"Fortinet", "FTNT"}, {"Palantir Tech", "PLTR"}, {"Datadog Inc.", "DDOG"},
+
+  // Finance, FinTech & Crypto Proxies
+  {"JPMorgan Chase", "JPM"}, {"Visa Inc.", "V"}, {"Mastercard Inc.", "MA"},
+  {"Bank of America", "BAC"}, {"Berkshire Hathaway", "BRK.B"}, {"Wells Fargo", "WFC"},
+  {"Goldman Sachs", "GS"}, {"Morgan Stanley", "MS"}, {"American Express", "AXP"},
+  {"PayPal Holdings", "PYPL"}, {"Block Inc. (Square)", "SQ"}, {"Coinbase Global", "COIN"},
+  {"MicroStrategy", "MSTR"},
+
+  // Retail, Food & Consumer Discretionary
+  {"Walmart Inc.", "WMT"}, {"Costco Wholesale", "COST"}, {"The Home Depot", "HD"},
+  {"Lowe's Companies", "LOW"}, {"Target Corp.", "TGT"}, {"McDonald's Corp.", "MCD"},
+  {"Starbucks Corp.", "SBUX"}, {"Nike Inc.", "NKE"}, {"Lululemon", "LULU"},
+  {"Procter & Gamble", "PG"}, {"The Coca-Cola Co.", "KO"}, {"PepsiCo Inc.", "PEP"},
+
+  // Healthcare, Pharma & Biotech
+  {"Eli Lilly and Co.", "LLY"}, {"UnitedHealth Group", "UNH"}, {"Johnson & Johnson", "JNJ"},
+  {"AbbVie Inc.", "ABBV"}, {"Merck & Co.", "MRK"}, {"Pfizer Inc.", "PFE"},
+  {"Novo Nordisk (ADR)", "NVO"}, {"Thermo Fisher", "TMO"}, {"Intuitive Surgical", "ISRG"},
+
+  // Energy, Industrials & Defense
+  {"Exxon Mobil", "XOM"}, {"Chevron Corp.", "CVX"}, {"Caterpillar Inc.", "CAT"},
+  {"General Electric", "GE"}, {"Honeywell Intl", "HON"}, {"The Boeing Company", "BA"},
+  {"Union Pacific", "UNP"}, {"Lockheed Martin", "LMT"}, {"RTX Corporation", "RTX"},
+
+  // Media, Entertainment & Telecom
+  {"The Walt Disney Co.", "DIS"}, {"Netflix Inc.", "NFLX"}, {"Comcast Corp.", "CMCSA"},
+  {"Spotify Technology", "SPOT"}, {"AT&T Inc.", "T"}, {"Verizon Comm.", "VZ"},
+  {"T-Mobile US", "TMUS"},
+
+  // International ADRs & E-commerce
+  {"Alibaba Group", "BABA"}, {"Sony Group Corp.", "SONY"}, {"Shopify Inc.", "SHOP"},
+  {"MercadoLibre", "MELI"}, {"Toyota Motor Corp.", "TM"}, {"Ferrari N.V.", "RACE"},
+
+  // Transport & Travel
+  {"Uber Technologies", "UBER"}, {"Airbnb Inc.", "ABNB"}
 };
 
 inline constexpr CoinOption topCoins[] = {
@@ -213,58 +285,13 @@ inline constexpr CurrencyOption allCurrencies[] = {
   {"zwl", "Zimbabwean Dollar"}
 };
 
-inline constexpr StockOption topStocks[] = {
-    // Broad Market & Sector ETFs
-    {"S&P 500 ETF", "SPY"}, {"Invesco QQQ (Tech)", "QQQ"}, {"Dow Jones ETF", "DIA"},
-    {"Vanguard Total Stock", "VTI"}, {"Vanguard S&P 500", "VOO"}, 
-    {"Semiconductor ETF", "SMH"}, {"Financial Select", "XLF"}, 
-    {"Health Care Select", "XLV"}, {"Energy Select", "XLE"},
-
-    // Mega-Cap Tech & Semiconductors
-    {"Apple Inc.", "AAPL"}, {"Microsoft Corp.", "MSFT"}, {"NVIDIA Corp.", "NVDA"},
-    {"Alphabet Inc.", "GOOG"}, {"Amazon.com Inc.", "AMZN"}, {"Meta Platforms", "META"},
-    {"Tesla Inc.", "TSLA"}, {"Taiwan Semiconductor", "TSM"}, {"Broadcom Inc.", "AVGO"},
-    {"ASML Holding", "ASML"}, {"Intel Corp.", "INTC"}, {"Qualcomm Inc.", "QCOM"},
-    {"Texas Instruments", "TXN"}, {"Micron Technology", "MU"}, {"ARM Holdings", "ARM"},
-
-    // Software, Cloud & Cybersecurity
-    {"Salesforce Inc.", "CRM"}, {"Adobe Inc.", "ADBE"}, {"ServiceNow", "NOW"},
-    {"Snowflake Inc.", "SNOW"}, {"CrowdStrike", "CRWD"}, {"Palo Alto Networks", "PANW"},
-    {"Fortinet", "FTNT"}, {"Palantir Tech", "PLTR"}, {"Datadog Inc.", "DDOG"},
-
-    // Finance, FinTech & Crypto Proxies
-    {"JPMorgan Chase", "JPM"}, {"Visa Inc.", "V"}, {"Mastercard Inc.", "MA"},
-    {"Bank of America", "BAC"}, {"Berkshire Hathaway", "BRK.B"}, {"Wells Fargo", "WFC"},
-    {"Goldman Sachs", "GS"}, {"Morgan Stanley", "MS"}, {"American Express", "AXP"},
-    {"PayPal Holdings", "PYPL"}, {"Block Inc. (Square)", "SQ"}, {"Coinbase Global", "COIN"},
-    {"MicroStrategy", "MSTR"},
-
-    // Retail, Food & Consumer Discretionary
-    {"Walmart Inc.", "WMT"}, {"Costco Wholesale", "COST"}, {"The Home Depot", "HD"},
-    {"Lowe's Companies", "LOW"}, {"Target Corp.", "TGT"}, {"McDonald's Corp.", "MCD"},
-    {"Starbucks Corp.", "SBUX"}, {"Nike Inc.", "NKE"}, {"Lululemon", "LULU"},
-    {"Procter & Gamble", "PG"}, {"The Coca-Cola Co.", "KO"}, {"PepsiCo Inc.", "PEP"},
-
-    // Healthcare, Pharma & Biotech
-    {"Eli Lilly and Co.", "LLY"}, {"UnitedHealth Group", "UNH"}, {"Johnson & Johnson", "JNJ"},
-    {"AbbVie Inc.", "ABBV"}, {"Merck & Co.", "MRK"}, {"Pfizer Inc.", "PFE"},
-    {"Novo Nordisk (ADR)", "NVO"}, {"Thermo Fisher", "TMO"}, {"Intuitive Surgical", "ISRG"},
-
-    // Energy, Industrials & Defense
-    {"Exxon Mobil", "XOM"}, {"Chevron Corp.", "CVX"}, {"Caterpillar Inc.", "CAT"},
-    {"General Electric", "GE"}, {"Honeywell Intl", "HON"}, {"The Boeing Company", "BA"},
-    {"Union Pacific", "UNP"}, {"Lockheed Martin", "LMT"}, {"RTX Corporation", "RTX"},
-
-    // Media, Entertainment & Telecom
-    {"The Walt Disney Co.", "DIS"}, {"Netflix Inc.", "NFLX"}, {"Comcast Corp.", "CMCSA"},
-    {"Spotify Technology", "SPOT"}, {"AT&T Inc.", "T"}, {"Verizon Comm.", "VZ"},
-    {"T-Mobile US", "TMUS"},
-
-    // International ADRs & E-commerce
-    {"Alibaba Group", "BABA"}, {"Sony Group Corp.", "SONY"}, {"Shopify Inc.", "SHOP"},
-    {"MercadoLibre", "MELI"}, {"Toyota Motor Corp.", "TM"}, {"Ferrari N.V.", "RACE"},
-
-    // Transport & Travel
-    {"Uber Technologies", "UBER"}, {"Airbnb Inc.", "ABNB"}
+struct AppState {
+  Config config;
+  WeatherData weather;
+  AirQualityData aqi;
+  CryptoData crypto;
+  CurrencyData currency;
+  StockData stock;
+  PcStats pc;
 };
 #endif

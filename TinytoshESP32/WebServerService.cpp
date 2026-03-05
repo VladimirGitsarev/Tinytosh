@@ -38,16 +38,10 @@ String WebServerService::getWeatherIcon(int wmo_code) {
 }
 
 WebServerService::WebServerService(int port, ConfigSaveCallback callback) : 
-  server(port), saveCallback(callback), sharedConfig(nullptr), sharedWeather(nullptr) {}
+  server(port), saveCallback(callback) {}
 
-void WebServerService::setSharedData(Config* config, WeatherData* weather, AirQualityData* airQualityData, CryptoData* cryptoData, CurrencyData* currencyData, StockData* stockData, PcStats* pcStats) {
-  sharedConfig = config;
-  sharedWeather = weather;
-  sharedAirQuality = airQualityData;
-  sharedCrypto = cryptoData;
-  sharedCurrency = currencyData;
-  sharedStock = stockData;
-  sharedPcStats = pcStats;
+void WebServerService::setAppState(AppState* appState) {
+  state = appState;
 }
 
 void WebServerService::begin() {
@@ -64,22 +58,22 @@ void WebServerService::handleClient() {
 
 String WebServerService::generateRootPageContent() {
   String content;
-  content.reserve(30000); // Bumped to 30000 for the new stock screen elements
-  
-  const Config& config = *sharedConfig;
-  const WeatherData& weather = *sharedWeather;
-  const AirQualityData& airQualityData = *sharedAirQuality;
-  const CryptoData& cryptoData = *sharedCrypto;
-  const CurrencyData& currencyData = *sharedCurrency;
-  const StockData& stockData = *sharedStock;
-  const PcStats& pcStats = *sharedPcStats;
+  content.reserve(30000);
+
+  Config& config = state->config;
+  WeatherData& weather = state->weather;
+  AirQualityData& aqi = state->aqi;
+  CryptoData& crypto = state->crypto;
+  CurrencyData& currency = state->currency;
+  StockData& stock = state->stock;
+  PcStats& pc = state->pc;
   
   bool weatherValid = !isnan(weather.temp);
-  bool aqiValid = !isnan(airQualityData.pm25) && !isnan(airQualityData.pm10) && !isnan(airQualityData.no2);
-  bool pcValid = pcStats.cpu_percent > 0.1; 
-  bool cryptoValid = !isnan(cryptoData.price_usd) && cryptoData.price_usd > 0;
-  bool currencyValid = currencyData.updated;
-  bool stockValid = stockData.updated; // NEW
+  bool aqiValid = !isnan(aqi.pm25) && !isnan(aqi.pm10) && !isnan(aqi.no2);
+  bool pcValid = pc.cpu_percent > 0.1; 
+  bool cryptoValid = !isnan(crypto.price_usd) && crypto.price_usd > 0;
+  bool currencyValid = currency.updated;
+  bool stockValid = stock.updated;
 
   content += "<html><head><title>Tinytosh | Web Panel</title>";
   content += "<meta name='viewport' content='width=device-width, initial-scale=1'><meta charset='UTF-8'>";
@@ -88,6 +82,7 @@ String WebServerService::generateRootPageContent() {
   content += ":root { --bg: #0f172a; --card: #1e293b; --accent: #3b82f6; --text: #f1f5f9; --text-muted: #94a3b8; --border: #334155; }";
 
   // Global Body & Container Styles
+  content += "* { box-sizing: border-box; }";
   content += "body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg); color: var(--text); margin: 0; padding: 20px; line-height: 1.6; }";
   content += ".container { max-width: 800px; margin: 0 auto; }";
 
@@ -100,20 +95,20 @@ String WebServerService::generateRootPageContent() {
   content += ".panel { background: var(--card); padding: 25px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 24px; }";
   content += ".header-panel { background: rgba(59, 130, 246, 0.05); border: 1px solid var(--accent);}";
   content += ".dashboard-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-top: 20px; }";
+  content += ".dashboard-grid > div { min-width: 0; }";
   content += ".tile { background: rgba(15, 23, 42, 0.4); border: 1px dashed var(--border); padding: 20px; border-radius: 10px; text-align: center; }";
   content += ".tile-icon { font-size: 2.2rem; margin-bottom: 8px; }";
   content += ".tile-label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }";
   content += ".tile-value { font-size: 1.6rem; font-weight: 600; color: var(--text); }";
 
-  // Form Elements
+ // Form Elements
   content += "label { display: block; margin-top: 15px; font-weight: 600; color: var(--text); }";
-  content += "input[type='text'], input[type='number'], select { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid var(--border); border-radius: 6px; background-color: #0f172a; color: var(--text); font-size: 15px; }";
+  content += "input[type='text'], input[type='number'], input[type='time'], select { display: block; box-sizing: border-box !important; -webkit-box-sizing: border-box !important; width: 100% !important; min-width: 0 !important; padding: 12px; margin: 8px 0; border: 1px solid var(--border); border-radius: 6px; background-color: #0f172a; color: var(--text); font-size: 15px; }";
+  content += "input[type='time'] { -webkit-appearance: none; appearance: none; text-align: center; }";
+  content += "input[type='time']::-webkit-calendar-picker-indicator { filter: invert(1); cursor: pointer; }";
   content += "input:focus, select:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2); }";
-  
-  // Disabled state style for inputs
   content += "input:disabled { opacity: 0.5; cursor: not-allowed; background-color: #1e293b; }";
-
-  content += "fieldset { border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin-top: 15px; background: rgba(0,0,0,0.1); }";
+  content += "fieldset { border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin-top: 15px; background: rgba(0,0,0,0.1); min-width: 0; overflow: hidden; }";
   content += "legend { color: var(--accent); font-weight: 700; padding: 0 10px; font-size: 0.9rem; text-transform: uppercase; }";
 
   // Animation Control Styles
@@ -121,6 +116,15 @@ String WebServerService::generateRootPageContent() {
   content += ".anim-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 15px; padding: 0 12px 16px; background: rgba(255,255,255,0.05); border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); }";
   content += ".anim-item { cursor: pointer; font-size: 0.9em; display: flex; align-items: center; }";
   content += ".anim-item input { margin-right: 8px; }";
+
+  // Draggable Screens List
+  content += ".sortable-list { list-style: none; padding: 0; margin: 15px 0 0; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: rgba(0,0,0,0.1); }";
+  content += ".sortable-item { padding: 12px 15px; border-bottom: 1px solid var(--border); display: flex; align-items: center; cursor: grab; color: var(--text); background: var(--card); transition: background 0.2s; }";
+  content += ".sortable-item:last-child { border-bottom: none; }";
+  content += ".sortable-item:active { cursor: grabbing; }";
+  content += ".sortable-item.disabled { opacity: 0.4; background: transparent; }";
+  content += ".drag-handle { margin-right: 15px; color: var(--text-muted); font-size: 1.2rem; }";
+  content += ".sortable-item.dragging { opacity: 0.5; background: rgba(59, 130, 246, 0.2); }";
 
   // Buttons & Misc
   content += "button { background-color: var(--accent); color: white; padding: 16px; border: none; border-radius: 8px; cursor: pointer; margin-top: 30px; width: 100%; font-size: 1.1rem; font-weight: 700; transition: opacity 0.2s; }";
@@ -159,12 +163,12 @@ String WebServerService::generateRootPageContent() {
   content += "<div class='anim-grid'>";
   
   const char* animLabels[] = {
-      "🚫 None",            // 0
-      "↔️ Slide Horizontal",   // 1
-      "↕️ Slide Vertical",     // 2
-      "👾 Dissolve (Noise)",   // 3
-      "🎭 Curtain Open",       // 4
-      "🎹 Venetian Blinds"     // 5
+    "🚫 None",              // 0
+    "↔️ Slide Horizontal",  // 1
+    "↕️ Slide Vertical",    // 2
+    "👾 Dissolve (Noise)",  // 3
+    "🎭 Curtain Open",      // 4
+    "🎹 Venetian Blinds"    // 5
   };
 
   content += "<input type='hidden' id='finalMask' name='anim_mask' value='" + String(config.anim_mask) + "'>";
@@ -176,13 +180,13 @@ String WebServerService::generateRootPageContent() {
   content += "</label>";
 
   for (int i = 1; i <= 5; i++) {
-      bool isSet = (config.anim_mask & (1 << i));
-      String checked = isSet ? "checked" : "";
-      
-      content += "<label class='anim-item'>";
-      content += "<input type='checkbox' class='anim-chk' value='" + String(1 << i) + "' " + checked + ">";
-      content += String(animLabels[i]);
-      content += "</label>";
+    bool isSet = (config.anim_mask & (1 << i));
+    String checked = isSet ? "checked" : "";
+    
+    content += "<label class='anim-item'>";
+    content += "<input type='checkbox' class='anim-chk' value='" + String(1 << i) + "' " + checked + ">";
+    content += String(animLabels[i]);
+    content += "</label>";
   }
   content += "</div>";
 
@@ -203,9 +207,9 @@ String WebServerService::generateRootPageContent() {
 
   content += "<label>City Name:</label><input type='text' name='city' value='" + config.city + "'>";
 
-  content += "<div style='display:flex; gap:10px;'>";
-  content += "  <div style='flex:1;'><label>Latitude:</label><input type='number' step='any' name='latitude' value='" + String(config.latitude, 4) + "'></div>";
-  content += "  <div style='flex:1;'><label>Longitude:</label><input type='number' step='any' name='longitude' value='" + String(config.longitude, 4) + "'></div>";
+  content += "<div class='dashboard-grid' style='margin-top: 0;'>";
+  content += "  <div><label style='margin-top: 0;'>Latitude:</label><input type='number' step='any' name='latitude' value='" + String(config.latitude, 4) + "'></div>";
+  content += "  <div><label style='margin-top: 0;'>Longitude:</label><input type='number' step='any' name='longitude' value='" + String(config.longitude, 4) + "'></div>";
   content += "</div>";
 
   content += "<label>Timezone:</label><select name='timezone' style='width:100%;'>";
@@ -215,199 +219,265 @@ String WebServerService::generateRootPageContent() {
       String key = p.key().c_str();
       content += "<option value='" + key + "'" + (key == config.timezone ? " selected" : "") + ">" + key + "</option>";
   }
+  content += "</select></fieldset>";
+
+  content += "<hr style='border: 0; border-top: 1px solid var(--border); margin: 25px 0;'>";
+  content += "<label style='margin:0; cursor:pointer; font-weight:600;'><input type='checkbox' id='nightMode' name='night_mode' value='1' " + String(config.night_mode ? "checked" : "") + "> Enable Night Mode</label>";
+  content += "<p style='font-size:0.85em; color: var(--text-muted); margin: 5px 0 15px 25px;'>Set a quiet schedule to pause animations, dim the screen, or save API calls.</p>";
+
+  content += "<fieldset id='nightFields' class='collapsible' style='border: 1px solid var(--border); border-radius: 8px; padding: 15px; margin-top: 10px;'>";
+  content += "<legend style='font-weight: 600; color: var(--accent); padding: 0 10px;'>Night Schedule</legend>";
+
+  content += "<div class='dashboard-grid' style='margin-top: 0;'>";
+  content += "  <div><label style='margin-top: 0;'>Start Time:</label><input type='time' name='night_start' value='" + String(config.night_start) + "'></div>";
+  content += "  <div><label style='margin-top: 0;'>End Time:</label><input type='time' name='night_end' value='" + String(config.night_end) + "'></div>";
+  content += "</div>";
+  
+  content += "<label>Screen Action:</label><select name='night_action' style='width:100%;'>";
+  content += "<option value='0' " + String(config.night_action == 0 ? "selected" : "") + ">No Visual Change</option>";
+  content += "<option value='1' " + String(config.night_action == 1 ? "selected" : "") + ">Dim Display</option>";
+  content += "<option value='2' " + String(config.night_action == 2 ? "selected" : "") + ">Turn Display Off</option>";
   content += "</select></fieldset></div>";
 
-  // 2. Time Screen
-  content += "<div class='panel'>";
-  content += "<label style='margin:0; cursor:pointer;'><input type='checkbox' id='showTime' name='show_time' value='1' " + String(config.show_time ? "checked" : "") + "> Time Screen</label>";
-
-  content += "<div id='timeContent' class='collapsible'>";
-  content += "<div class='dashboard-grid'>";
-
-  content += "<div class='tile'>";
-  content += "<div class='tile-icon'>🕒</div>";
-  content += "<div class='tile-value' id='preview-time'>" + getCurrentTimeShort(config.time_format) + "</div>";
-  content += "<div class='tile-label'>Current Time</div>";
+  // Screen Display Order Panel
+  content += "<div class='panel'><h3 style='margin-top:0; color: var(--accent);'>Screen Display Order</h3>";
+  content += "<p style='font-size:0.85em; color:var(--text-muted); margin-top:-5px;'>Drag and drop to rearrange. Disabled screens are locked at the bottom.</p>";
+  
+  content += "<ul id='sortable-list' class='sortable-list'>";
+  
+  for (int i = 0; i < NUM_SCREENS; i++) {
+    int screenId = config.screen_order[i];
+    
+    String targetId = "";
+    switch(screenId) {
+      case SCREEN_TIME: targetId = "showTime"; break;
+      case SCREEN_WEATHER: targetId = "showWeather"; break;
+      case SCREEN_AIR_QUALITY: targetId = "showAQI"; break;
+      case SCREEN_CRYPTO: targetId = "showCrypto"; break;
+      case SCREEN_CURRENCY: targetId = "showCurrency"; break;
+      case SCREEN_STOCK: targetId = "showStock"; break;
+      case SCREEN_PC_MONITOR: targetId = "showPc"; break;
+    }
+    
+    content += "<li class='sortable-item' data-id='" + String(screenId) + "' data-target='" + targetId + "' draggable='true'>";
+    content += "<span class='drag-handle'>☰</span>";
+    content += String(SCREEN_NAMES[screenId]);
+    content += "</li>";
+  }
+  content += "</ul>";
+  content += "<input type='hidden' name='screen_order' id='screenOrderInput' value=''>";
   content += "</div>";
 
-  content += "<div class='tile'>";
-  content += "<div class='tile-icon'>📅</div>";
-  content += "<div class='tile-value' id='preview-date' style='font-size: 1.2rem;'>" + getFullDate() + "</div>";
-  content += "<div class='tile-label'>Current Date</div>";
-  content += "</div></div>";
+  // Dynamic Screen Panels
+  for (int i = 0; i < NUM_SCREENS; i++) {
+      int screenId = config.screen_order[i];
 
-  content += "<label style='margin-top:10px; cursor:pointer;'><input type='checkbox' name='date_display' value='1' " + String(config.date_display ? "checked" : "") + "> Display Date</label>";
-  content += "</div></div>";
+      switch (screenId) {
+          case SCREEN_TIME: {
+              content += "<div class='panel'>";
+              content += "<label style='margin:0; cursor:pointer;'><input type='checkbox' id='showTime' name='show_time' value='1' " + String(config.show_time ? "checked" : "") + "> Time Screen</label>";
 
-  // 3. Weather Screen
-  content += "<div class='panel'>";
-  content += "<label style='margin:0; cursor:pointer;'><input type='checkbox' id='showWeather' name='show_weather' value='1' " + String(config.show_weather ? "checked" : "") + "> Weather Screen</label>";
-  content += "<div id='weatherContent' class='collapsible'>";
-  if (!weatherValid) {
-      content += "<div class='no-data-tile'>☁️ Weather data will be available after sync</div>";
-  } else {
-      content += "<div class='dashboard-grid'>";
-      content += "<div class='tile'><div class='tile-icon' id='icon-temp'>" + getWeatherIcon(weather.weather_code) + "</div><div class='tile-value' id='value-temp'>" + String(weather.temp, 1) + " °" + config.temp_unit + "</div><div class='tile-label'>Temperature</div></div>";
-      content += "<div class='tile'><div class='tile-icon'>🤒</div><div class='tile-value' id='value-feels'>" + String(weather.apparent_temperature, 1) + " °" + config.temp_unit + "</div><div class='tile-label'>Feels Like</div></div>";
-      content += "<div class='tile'><div class='tile-icon'>💧</div><div class='tile-value' id='value-hum'>" + String(weather.humidity) + "%</div><div class='tile-label'>Humidity</div></div>";
-      content += "<div class='tile'><div class='tile-icon'>💨</div><div class='tile-value' id='value-wind'>" + String(weather.wind_speed, 1) + " km/h</div><div class='tile-label'>Wind Speed</div></div>";
-      content += "</div>";
-      content += "<div class='update-footer' id='weather-upd'>Last Update: " + weather.update_time + "</div>";
+              content += "<div id='timeContent' class='collapsible'>";
+              content += "<div class='dashboard-grid'>";
+
+              content += "<div class='tile'>";
+              content += "<div class='tile-icon'>🕒</div>";
+              content += "<div class='tile-value' id='preview-time'>" + getCurrentTimeShort(config.time_format) + "</div>";
+              content += "<div class='tile-label'>Current Time</div>";
+              content += "</div>";
+
+              content += "<div class='tile'>";
+              content += "<div class='tile-icon'>📅</div>";
+              content += "<div class='tile-value' id='preview-date' style='font-size: 1.2rem;'>" + getFullDate() + "</div>";
+              content += "<div class='tile-label'>Current Date</div>";
+              content += "</div></div>";
+
+              content += "<label style='margin-top:10px; cursor:pointer;'><input type='checkbox' name='date_display' value='1' " + String(config.date_display ? "checked" : "") + "> Display Date</label>";
+              content += "</div></div>";
+              break;
+          }
+          
+          case SCREEN_WEATHER: {
+              content += "<div class='panel'>";
+              content += "<label style='margin:0; cursor:pointer;'><input type='checkbox' id='showWeather' name='show_weather' value='1' " + String(config.show_weather ? "checked" : "") + "> Weather Screen</label>";
+              content += "<div id='weatherContent' class='collapsible'>";
+              if (!weatherValid) {
+                  content += "<div class='no-data-tile'>☁️ Weather data will be available after sync</div>";
+              } else {
+                  content += "<div class='dashboard-grid'>";
+                  content += "<div class='tile'><div class='tile-icon' id='icon-temp'>" + getWeatherIcon(weather.weather_code) + "</div><div class='tile-value' id='value-temp'>" + String(weather.temp, 1) + " °" + config.temp_unit + "</div><div class='tile-label'>Temperature</div></div>";
+                  content += "<div class='tile'><div class='tile-icon'>🤒</div><div class='tile-value' id='value-feels'>" + String(weather.apparent_temperature, 1) + " °" + config.temp_unit + "</div><div class='tile-label'>Feels Like</div></div>";
+                  content += "<div class='tile'><div class='tile-icon'>💧</div><div class='tile-value' id='value-hum'>" + String(weather.humidity) + "%</div><div class='tile-label'>Humidity</div></div>";
+                  content += "<div class='tile'><div class='tile-icon'>💨</div><div class='tile-value' id='value-wind'>" + String(weather.wind_speed, 1) + " km/h</div><div class='tile-label'>Wind Speed</div></div>";
+                  content += "</div>";
+                  content += "<div class='update-footer' id='weather-upd'>Last Update: " + weather.update_time + "</div>";
+              }
+              
+              content += "<label>Temperature Unit:</label><div style='display:flex; gap:15px; margin-top:8px;'>";
+              content += "<label style='cursor:pointer; display:flex; align-items:center;'><input type='radio' name='temp_unit' value='C' " + String(config.temp_unit == "C" ? "checked" : "") + " style='margin-right:6px;'> °C</label>";
+              content += "<label style='cursor:pointer; display:flex; align-items:center;'><input type='radio' name='temp_unit' value='F' " + String(config.temp_unit == "F" ? "checked" : "") + " style='margin-right:6px;'> °F</label></div>";
+              
+              content += "<label style='margin-top:10px; cursor:pointer;'><input type='checkbox' name='round_temps' value='1' " + String(config.round_temps ? "checked" : "") + "> Round Temperature Values</label>";
+              content += "</div></div>";
+              break;
+          }
+
+          case SCREEN_AIR_QUALITY: {
+              content += "<div class='panel'>";
+              content += "<label style='margin:0; cursor:pointer;'><input type='checkbox' id='showAQI' name='show_aqi' value='1' " + String(config.show_aqi ? "checked" : "") + "> Air Quality Screen</label>";
+              content += "<div id='aqiContent' class='collapsible'>";
+
+              if (!aqiValid) {
+                  content += "<div class='no-data-tile'>🍃 Air quality data will be available after sync</div>";
+              } else {
+                  content += "<div class='dashboard-grid'>";
+                  content += "<div class='tile'><div class='tile-icon'>🍃</div><div class='tile-value' id='value-aqi'>" + String(aqi.aqi) + "</div><div class='tile-label'>" + aqi.status + " Index</div></div>";
+                  content += "<div class='tile'><div class='tile-icon'>🌫️</div><div class='tile-value' id='value-pm25'>" + String(aqi.pm25, 1) + " <small>µg</small></div><div class='tile-label'>PM 2.5</div></div>";
+                  content += "<div class='tile'><div class='tile-icon'>🏭</div><div class='tile-value' id='value-pm10'>" + String(aqi.pm10, 1) + " <small>µg</small></div><div class='tile-label'>PM 10</div></div>";
+                  content += "<div class='tile'><div class='tile-icon'>🧪</div><div class='tile-value' id='value-no2'>" + String(aqi.no2, 1) + " <small>µg</small></div><div class='tile-label'>Nitrogen Dioxide</div></div>";
+                  content += "</div>";
+                  content += "<div class='update-footer' id='aqi-upd'>Last Update: " + weather.update_time + "</div>";
+              }
+
+              content += "<label>AQI Standard:</label><div style='display:flex; gap:15px; margin-top:8px;'>";
+              content += "<label style='cursor:pointer; display:flex; align-items:center;'><input type='radio' name='aqi_type' value='US' " + String(config.aqi_type == "US" ? "checked" : "") + " style='margin-right:6px;'> US Standard</label>";
+              content += "<label style='cursor:pointer; display:flex; align-items:center;'><input type='radio' name='aqi_type' value='EU' " + String(config.aqi_type == "EU" ? "checked" : "") + " style='margin-right:6px;'> European Standard</label></div>";
+              content += "<p style='font-size:0.8em; color:#888; margin-top:8px;'>EU: 0-100+ scale | US: 0-500 scale</p>";
+
+              content += "</div></div>";
+              break;
+          }
+
+          case SCREEN_STOCK: {
+              content += "<div class='panel'>";
+              content += "<label style='margin:0; cursor:pointer;'><input type='checkbox' id='showStock' name='show_stock' value='1' " + String(config.show_stock ? "checked" : "") + "> Stock Tracking Screen</label>";
+              content += "<div id='stockContent' class='collapsible'>";
+              
+              if (!stockValid) {
+                  content += "<div class='no-data-tile'>📈 Stock data will be available after sync</div>";
+              } else {
+                  content += "<div class='dashboard-grid'>";
+                  content += "<div class='tile'><div class='tile-icon'>📊</div><div class='tile-value' id='stock-price'>$" + String(stock.price, 2) + "</div><div class='tile-label' id='stock-sym'>" + stock.symbol + " Price</div></div>";
+                  content += "<div class='tile'><div class='tile-icon' id='stock-trend-icon'>" + String(stock.percent_change >= 0 ? "📈" : "📉") + "</div><div class='tile-value' id='stock-change'>" + String(stock.percent_change, 2) + "%</div><div class='tile-label'>Daily Change</div></div>";
+                  content += "</div>";
+                  content += "<div class='update-footer' id='stock-upd'>Last Update: " + weather.update_time + "</div>";
+              }
+
+              content += "<label>Track Stock/ETF:</label><select name='stock_symbol'>";
+              for(auto s : topStocks) {
+                  content += "<option value='" + String(s.ticker) + "' " + 
+                             (String(config.stock_symbol) == String(s.ticker) ? "selected" : "") + 
+                             ">" + String(s.name) + " - " + String(s.ticker) + "</option>";
+              }
+              content += "</select>";
+              content += "<label style='margin-top:10px; cursor:pointer;'><input type='checkbox' name='stock_fn' value='1' " + String(config.stock_fn ? "checked" : "") + "> Display Full Company Name</label>";
+              content += "</div></div>";
+              break;
+          }
+
+          case SCREEN_CRYPTO: {
+              content += "<div class='panel'>";
+              content += "<label style='margin:0; cursor:pointer;'><input type='checkbox' id='showCrypto' name='show_crypto' value='1' " + String(config.show_crypto ? "checked" : "") + "> Crypto Tracking Screen</label>";
+              content += "<div id='cryptoContent' class='collapsible'>";
+              if (!cryptoValid) {
+                  content += "<div class='no-data-tile'>💰 Crypto data will be available after sync</div>";
+              } else {
+                  content += "<div class='dashboard-grid'>";
+                  content += "<div class='tile'><div class='tile-icon'>₿</div><div class='tile-value' id='crypto-price'>" + String((int)round(crypto.price_usd)) + "$</div><div class='tile-label' id='crypto-sym'>" + crypto.symbol + " Price</div></div>";
+                  content += "<div class='tile'><div class='tile-icon' id='crypto-trend-icon'>" + String(crypto.percent_change_24h >= 0 ? "📈" : "📉") + "</div><div class='tile-value' id='crypto-change'>" + String(crypto.percent_change_24h, 1) + "%</div><div class='tile-label'>24h Change</div></div>";
+                  content += "</div>";
+                  content += "<div class='update-footer' id='crypto-upd'>Last Update: " + weather.update_time + "</div>";
+              }
+              content += "<label>Track Cryptocurrency:</label><select name='crypto_id'>";
+              for(auto coin : topCoins) {
+                  content += "<option value='" + String(coin.id) + "' " + (config.crypto_id == coin.id ? "selected" : "") + ">" + String(coin.sym) + "</option>";
+              }
+              content += "</select>";
+              content += "<label style='margin-top:10px; cursor:pointer;'><input type='checkbox' name='crypto_fn' value='1' " + String(config.crypto_fn ? "checked" : "") + "> Display Full Coin Name</label>";
+              content += "</div></div>";
+              break;
+          }
+
+          case SCREEN_CURRENCY: {
+              content += "<div class='panel'>";
+              content += "<label style='margin:0; cursor:pointer;'><input type='checkbox' id='showCurrency' name='show_currency' value='1' " + String(config.show_currency ? "checked" : "") + "> Currency Exchange Screen</label>";
+              content += "<div id='currencyContent' class='collapsible'>";
+              
+              if (!currencyValid) {
+                  content += "<div class='no-data-tile'>💱 Currency data will be available after sync</div>";
+              } else {
+                  content += "<div class='dashboard-grid'>";
+                  
+                  float displayRate = currency.rate * config.currency_multiplier;
+                  int decimals = 0;
+                  if (displayRate < 10.0) decimals = 3;
+                  else if (displayRate < 100.0) decimals = 2;
+                  else if (displayRate < 1000.0) decimals = 1;
+
+                  content += "<div class='tile'><div class='tile-icon'>💵</div><div class='tile-value' id='currency-base-val'>" + String(config.currency_multiplier) + " " + currency.base + "</div><div class='tile-label'>Base Amount</div></div>";
+                  content += "<div class='tile'><div class='tile-icon'>💱</div><div class='tile-value' id='currency-target-val'>" + String(displayRate, decimals) + " " + currency.target + "</div><div class='tile-label'>Exchange Rate</div></div>";
+                  
+                  content += "</div>";
+                  content += "<div class='update-footer' id='currency-upd'>Last Update: " + weather.update_time + "</div>";
+              }
+
+              content += "<div class='dashboard-grid' style='margin-top: 10px;'>";
+              
+              content += "<div><label style='margin-top: 0;'>Base Currency:</label><select name='currency_base'>";
+              for (auto c : allCurrencies) {
+                  String codeUpper = String(c.code);
+                  codeUpper.toUpperCase();
+                  content += "<option value='" + String(c.code) + "' " + (String(config.currency_base) == String(c.code) ? "selected" : "") + ">" + codeUpper + " - " + String(c.name) + "</option>";
+              }
+              content += "</select></div>";
+
+              content += "<div><label style='margin-top: 0;'>Target Currency:</label><select name='currency_target'>";
+              for (auto c : allCurrencies) {
+                  String codeUpper = String(c.code);
+                  codeUpper.toUpperCase();
+                  content += "<option value='" + String(c.code) + "' " + (String(config.currency_target) == String(c.code) ? "selected" : "") + ">" + codeUpper + " - " + String(c.name) + "</option>";
+              }
+              content += "</select></div>";
+              
+              content += "</div>";
+
+              content += "<label>Multiplier Amount:</label><select name='currency_multiplier'>";
+              int multipliers[] = {1, 10, 100, 1000, 10000, 100000};
+              for (int m : multipliers) {
+                  content += "<option value='" + String(m) + "' " + (config.currency_multiplier == m ? "selected" : "") + ">" + String(m) + "</option>";
+              }
+              content += "</select>";
+              content += "<label style='margin-top:10px; cursor:pointer;'><input type='checkbox' name='currency_fn' value='1' " + String(config.currency_fn ? "checked" : "") + "> Display Full Currency Name</label>";
+              content += "</div></div>";
+              break;
+          }
+
+          case SCREEN_PC_MONITOR: {
+              content += "<div class='panel'>";
+              content += "<label style='margin:0; cursor:pointer;'><input type='checkbox' id='showPc' name='show_pc' value='1' " + String(config.show_pc ? "checked" : "") + "> PC Monitoring Screen</label>";
+              content += "<div id='pcContent' class='collapsible'>";
+              if (!pcValid) {
+                  content += "<div class='no-data-tile'>🖥️ PC data will be available after sync</div>";
+              } else {
+                  content += "<div class='dashboard-grid'>";
+                  content += "<div class='tile'><div class='tile-icon'>📊</div><div class='tile-value' id='pc-cpu'>" + String((int)round(pc.cpu_percent)) + "%</div><div class='tile-label'>CPU Usage</div></div>";
+                  content += "<div class='tile'><div class='tile-icon'>🧠</div><div class='tile-value' id='pc-ram'>" + String((int)round(pc.mem_percent)) + "%</div><div class='tile-label'>RAM Usage</div></div>";
+                  content += "<div class='tile'><div class='tile-icon'>💽</div><div class='tile-value' id='pc-disk'>" + String((int)round(pc.disk_percent)) + "%</div><div class='tile-label'>Disk Usage</div></div>";
+                  content += "<div class='tile'><div class='tile-icon'>⬇️</div><div class='tile-value' id='pc-net'>" + String((int)round(pc.net_down_kb)) + " KB/s</div><div class='tile-label'>Download</div></div>";      
+                  content += "</div>";
+              }
+              content += "</div></div>";
+              break;
+          }
+      }
   }
-  
-  content += "<label>Temperature Unit:</label><div style='display:flex; gap:15px; margin-top:8px;'>";
-  content += "<label style='cursor:pointer; display:flex; align-items:center;'><input type='radio' name='temp_unit' value='C' " + String(config.temp_unit == "C" ? "checked" : "") + " style='margin-right:6px;'> °C</label>";
-  content += "<label style='cursor:pointer; display:flex; align-items:center;'><input type='radio' name='temp_unit' value='F' " + String(config.temp_unit == "F" ? "checked" : "") + " style='margin-right:6px;'> °F</label></div>";
-  
-  content += "<label style='margin-top:10px; cursor:pointer;'><input type='checkbox' name='round_temps' value='1' " + String(config.round_temps ? "checked" : "") + "> Round Temperature Values</label>";
-  content += "</div></div>";
-
-  // 4. Air Quality Screen
-  content += "<div class='panel'>";
-  content += "<label style='margin:0; cursor:pointer;'><input type='checkbox' id='showAQI' name='show_aqi' value='1' " + String(config.show_aqi ? "checked" : "") + "> Air Quality Screen</label>";
-  content += "<div id='aqiContent' class='collapsible'>";
-
-  if (!aqiValid) {
-      content += "<div class='no-data-tile'>🍃 Air quality data will be available after sync</div>";
-  } else {
-      content += "<div class='dashboard-grid'>";
-      content += "<div class='tile'><div class='tile-icon'>🍃</div><div class='tile-value' id='value-aqi'>" + String(airQualityData.aqi) + "</div><div class='tile-label'>" + airQualityData.status + " Index</div></div>";
-      content += "<div class='tile'><div class='tile-icon'>🌫️</div><div class='tile-value' id='value-pm25'>" + String(airQualityData.pm25, 1) + " <small>µg</small></div><div class='tile-label'>PM 2.5</div></div>";
-      content += "<div class='tile'><div class='tile-icon'>🏭</div><div class='tile-value' id='value-pm10'>" + String(airQualityData.pm10, 1) + " <small>µg</small></div><div class='tile-label'>PM 10</div></div>";
-      content += "<div class='tile'><div class='tile-icon'>🧪</div><div class='tile-value' id='value-no2'>" + String(airQualityData.no2, 1) + " <small>µg</small></div><div class='tile-label'>Nitrogen Dioxide</div></div>";
-      content += "</div>";
-      content += "<div class='update-footer' id='aqi-upd'>Last Update: " + weather.update_time + "</div>";
-  }
-
-  content += "<label>AQI Standard:</label><div style='display:flex; gap:15px; margin-top:8px;'>";
-  content += "<label style='cursor:pointer; display:flex; align-items:center;'><input type='radio' name='aqi_type' value='US' " + String(config.aqi_type == "US" ? "checked" : "") + " style='margin-right:6px;'> US Standard</label>";
-  content += "<label style='cursor:pointer; display:flex; align-items:center;'><input type='radio' name='aqi_type' value='EU' " + String(config.aqi_type == "EU" ? "checked" : "") + " style='margin-right:6px;'> European Standard</label></div>";
-  content += "<p style='font-size:0.8em; color:#888; margin-top:8px;'>EU: 0-100+ scale | US: 0-500 scale</p>";
-
-  content += "</div></div>";
-
-  // 5. Crypto Screen
-  content += "<div class='panel'>";
-  content += "<label style='margin:0; cursor:pointer;'><input type='checkbox' id='showCrypto' name='show_crypto' value='1' " + String(config.show_crypto ? "checked" : "") + "> Crypto Tracking Screen</label>";
-  content += "<div id='cryptoContent' class='collapsible'>";
-  if (!cryptoValid) {
-      content += "<div class='no-data-tile'>💰 Crypto data will be available after sync</div>";
-  } else {
-      content += "<div class='dashboard-grid'>";
-      content += "<div class='tile'><div class='tile-icon'>₿</div><div class='tile-value' id='crypto-price'>" + String((int)round(cryptoData.price_usd)) + "$</div><div class='tile-label' id='crypto-sym'>" + cryptoData.symbol + " Price</div></div>";
-      content += "<div class='tile'><div class='tile-icon' id='crypto-trend-icon'>" + String(cryptoData.percent_change_24h >= 0 ? "📈" : "📉") + "</div><div class='tile-value' id='crypto-change'>" + String(cryptoData.percent_change_24h, 1) + "%</div><div class='tile-label'>24h Change</div></div>";
-      content += "</div>";
-      content += "<div class='update-footer' id='crypto-upd'>Last Update: " + weather.update_time + "</div>";
-  }
-  content += "<label>Track Cryptocurrency:</label><select name='crypto_id'>";
-  for(auto coin : topCoins) {
-      content += "<option value='" + String(coin.id) + "' " + (config.crypto_id == coin.id ? "selected" : "") + ">" + String(coin.sym) + "</option>";
-  }
-  content += "</select>";
-  content += "<label style='margin-top:10px; cursor:pointer;'><input type='checkbox' name='crypto_fn' value='1' " + String(config.crypto_fn ? "checked" : "") + "> Display Full Coin Name</label>";
-  content += "</div></div>";
-
-  // 6. Currency Screen
-  content += "<div class='panel'>";
-  content += "<label style='margin:0; cursor:pointer;'><input type='checkbox' id='showCurrency' name='show_currency' value='1' " + String(config.show_currency ? "checked" : "") + "> Currency Exchange Screen</label>";
-  content += "<div id='currencyContent' class='collapsible'>";
-  
-  if (!currencyValid) {
-      content += "<div class='no-data-tile'>💱 Currency data will be available after sync</div>";
-  } else {
-      content += "<div class='dashboard-grid'>";
-      
-      float displayRate = currencyData.rate * config.currency_multiplier;
-      int decimals = 0;
-      if (displayRate < 10.0) decimals = 3;
-      else if (displayRate < 100.0) decimals = 2;
-      else if (displayRate < 1000.0) decimals = 1;
-
-      content += "<div class='tile'><div class='tile-icon'>💵</div><div class='tile-value' id='currency-base-val'>" + String(config.currency_multiplier) + " " + currencyData.base + "</div><div class='tile-label'>Base Amount</div></div>";
-      content += "<div class='tile'><div class='tile-icon'>💱</div><div class='tile-value' id='currency-target-val'>" + String(displayRate, decimals) + " " + currencyData.target + "</div><div class='tile-label'>Exchange Rate</div></div>";
-      
-      content += "</div>";
-      content += "<div class='update-footer' id='currency-upd'>Last Update: " + weather.update_time + "</div>";
-  }
-
-  // Base & Target Dropdowns
-  content += "<div class='dashboard-grid' style='margin-top: 10px;'>";
-  
-  content += "<div><label style='margin-top: 0;'>Base Currency:</label><select name='currency_base'>";
-  for (auto c : allCurrencies) {
-      String codeUpper = String(c.code);
-      codeUpper.toUpperCase();
-      content += "<option value='" + String(c.code) + "' " + (String(config.currency_base) == String(c.code) ? "selected" : "") + ">" + codeUpper + " - " + String(c.name) + "</option>";
-  }
-  content += "</select></div>";
-
-  content += "<div><label style='margin-top: 0;'>Target Currency:</label><select name='currency_target'>";
-  for (auto c : allCurrencies) {
-      String codeUpper = String(c.code);
-      codeUpper.toUpperCase();
-      content += "<option value='" + String(c.code) + "' " + (String(config.currency_target) == String(c.code) ? "selected" : "") + ">" + codeUpper + " - " + String(c.name) + "</option>";
-  }
-  content += "</select></div>";
-  
-  content += "</div>";
-
-  // Multiplier Dropdown
-  content += "<label>Multiplier Amount:</label><select name='currency_multiplier'>";
-  int multipliers[] = {1, 10, 100, 1000, 10000, 100000};
-  for (int m : multipliers) {
-      content += "<option value='" + String(m) + "' " + (config.currency_multiplier == m ? "selected" : "") + ">" + String(m) + "</option>";
-  }
-  content += "</select>";
-  content += "<label style='margin-top:10px; cursor:pointer;'><input type='checkbox' name='currency_fn' value='1' " + String(config.currency_fn ? "checked" : "") + "> Display Full Currency Name</label>";
-  content += "</div></div>";
-
-  // 7. Stock Screen
-  content += "<div class='panel'>";
-  content += "<label style='margin:0; cursor:pointer;'><input type='checkbox' id='showStock' name='show_stock' value='1' " + String(config.show_stock ? "checked" : "") + "> Stock Tracking Screen</label>";
-  content += "<div id='stockContent' class='collapsible'>";
-  
-  if (!stockValid) {
-      content += "<div class='no-data-tile'>📈 Stock data will be available after sync</div>";
-  } else {
-      content += "<div class='dashboard-grid'>";
-      content += "<div class='tile'><div class='tile-icon'>📊</div><div class='tile-value' id='stock-price'>$" + String(stockData.price, 2) + "</div><div class='tile-label' id='stock-sym'>" + stockData.symbol + " Price</div></div>";
-      content += "<div class='tile'><div class='tile-icon' id='stock-trend-icon'>" + String(stockData.percent_change >= 0 ? "📈" : "📉") + "</div><div class='tile-value' id='stock-change'>" + String(stockData.percent_change, 2) + "%</div><div class='tile-label'>Daily Change</div></div>";
-      content += "</div>";
-      content += "<div class='update-footer' id='stock-upd'>Last Update: " + weather.update_time + "</div>";
-  }
-
-  content += "<label>Track Stock/ETF:</label><select name='stock_symbol'>";
-  for(auto s : topStocks) {
-      content += "<option value='" + String(s.ticker) + "' " + 
-                 (String(config.stock_symbol) == String(s.ticker) ? "selected" : "") + 
-                 ">" + String(s.name) + " - " + String(s.ticker) + "</option>";
-  }
-  content += "</select>";
-  content += "<label style='margin-top:10px; cursor:pointer;'><input type='checkbox' name='stock_fn' value='1' " + String(config.stock_fn ? "checked" : "") + "> Display Full Company Name</label>";
-  content += "</div></div>";
-
-  // 8. PC Screen
-  content += "<div class='panel'>";
-  content += "<label style='margin:0; cursor:pointer;'><input type='checkbox' id='showPc' name='show_pc' value='1' " + String(config.show_pc ? "checked" : "") + "> PC Monitoring Screen</label>";
-  content += "<div id='pcContent' class='collapsible'>";
-  if (!pcValid) {
-      content += "<div class='no-data-tile'>🖥️ PC data will be available after sync</div>";
-  } else {
-      content += "<div class='dashboard-grid'>";
-      content += "<div class='tile'><div class='tile-icon'>📊</div><div class='tile-value' id='pc-cpu'>" + String((int)round(pcStats.cpu_percent)) + "%</div><div class='tile-label'>CPU Usage</div></div>";
-      content += "<div class='tile'><div class='tile-icon'>🧠</div><div class='tile-value' id='pc-ram'>" + String((int)round(pcStats.mem_percent)) + "%</div><div class='tile-label'>RAM Usage</div></div>";
-      content += "<div class='tile'><div class='tile-icon'>💽</div><div class='tile-value' id='pc-disk'>" + String((int)round(pcStats.disk_percent)) + "%</div><div class='tile-label'>Disk Usage</div></div>";
-      content += "<div class='tile'><div class='tile-icon'>⬇️</div><div class='tile-value' id='pc-net'>" + String((int)round(pcStats.net_down_kb)) + " KB/s</div><div class='tile-label'>Download</div></div>";      
-      content += "</div>";
-  }
-  content += "</div></div>";
 
   content += "<button type='submit'>💾 Save & Apply All Settings</button></form>";
   
   content += "<script>";
   content += "function updateVisibility(){";
   
-  content += "  var pairs = [['autoDetect','manualFields',true], ['showTime', 'timeContent',false], ['showWeather','weatherContent',false], ['showPc','pcContent',false], ['showCrypto','cryptoContent',false], ['showCurrency','currencyContent',false], ['showStock','stockContent',false], ['showAQI','aqiContent',false]];";
+  content += "  var pairs = [['autoDetect','manualFields',true], ['nightMode','nightFields',false], ['showTime', 'timeContent',false], ['showWeather','weatherContent',false], ['showPc','pcContent',false], ['showCrypto','cryptoContent',false], ['showCurrency','currencyContent',false], ['showStock','stockContent',false], ['showAQI','aqiContent',false]];";
   content += "  pairs.forEach(p => {";
   content += "    var ch = document.getElementById(p[0]); if(!ch) return;";
   content += "    var target = document.getElementById(p[1]);";
@@ -422,7 +492,7 @@ String WebServerService::generateRootPageContent() {
 
   content += "}";
   
-  content += "['autoDetect', 'showTime', 'showWeather', 'showPc', 'showCrypto', 'showCurrency', 'showStock', 'showAQI', 'autoCycle'].forEach(id => { var el=document.getElementById(id); if(el) el.addEventListener('change', updateVisibility); });";
+  content += "['autoDetect', 'nightMode', 'showTime', 'showWeather', 'showPc', 'showCrypto', 'showCurrency', 'showStock', 'showAQI', 'autoCycle'].forEach(id => { var el=document.getElementById(id); if(el) el.addEventListener('change', updateVisibility); });";
   content += "updateVisibility();";
 
   // Handle "None" Checkbox Logic
@@ -456,6 +526,86 @@ String WebServerService::generateRootPageContent() {
   content += "});";
   
   content += "toggleNone();";
+
+  content += "const list = document.getElementById('sortable-list');";
+  content += "const orderInput = document.getElementById('screenOrderInput');";
+
+  // Function to sync DOM list with checkbox states using the data-target attribute
+  content += "function syncScreenOrder() {";
+  content += "  const items = [...list.querySelectorAll('.sortable-item')];";
+  content += "  let enabled = [], disabled = [];";
+  content += "  items.forEach(item => {";
+  content += "    const targetId = item.getAttribute('data-target');";
+  content += "    const cb = document.getElementById(targetId);";
+  content += "    if (cb && cb.checked) {";
+  content += "      item.classList.remove('disabled'); item.setAttribute('draggable', 'true'); enabled.push(item);";
+  content += "    } else {";
+  content += "      item.classList.add('disabled'); item.removeAttribute('draggable'); disabled.push(item);";
+  content += "    }";
+  content += "  });";
+  content += "  list.innerHTML = '';";
+  content += "  enabled.forEach(el => list.appendChild(el));"; 
+  content += "  disabled.forEach(el => list.appendChild(el));"; 
+  content += "  updateOrderValue();";
+  content += "}";
+
+  content += "function updateOrderValue() {";
+  content += "  const items = [...list.querySelectorAll('.sortable-item')];";
+  content += "  orderInput.value = items.map(item => item.getAttribute('data-id')).join(',');";
+  content += "}";
+
+  // Hook Checkboxes to the sync function
+  content += "const panelCheckboxes = ['showTime', 'showWeather', 'showAQI', 'showCrypto', 'showCurrency', 'showStock', 'showPc'];";
+  content += "panelCheckboxes.forEach(id => {";
+  content += "  const el = document.getElementById(id);";
+  content += "  if (el) el.addEventListener('change', syncScreenOrder);";
+  content += "});";
+
+  // Universal Drag & Touch Logic
+  content += "function getDragAfterEl(y) {";
+  content += "  return [...list.querySelectorAll('.sortable-item:not(.dragging):not(.disabled)')].reduce((closest, child) => {";
+  content += "    const box = child.getBoundingClientRect();";
+  content += "    const offset = y - box.top - box.height / 2;";
+  content += "    if (offset < 0 && offset > closest.offset) return { offset: offset, element: child };";
+  content += "    else return closest;";
+  content += "  }, { offset: Number.NEGATIVE_INFINITY }).element;";
+  content += "}";
+
+  content += "function moveItem(y) {";
+  content += "  const draggable = document.querySelector('.dragging');";
+  content += "  if (!draggable) return;";
+  content += "  const afterEl = getDragAfterEl(y);";
+  content += "  if (afterEl == null) {";
+  content += "    const firstDis = list.querySelector('.disabled');";
+  content += "    if (firstDis) list.insertBefore(draggable, firstDis);";
+  content += "    else list.appendChild(draggable);";
+  content += "  } else { list.insertBefore(draggable, afterEl); }";
+  content += "}";
+
+  // Standard Mouse Events (PC)
+  content += "list.addEventListener('dragstart', e => { if (e.target.classList.contains('disabled')) { e.preventDefault(); return; } e.target.classList.add('dragging'); });";
+  content += "list.addEventListener('dragend', e => { e.target.classList.remove('dragging'); updateOrderValue(); });";
+  content += "list.addEventListener('dragover', e => { e.preventDefault(); moveItem(e.clientY); });";
+
+  // Touch Events (Mobile)
+  content += "list.addEventListener('touchstart', e => {";
+  content += "  const item = e.target.closest('.sortable-item');";
+  content += "  if (!item || item.classList.contains('disabled')) return;";
+  content += "  item.classList.add('dragging');";
+  content += "}, {passive: false});";
+
+  content += "list.addEventListener('touchmove', e => {";
+  content += "  if (!document.querySelector('.dragging')) return;";
+  content += "  e.preventDefault();"; // Stops the whole page from scrolling while you drag the item
+  content += "  moveItem(e.touches[0].clientY);";
+  content += "}, {passive: false});";
+
+  content += "list.addEventListener('touchend', e => {";
+  content += "  const dragging = document.querySelector('.dragging');";
+  content += "  if (dragging) { dragging.classList.remove('dragging'); updateOrderValue(); }";
+  content += "});";
+
+  content += "syncScreenOrder();";
   
   // Mask Calculator
   content += "document.querySelector('form').addEventListener('submit', function(e) {";
@@ -529,11 +679,18 @@ void WebServerService::handleRoot() {
 }
 
 void WebServerService::handleSave() {
-  Config& config = *sharedConfig;
+  Config& config = state->config;
+  WeatherData& weather = state->weather;
+  AirQualityData& aqi = state->aqi;
+  CryptoData& crypto = state->crypto;
+  CurrencyData& currency = state->currency;
+  StockData& stock = state->stock;
+  PcStats& pc = state->pc;
 
-  // 1. Update Screen Visibility
+  // 1. Update Screen Visibility & Master Toggles
   config.auto_detect = server.hasArg("auto_detect");
   config.screen_auto_cycle = server.hasArg("auto_cycle");
+  config.night_mode = server.hasArg("night_mode");
 
   config.show_time = server.hasArg("show_time");
   config.show_weather = server.hasArg("show_weather");
@@ -542,6 +699,23 @@ void WebServerService::handleSave() {
   config.show_pc = server.hasArg("show_pc");
   config.show_currency = server.hasArg("show_currency");
   config.show_stock = server.hasArg("show_stock");
+
+  if (server.hasArg("screen_order")) {
+    String orderStr = server.arg("screen_order");
+    int idx = 0;
+    int startPos = 0;
+    
+    while (startPos < orderStr.length() && idx < NUM_SCREENS) {
+      int commaPos = orderStr.indexOf(',', startPos);
+      if (commaPos == -1) {
+        config.screen_order[idx++] = orderStr.substring(startPos).toInt();
+        break;
+      } else {
+        config.screen_order[idx++] = orderStr.substring(startPos, commaPos).toInt();
+        startPos = commaPos + 1;
+      }
+    }
+  }
 
   if (config.show_time) config.date_display = server.hasArg("date_display");
   if (config.show_weather) config.round_temps = server.hasArg("round_temps");
@@ -558,6 +732,11 @@ void WebServerService::handleSave() {
   if (server.hasArg("screen_int")) config.screen_interval_sec = server.arg("screen_int").toInt();
   if (server.hasArg("anim_mask")) config.anim_mask = server.arg("anim_mask").toInt();
   if (server.hasArg("crypto_id")) config.crypto_id = server.arg("crypto_id").toInt();
+
+  // Night Mode Settings
+  if (server.hasArg("night_action")) config.night_action = server.arg("night_action").toInt();
+  if (server.hasArg("night_start")) config.night_start = server.arg("night_start");
+  if (server.hasArg("night_end")) config.night_end = server.arg("night_end");
 
   // Currency Settings
   if (server.hasArg("currency_base")) {
@@ -584,40 +763,40 @@ void WebServerService::handleSave() {
 
   // 3. Forcible Reset of Data (State clearing)
   if (!config.show_weather) {
-    sharedWeather->temp = NAN;
-    sharedWeather->humidity = NAN;
-    sharedWeather->apparent_temperature = NAN;
-    sharedWeather->wind_speed = NAN;
+    weather.temp = NAN;
+    weather.humidity = NAN;
+    weather.apparent_temperature = NAN;
+    weather.wind_speed = NAN;
   }
 
   if (!config.show_aqi) {
-    sharedAirQuality->aqi = NAN;
-    sharedAirQuality->pm25 = NAN;
-    sharedAirQuality->pm10 = NAN;
-    sharedAirQuality->no2 = NAN;
+    aqi.aqi = NAN;
+    aqi.pm25 = NAN;
+    aqi.pm10 = NAN;
+    aqi.no2 = NAN;
   }
 
   if (!config.show_pc) {
-    sharedPcStats->cpu_percent = 0;
-    sharedPcStats->net_down_kb = 0;
-    sharedPcStats->mem_percent = 0;
-    sharedPcStats->disk_percent = 0;
+    pc.cpu_percent = 0;
+    pc.net_down_kb = 0;
+    pc.mem_percent = 0;
+    pc.disk_percent = 0;
   }
 
   if (!config.show_crypto) {
-    sharedCrypto->price_usd = NAN;
-    sharedCrypto->percent_change_24h = NAN;
+    crypto.price_usd = NAN;
+    crypto.percent_change_24h = NAN;
   }
 
   if (!config.show_currency) {
-    sharedCurrency->rate = NAN;
-    sharedCurrency->updated = false;
+    currency.rate = NAN;
+    currency.updated = false;
   }
 
   if (!config.show_stock) {
-    sharedStock->price = NAN;
-    sharedStock->percent_change = NAN;
-    sharedStock->updated = false;
+    stock.price = NAN;
+    stock.percent_change = NAN;
+    stock.updated = false;
   }
 
   if (config.refresh_interval_min <= 0) config.refresh_interval_min = 1; 
@@ -631,15 +810,14 @@ void WebServerService::handleSave() {
 }
 
 void WebServerService::handleUpdate() {
-  const Config& config = *sharedConfig;
-  const WeatherData& weather = *sharedWeather;
-  const AirQualityData& airQualityData = *sharedAirQuality;
-  const PcStats& pcStats = *sharedPcStats;
-  const CryptoData& cryptoData = *sharedCrypto;
-  const CurrencyData& currencyData = *sharedCurrency;
-  const StockData& stockData = *sharedStock;
+  Config& config = state->config;
+  WeatherData& weather = state->weather;
+  AirQualityData& aqi = state->aqi;
+  CryptoData& crypto = state->crypto;
+  CurrencyData& currency = state->currency;
+  StockData& stock = state->stock;
+  PcStats& pc = state->pc;
 
-  // Bumped to 1024 to accommodate the extra payload fields safely
   DynamicJsonDocument doc(1024); 
   
   doc["time"] = getCurrentTimeShort(config.time_format);
@@ -654,38 +832,38 @@ void WebServerService::handleUpdate() {
   doc["temp_unit"] = config.temp_unit;
   doc["time_format"] = config.time_format;
 
-  doc["aqi"] = String(airQualityData.aqi);
-  doc["aqi_status"] = airQualityData.status;
-  doc["pm25"] = String(airQualityData.pm25, 1);
-  doc["pm10"] = String(airQualityData.pm10, 1);
-  doc["no2"] = String(airQualityData.no2, 1);
+  doc["aqi"] = String(aqi.aqi);
+  doc["aqi_status"] = aqi.status;
+  doc["pm25"] = String(aqi.pm25, 1);
+  doc["pm10"] = String(aqi.pm10, 1);
+  doc["no2"] = String(aqi.no2, 1);
 
-  doc["pc_cpu"] = String(pcStats.cpu_percent);
-  doc["pc_net"] = String(pcStats.net_down_kb);
-  doc["pc_ram"] = String(pcStats.mem_percent);
-  doc["pc_disk"] = String(pcStats.disk_percent);
+  doc["pc_cpu"] = String(pc.cpu_percent);
+  doc["pc_net"] = String(pc.net_down_kb);
+  doc["pc_ram"] = String(pc.mem_percent);
+  doc["pc_disk"] = String(pc.disk_percent);
 
-  doc["crypto_symbol"] = String(cryptoData.symbol);
-  doc["crypto_price"] = String(cryptoData.price_usd);
-  doc["crypto_change"] = String(cryptoData.percent_change_24h);
+  doc["crypto_symbol"] = String(crypto.symbol);
+  doc["crypto_price"] = String(crypto.price_usd);
+  doc["crypto_change"] = String(crypto.percent_change_24h);
   
-  if (currencyData.updated) {
-    float displayRate = currencyData.rate * config.currency_multiplier;
+  if (currency.updated) {
+    float displayRate = currency.rate * config.currency_multiplier;
     
     int decimals = 0;
     if (displayRate < 10.0) decimals = 3;
     else if (displayRate < 100.0) decimals = 2;
     else if (displayRate < 1000.0) decimals = 1;
     
-    doc["currency_base_text"] = String(config.currency_multiplier) + " " + currencyData.base;
-    doc["currency_target_text"] = String(displayRate, decimals) + " " + currencyData.target;
-    doc["currency_date"] = currencyData.date;
+    doc["currency_base_text"] = String(config.currency_multiplier) + " " + currency.base;
+    doc["currency_target_text"] = String(displayRate, decimals) + " " + currency.target;
+    doc["currency_date"] = currency.date;
   }
   
-  if (stockData.updated) {
-      doc["stock_symbol"] = stockData.symbol;
-      doc["stock_price"] = String(stockData.price, 2);
-      doc["stock_change"] = String(stockData.percent_change, 2);
+  if (stock.updated) {
+      doc["stock_symbol"] = stock.symbol;
+      doc["stock_price"] = String(stock.price, 2);
+      doc["stock_change"] = String(stock.percent_change, 2);
   }
   
   String jsonResponse;

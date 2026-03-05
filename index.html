@@ -123,7 +123,7 @@
         .highlight-feature .feature-header { margin-bottom: 10px; }
         .highlight-feature p { margin: 0; }
         .highlight-feature p.desc { margin-top: 10px; }
-        .highlight-feature p.example { margin-top: 10px; font-size: 0.9em; opacity: 0.8; }
+        .highlight-feature p.example { margin: 10px 0; font-size: 0.9em; opacity: 0.8; }
         
         ol, ul { padding-left: 20px; }
         li { margin-bottom: 8px; }
@@ -541,6 +541,16 @@
             <p class="example">
                 <em>Example: Disable everything except "PC Monitor" to turn Tinytosh into a dedicated hardware tracker, or enable everything for a complete smart hub.</em>
             </p>
+            <div class="feature-section-title">Drag & Drop Reordering</div>
+            <p>
+                Take full control of your device's flow using the <strong>Screen Display Order</strong> panel.
+            </p>
+            <p class="desc">
+                <strong>How it works:</strong>
+                <br>• Grab the ☰ handle to drag and drop your active screens into any sequence you like.
+                <br>• Disabled screens are automatically pushed to the bottom and locked out of the rotation.
+                <br>• <strong>Dynamic UI:</strong> When you click Save, the configuration panels on this web page will physically rearrange themselves to perfectly match your new custom layout!
+            </p>
 
             <details class="dark-mode">
                 <summary>🎥 View Interface Demo</summary>
@@ -580,6 +590,15 @@
                     <li><strong>Manual Entry:</strong> Override with specific City names, Latitude/Longitude coordinates, and Timezone strings.</li>
                 </ul>
                 <span class="api-tag">Source: ip-api.com</span>
+
+                <div class="feature-section-title">🌙 Night Mode & Power Saving</div>
+                <p>Set a quiet schedule to minimize sleep distractions and conserve API quotas.</p>
+                <ul>
+                    <li><strong>Action Modes:</strong> Choose what happens during the scheduled hours: <em>No Visual Change</em>, <em>Dim Display</em> (minimum hardware contrast), or <em>Turn Display Off</em> (completely black).</li>
+                    <li><strong>Smart Latching:</strong> Night Mode won't interrupt your reading. It waits patiently until the rotation naturally lands on your first (primary) screen before applying the dark settings and pausing the screen cycle.</li>
+                    <li><strong>Background Optimization:</strong> Background data fetches (Weather, Crypto, etc.) automatically slow down 10x during Night Mode to save power.</li>
+                    <li><strong>Temporary Wake:</strong> If the screen is Off, pressing the physical button will temporarily wake the device at minimum brightness for 30 seconds so you can check the time in the dark!</li>
+                </ul>
 
                 <details>
                     <summary>🎥 View Animation Demo</summary>
@@ -695,6 +714,39 @@
             </div>
 
             <div class="feature-item">
+                <div class="feature-header">📊 Stock Tracker</div>
+                <div class="feature-section-title">Settings</div>
+                <p>Track live market data for ~100 top global assets, including US Mega-Cap Tech, broad market ETFs, and international ADRs.</p>
+                <ul>
+                    <li><strong>Asset Selection:</strong> Choose your preferred stock or ETF from the curated dropdown.</li>
+                    <li><strong>Display Format:</strong> Toggle between showing the minimalist Ticker (e.g., AAPL) or the Full Company Name (e.g., Apple Inc.).</li>
+                </ul>
+                <div class="feature-section-title">Layout</div>
+                <p>Shows the stock ticker/name, current price in USD, a daily trend icon, and the percentage change since the previous close.</p>
+                <span class="api-tag">Source: stooq.com</span>
+
+                <details>
+                    <summary>📸 View Screen Preview</summary>
+                    <div class="assembly-container">
+                        <div class="assembly-grid">
+                            <div class="assembly-item">
+                                <div class="assembly-img-wrapper">
+                                    <img src="img/render_stock.png" alt="Stock Layout Render">
+                                </div>
+                                <div class="assembly-caption">Layout Render</div>
+                            </div>
+                            <div class="assembly-item">
+                                <div class="assembly-img-wrapper">
+                                    <img src="img/real_stock.jpg" alt="Stock Real Photo" class="real-photo">
+                                </div>
+                                <div class="assembly-caption">Real Photo</div>
+                            </div>
+                        </div>
+                    </div>
+                </details>
+            </div>
+
+            <div class="feature-item">
                 <div class="feature-header">📈 Crypto Tracker</div>
                 <div class="feature-section-title">Settings</div>
                 <p>Select your preferred coin from the top 75 global cryptocurrencies to track live market data.</p>
@@ -752,39 +804,6 @@
                             <div class="assembly-item">
                                 <div class="assembly-img-wrapper">
                                     <img src="img/real_currency.jpg" alt="Currency Real Photo" class="real-photo">
-                                </div>
-                                <div class="assembly-caption">Real Photo</div>
-                            </div>
-                        </div>
-                    </div>
-                </details>
-            </div>
-            
-            <div class="feature-item">
-                <div class="feature-header">📊 Stock Tracker</div>
-                <div class="feature-section-title">Settings</div>
-                <p>Track live market data for ~100 top global assets, including US Mega-Cap Tech, broad market ETFs, and international ADRs.</p>
-                <ul>
-                    <li><strong>Asset Selection:</strong> Choose your preferred stock or ETF from the curated dropdown.</li>
-                    <li><strong>Display Format:</strong> Toggle between showing the minimalist Ticker (e.g., AAPL) or the Full Company Name (e.g., Apple Inc.).</li>
-                </ul>
-                <div class="feature-section-title">Layout</div>
-                <p>Shows the stock ticker/name, current price in USD, a daily trend icon, and the percentage change since the previous close.</p>
-                <span class="api-tag">Source: stooq.com</span>
-
-                <details>
-                    <summary>📸 View Screen Preview</summary>
-                    <div class="assembly-container">
-                        <div class="assembly-grid">
-                            <div class="assembly-item">
-                                <div class="assembly-img-wrapper">
-                                    <img src="img/render_stock.png" alt="Stock Layout Render">
-                                </div>
-                                <div class="assembly-caption">Layout Render</div>
-                            </div>
-                            <div class="assembly-item">
-                                <div class="assembly-img-wrapper">
-                                    <img src="img/real_stock.jpg" alt="Stock Real Photo" class="real-photo">
                                 </div>
                                 <div class="assembly-caption">Real Photo</div>
                             </div>

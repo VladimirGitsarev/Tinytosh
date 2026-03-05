@@ -25,6 +25,8 @@
 
 ### ✨ Key Features
 * **Modular Dashboard:** Enable/Disable screens on the fly via a Web Panel. 
+* **Drag & Drop Reordering:** Fully customize your display sequence. Grab and drag screens in the Web Panel to change their order. Disabled screens are locked at the bottom, and the configuration UI dynamically rearranges itself to match your custom layout perfectly.
+* **Night Mode & Power Saving:** Set a quiet schedule to minimize sleep distractions. Choose between *Dim Display* or *Turn Display Off*. Features "Smart Latching" (waits for the primary screen before sleeping), 10x slower background API fetching to save power, and a temporary 30-second wake feature via the physical button.
 * **Zero Config APIs:** Uses free public APIs for Stocks, Crypto, Currency, Weather, and Air Quality. No API keys required.
 * **Finance, Crypto & Currency Tracker:** Track ~100 global assets (ETFs, Mega-Cap Tech, ADRs), top cryptocurrencies, and over 150 fiat currency exchange rates with custom multipliers. 
 * **PC Monitoring:** View CPU, RAM, Disk, and Network usage via the USB Bridge.
@@ -46,7 +48,7 @@ The firmware is designed to be **non-blocking** and **modular**.
 * **Web-Based Config:** The device hosts its own Web Server. The UI is built with HTML/CSS/JS stored in `PROGMEM` (gzipped) to save space.
 * **Dynamic Rendering:** The `DisplayService` handles the OLED. It supports "partial screen buffering," allowing for complex transition effects (like dissolving pixels or sliding curtains) without needing a massive frame buffer.
 * **Smart Wifi Manager:** Uses a Captive Portal for initial setup. If WiFi drops, it auto-reconnects without freezing the UI.
-* **Preference Storage:** Configuration (selected screens, location, animation speed) is saved to the ESP32's Non-Volatile Storage (NVS) using a custom bitmask system for efficiency.
+* **Preference Storage:** Configuration (selected screens, custom screen order, location, animation speed) is saved to the ESP32's Non-Volatile Storage (NVS) using a custom bitmask system for efficiency.
 
 #### 🏗️ Build & Compile Guide
 
@@ -159,6 +161,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 | Version | Date | Key Changes |
 | :--- | :--- | :--- |
+| **v1.0.3** | *Mar 2026* | 🌙 Added **Night Mode** with smart latching, screen dimming/off scheduling, and 10x background API power saving. 🔄 Introduced **Drag & Drop Reordering** for dynamic screen sequencing directly in the Web Panel. |
 | **v1.0.2** | *Mar 2026* | 📈 Added **Stock Tracker** module (~100 global assets, ETFs, Mega-Cap Tech, ADRs). Added customizable "Full Name" layout toggles for Crypto, Currency, and Stock screens. Fixed an animation bug for single-screen setups. |
 | **v1.0.1** | *Feb 2026* | 💱 Added **Currency Tracker** module (150+ fiat pairs), introduced dynamic multipliers for large conversion gaps, and optimized logging. Expanded Crypto list to top 75. |
 | **v1.0.0** | *Initial* | 🚀 Initial release: Time, Weather, AQI, Crypto, and PC Monitor modules. Web panel, firmware flasher, and 3D printable case released. |
