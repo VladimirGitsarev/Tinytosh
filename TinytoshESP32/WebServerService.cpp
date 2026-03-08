@@ -1,5 +1,6 @@
 #include "WebServerService.h"
 #include <ArduinoJson.h>
+#include <ESPmDNS.h>
 #include "zones.h"
 
 String WebServerService::getCurrentTimeShort(String format) {
@@ -48,8 +49,17 @@ void WebServerService::begin() {
   server.on("/", HTTP_GET, [this](){ this->handleRoot(); }); 
   server.on("/save", HTTP_GET, [this](){ this->handleSave(); });
   server.on("/update", HTTP_GET, [this](){ this->handleUpdate(); }); 
+  server.on("/pc-stats", HTTP_POST, [this](){ this->handlePcStats(); });
+  
   server.begin();
   Serial.println("WebServerService: HTTP Server started."); 
+  
+  String uniqueName = state->config.device_id;
+
+  if (MDNS.begin(uniqueName.c_str())) {
+    MDNS.addService("http", "tcp", 80);
+    Serial.printf("WebServerService: mDNS Responder Started: http://%s.local\n", uniqueName.c_str());
+  }
 }
 
 void WebServerService::handleClient() {
@@ -58,7 +68,7 @@ void WebServerService::handleClient() {
 
 String WebServerService::generateRootPageContent() {
   String content;
-  content.reserve(30000);
+  content.reserve(45000); 
 
   Config& config = state->config;
   WeatherData& weather = state->weather;
@@ -83,7 +93,8 @@ String WebServerService::generateRootPageContent() {
 
   // Global Body & Container Styles
   content += "* { box-sizing: border-box; }";
-  content += "body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg); color: var(--text); margin: 0; padding: 20px; line-height: 1.6; }";
+  content += "html, body { margin: 0; padding: 0; }";
+  content += "body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg); color: var(--text); padding: 20px; line-height: 1.6; }";
   content += ".container { max-width: 800px; margin: 0 auto; }";
 
   // Header & Time Display
@@ -91,74 +102,105 @@ String WebServerService::generateRootPageContent() {
   content += "#time-display { text-align: center; color: var(--text); font-size: 4.5rem; font-weight: 800; letter-spacing: -2px; }";
   content += "#location-info { text-align: center; margin-top: 0px; color: var(--text-muted); font-weight: 400; }";
 
+  // Identity Box
+  content += ".identity-box { text-align: center; margin-top: 15px; padding: 12px; background: rgba(0,0,0,0.15); border-radius: 8px; border: 1px solid var(--border); }";
+  content += ".id-text { color: var(--accent); font-weight: 700; text-transform: uppercase; font-family: monospace; font-size: 1.1rem; margin-bottom: 2px; }";
+  content += ".ip-text { font-size: 0.9rem; color: var(--text-muted); font-family: monospace; margin-bottom: 5px; }";
+  content += ".status-badge { text-align: center; font-size: 0.85rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; font-family: monospace; }";
+  content += "#pc-link-status { color: #10b981; }";
+
   // Panels & Tiles (Card Style)
   content += ".panel { background: var(--card); padding: 25px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 24px; }";
-  content += ".header-panel { background: rgba(59, 130, 246, 0.05); border: 1px solid var(--accent);}";
+  content += ".header-panel { background: rgba(59, 130, 246, 0.05); border: 1px solid var(--accent); }";
+  content += ".panel-title { margin-top: 0; color: var(--accent); font-size: 1.17em; }";
   content += ".dashboard-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-top: 20px; }";
   content += ".dashboard-grid > div { min-width: 0; }";
   content += ".tile { background: rgba(15, 23, 42, 0.4); border: 1px dashed var(--border); padding: 20px; border-radius: 10px; text-align: center; }";
   content += ".tile-icon { font-size: 2.2rem; margin-bottom: 8px; }";
   content += ".tile-label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }";
   content += ".tile-value { font-size: 1.6rem; font-weight: 600; color: var(--text); }";
+  content += ".date-val { font-size: 1.2rem; }";
+  content += ".no-data-tile { grid-column: 1 / -1; background: rgba(59, 130, 246, 0.05); border: 1px solid var(--accent); padding: 30px; color: var(--accent); border-radius: 10px; text-align: center; margin-top: 15px; }";
 
- // Form Elements
+  // Form Elements
   content += "label { display: block; margin-top: 15px; font-weight: 600; color: var(--text); }";
-  content += "input[type='text'], input[type='number'], input[type='time'], select { display: block; box-sizing: border-box !important; -webkit-box-sizing: border-box !important; width: 100% !important; min-width: 0 !important; padding: 12px; margin: 8px 0; border: 1px solid var(--border); border-radius: 6px; background-color: #0f172a; color: var(--text); font-size: 15px; }";
-  content += "input[type='time'] { -webkit-appearance: none; appearance: none; text-align: center; }";
+  content += "input[type='text'], input[type='number'], input[type='time'], select { display: block; width: 100% !important; padding: 12px; margin: 8px 0; border: 1px solid var(--border); border-radius: 6px; background-color: #0f172a; color: var(--text); font-size: 15px; appearance: none; -webkit-appearance: none; }";
+  content += "select { background-image: url('data:image/svg+xml;utf8,<svg fill=\"%23f1f5f9\" height=\"24\" viewBox=\"0 0 24 24\" width=\"24\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M7 10l5 5 5-5z\"/></svg>'); background-repeat: no-repeat; background-position: right 10px center; }";
+  content += "input[type='time'] { text-align: center; }";
   content += "input[type='time']::-webkit-calendar-picker-indicator { filter: invert(1); cursor: pointer; }";
   content += "input:focus, select:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2); }";
   content += "input:disabled { opacity: 0.5; cursor: not-allowed; background-color: #1e293b; }";
   content += "fieldset { border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin-top: 15px; background: rgba(0,0,0,0.1); min-width: 0; overflow: hidden; }";
   content += "legend { color: var(--accent); font-weight: 700; padding: 0 10px; font-size: 0.9rem; text-transform: uppercase; }";
 
+  // Checkboxes and Radios
+  content += "input[type='checkbox'], input[type='radio'] { accent-color: var(--accent); cursor: pointer; width: 16px; height: 16px; }";
+  content += ".checkbox-label { display: flex; align-items: center; gap: 8px; margin-top: 10px; cursor: pointer; font-weight: 600; }";
+  content += ".radio-group { display: flex; gap: 15px; margin-top: 8px; }";
+  content += ".radio-label { display: flex; align-items: center; gap: 6px; cursor: pointer; margin-top: 0; font-weight: normal; }";
+
   // Animation Control Styles
   content += ".anim-label { margin-top: 20px; margin-bottom: 10px; font-weight: 600; display: block; }";
-  content += ".anim-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 15px; padding: 0 12px 16px; background: rgba(255,255,255,0.05); border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); }";
-  content += ".anim-item { cursor: pointer; font-size: 0.9em; display: flex; align-items: center; }";
-  content += ".anim-item input { margin-right: 8px; }";
+  content += ".anim-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 15px; padding: 12px; background: rgba(255,255,255,0.05); border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); }";
+  content += ".anim-item { display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 0.9em; margin-top: 0; }";
 
   // Draggable Screens List
   content += ".sortable-list { list-style: none; padding: 0; margin: 15px 0 0; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: rgba(0,0,0,0.1); }";
-  content += ".sortable-item { padding: 12px 15px; border-bottom: 1px solid var(--border); display: flex; align-items: center; cursor: grab; color: var(--text); background: var(--card); transition: background 0.2s; }";
+  content += ".sortable-item { padding: 12px 15px; border-bottom: 1px solid var(--border); display: flex; align-items: center; cursor: grab; color: var(--text); background: var(--card); transition: background 0.2s, opacity 0.2s; }";
   content += ".sortable-item:last-child { border-bottom: none; }";
   content += ".sortable-item:active { cursor: grabbing; }";
-  content += ".sortable-item.disabled { opacity: 0.4; background: transparent; }";
+  content += ".sortable-item.disabled { opacity: 0.4; background: transparent; cursor: default; }";
   content += ".drag-handle { margin-right: 15px; color: var(--text-muted); font-size: 1.2rem; }";
   content += ".sortable-item.dragging { opacity: 0.5; background: rgba(59, 130, 246, 0.2); }";
 
-  // Buttons & Misc
-  content += "button { background-color: var(--accent); color: white; padding: 16px; border: none; border-radius: 8px; cursor: pointer; margin-top: 30px; width: 100%; font-size: 1.1rem; font-weight: 700; transition: opacity 0.2s; }";
+  // Helpers & Misc
+  content += "button { background-color: var(--accent); color: white; padding: 16px; border: none; border-radius: 8px; cursor: pointer; margin-top: 8px; width: 100%; font-size: 1.1rem; font-weight: 700; transition: opacity 0.2s; }";
   content += "button:hover { opacity: 0.9; }";
-  content += ".no-data-tile { grid-column: 1 / -1; background: rgba(59, 130, 246, 0.05); border: 1px solid var(--accent); padding: 30px; color: var(--accent); border-radius: 10px; text-align: center; margin-top: 15px}";
+  content += ".help-text { font-size: 0.8em; color: var(--text-muted); margin-top: 8px; }";
+  content += ".mt-0 { margin-top: 0 !important; }";
   content += ".update-footer { text-align: center; font-size: 0.8rem; color: var(--text-muted); margin-top: 15px; font-family: monospace; }";
   content += ".collapsible { transition: all 0.3s ease; }";
-  content += ".hidden { display: none; }";
+  content += ".hidden { display: none !important; }";
   content += "hr { border: 0; border-top: 1px solid var(--border); margin: 25px 0; }";
   content += "@media (max-width: 600px) { .dashboard-grid { grid-template-columns: 1fr; } #time-display { font-size: 3.5rem; } }";
   content += "</style></head><body><div class='container'>";
 
   content += "<div class='app-header'>Tinytosh</div>";
   content += "<div class='panel header-panel'><div id='time-display'>" + getCurrentTimeShort(config.time_format) + "</div>"; 
-  content += "<h2 id='location-info'>📍 " + config.city + " (" + config.timezone + ")</h1></div>"; 
+  content += "<h2 id='location-info'>📍 " + config.city + " (" + config.timezone + ")</h2>"; 
+  
+  String pairedPc = config.active_pc_id;
+  int lastDash = pairedPc.lastIndexOf(':');
+  if (lastDash > 3) pairedPc = pairedPc.substring(0, lastDash);
+
+  bool isPcPaired = (pairedPc != "" && (millis() - pc.last_update < 5000));
+  String pcStatus = isPcPaired ? ("🔒 Paired to " + pairedPc) : "";
+  String ipAddress = WiFi.localIP().toString();
+
+  content += "<div class='identity-box'>";
+  content += "<div class='id-text'>" + config.device_id + "</div>";
+  content += "<div class='ip-text'>IP: " + ipAddress + "</div>";
+  content += "<div id='pc-link-status' class='status-badge'>" + pcStatus + "</div>";
+  content += "</div></div>";
 
   content += "<form method='get' action='/save'>";
 
   // Combined Global Settings & Location Panel
-  content += "<div class='panel'><h3 style='margin-top:0; color: var(--accent);'>Global Settings</h3>";
+  content += "<div class='panel'><h3 class='panel-title'>Global Settings</h3>";
 
   // Hardware/Interval Settings
   content += "<label>Data Sync Interval (Mins):</label><input type='number' name='refresh_min' value='" + String(config.refresh_interval_min) + "'>";
   
   // Auto Cycle Checkbox
-  content += "<label style='margin: 10px 0 0; cursor:pointer; font-weight:600;'><input type='checkbox' id='autoCycle' name='auto_cycle' value='1' " + String(config.screen_auto_cycle ? "checked" : "") + "> Cycle Screens Automatically</label>";
-  content += "<p style='font-size:0.8em; color:var(--text-muted); margin-top:8px;'>If disabled, screens will only change when you press the button.</p>";
+  content += "<label class='checkbox-label mt-0' style='margin-top: 10px !important;'><input type='checkbox' id='autoCycle' name='auto_cycle' value='1' " + String(config.screen_auto_cycle ? "checked" : "") + "> Cycle Screens Automatically</label>";
+  content += "<p class='help-text mt-0' style='margin-left: 24px;'>If disabled, screens will only change when you press the button.</p>";
   
   // Screen Cycle Interval
   content += "<label>Screen Cycle Interval (Secs):</label><input type='number' id='screenIntInput' name='screen_int' value='" + String(config.screen_interval_sec) + "'>";
 
   // Animation Checkboxes
   content += "<label class='anim-label'>Active Animations:</label>";
-  content += "<p style='font-size:0.8em; color:var(--text-muted); margin-top:-5px; margin-bottom:10px;'>If 'None' is unchecked, select which animations to cycle through.</p>";
+  content += "<p class='help-text mt-0' style='margin-bottom: 10px;'>If 'None' is unchecked, select which animations to cycle through.</p>";
   
   content += "<div class='anim-grid'>";
   
@@ -191,28 +233,28 @@ String WebServerService::generateRootPageContent() {
   content += "</div>";
 
   // Time Format Radios
-  content += "<label>Time Format:</label><div style='display:flex; gap:15px; margin-top:8px;'>";
-  content += "<label style='cursor:pointer; display:flex; align-items:center;'><input type='radio' name='time_format' value='24' " + String(config.time_format == "24" ? "checked" : "") + " style='margin-right:6px;'> 24-Hour</label>";
-  content += "<label style='cursor:pointer; display:flex; align-items:center;'><input type='radio' name='time_format' value='12' " + String(config.time_format == "12" ? "checked" : "") + " style='margin-right:6px;'> 12-Hour</label></div>";
-  content += "<p style='font-size:0.8em; color:var(--text-muted); margin-top:8px;'>Format affects both the OLED display and the Web Panel.</p>";
+  content += "<label>Time Format:</label><div class='radio-group'>";
+  content += "<label class='radio-label'><input type='radio' name='time_format' value='24' " + String(config.time_format == "24" ? "checked" : "") + "> 24-Hour</label>";
+  content += "<label class='radio-label'><input type='radio' name='time_format' value='12' " + String(config.time_format == "12" ? "checked" : "") + "> 12-Hour</label></div>";
+  content += "<p class='help-text'>Format affects both the OLED display and the Web Panel.</p>";
 
-  content += "<hr style='border: 0; border-top: 1px solid var(--border); margin: 25px 0;'>";
+  content += "<hr>";
 
   // Location Sub-section
-  content += "<label style='margin:0; cursor:pointer; font-weight:600;'><input type='checkbox' id='autoDetect' name='auto_detect' value='1' " + String(config.auto_detect ? "checked" : "") + "> Detect Location Automatically (IP)</label>";
-  content += "<p style='font-size:0.85em; color: var(--text-muted); margin: 5px 0 15px 25px;'>Uses your IP address to determine city, coordinates, and timezone.</p>";
+  content += "<label class='checkbox-label mt-0'><input type='checkbox' id='autoDetect' name='auto_detect' value='1' " + String(config.auto_detect ? "checked" : "") + "> Detect Location Automatically (IP)</label>";
+  content += "<p class='help-text mt-0' style='margin-left: 24px; margin-bottom: 15px;'>Uses your IP address to determine city, coordinates, and timezone.</p>";
 
-  content += "<fieldset id='manualFields' class='collapsible' style='border: 1px solid var(--border); border-radius: 8px; padding: 15px; margin-top: 10px;'>";
-  content += "<legend style='font-weight: 600; color: var(--accent); padding: 0 10px;'>Manual Location Entry</legend>";
+  content += "<fieldset id='manualFields' class='collapsible'>";
+  content += "<legend>Manual Location Entry</legend>";
 
   content += "<label>City Name:</label><input type='text' name='city' value='" + config.city + "'>";
 
-  content += "<div class='dashboard-grid' style='margin-top: 0;'>";
-  content += "  <div><label style='margin-top: 0;'>Latitude:</label><input type='number' step='any' name='latitude' value='" + String(config.latitude, 4) + "'></div>";
-  content += "  <div><label style='margin-top: 0;'>Longitude:</label><input type='number' step='any' name='longitude' value='" + String(config.longitude, 4) + "'></div>";
+  content += "<div class='dashboard-grid mt-0'>";
+  content += "  <div><label class='mt-0'>Latitude:</label><input type='number' step='any' name='latitude' value='" + String(config.latitude, 4) + "'></div>";
+  content += "  <div><label class='mt-0'>Longitude:</label><input type='number' step='any' name='longitude' value='" + String(config.longitude, 4) + "'></div>";
   content += "</div>";
 
-  content += "<label>Timezone:</label><select name='timezone' style='width:100%;'>";
+  content += "<label>Timezone:</label><select name='timezone'>";
   DynamicJsonDocument tzDoc(6144); 
   deserializeJson(tzDoc, POSIX_TIMEZONE_MAP); 
   for (JsonPair p : tzDoc.as<JsonObject>()) {
@@ -221,27 +263,29 @@ String WebServerService::generateRootPageContent() {
   }
   content += "</select></fieldset>";
 
-  content += "<hr style='border: 0; border-top: 1px solid var(--border); margin: 25px 0;'>";
-  content += "<label style='margin:0; cursor:pointer; font-weight:600;'><input type='checkbox' id='nightMode' name='night_mode' value='1' " + String(config.night_mode ? "checked" : "") + "> Enable Night Mode</label>";
-  content += "<p style='font-size:0.85em; color: var(--text-muted); margin: 5px 0 15px 25px;'>Set a quiet schedule to pause animations, dim the screen, or save API calls.</p>";
+  content += "<hr>";
+  
+  // Night Mode Sub-section
+  content += "<label class='checkbox-label mt-0'><input type='checkbox' id='nightMode' name='night_mode' value='1' " + String(config.night_mode ? "checked" : "") + "> Enable Night Mode</label>";
+  content += "<p class='help-text mt-0' style='margin-left: 24px; margin-bottom: 15px;'>Set a quiet schedule to pause animations, dim the screen, or save API calls.</p>";
 
-  content += "<fieldset id='nightFields' class='collapsible' style='border: 1px solid var(--border); border-radius: 8px; padding: 15px; margin-top: 10px;'>";
-  content += "<legend style='font-weight: 600; color: var(--accent); padding: 0 10px;'>Night Schedule</legend>";
+  content += "<fieldset id='nightFields' class='collapsible'>";
+  content += "<legend>Night Schedule</legend>";
 
-  content += "<div class='dashboard-grid' style='margin-top: 0;'>";
-  content += "  <div><label style='margin-top: 0;'>Start Time:</label><input type='time' name='night_start' value='" + String(config.night_start) + "'></div>";
-  content += "  <div><label style='margin-top: 0;'>End Time:</label><input type='time' name='night_end' value='" + String(config.night_end) + "'></div>";
+  content += "<div class='dashboard-grid mt-0'>";
+  content += "  <div><label class='mt-0'>Start Time:</label><input type='time' name='night_start' value='" + String(config.night_start) + "'></div>";
+  content += "  <div><label class='mt-0'>End Time:</label><input type='time' name='night_end' value='" + String(config.night_end) + "'></div>";
   content += "</div>";
   
-  content += "<label>Screen Action:</label><select name='night_action' style='width:100%;'>";
+  content += "<label>Screen Action:</label><select name='night_action'>";
   content += "<option value='0' " + String(config.night_action == 0 ? "selected" : "") + ">No Visual Change</option>";
   content += "<option value='1' " + String(config.night_action == 1 ? "selected" : "") + ">Dim Display</option>";
   content += "<option value='2' " + String(config.night_action == 2 ? "selected" : "") + ">Turn Display Off</option>";
   content += "</select></fieldset></div>";
 
   // Screen Display Order Panel
-  content += "<div class='panel'><h3 style='margin-top:0; color: var(--accent);'>Screen Display Order</h3>";
-  content += "<p style='font-size:0.85em; color:var(--text-muted); margin-top:-5px;'>Drag and drop to rearrange. Disabled screens are locked at the bottom.</p>";
+  content += "<div class='panel'><h3 class='panel-title'>Screen Display Order</h3>";
+  content += "<p class='help-text mt-0' style='margin-bottom: 15px;'>Drag and drop to rearrange. Disabled screens are locked at the bottom.</p>";
   
   content += "<ul id='sortable-list' class='sortable-list'>";
   
@@ -275,7 +319,7 @@ String WebServerService::generateRootPageContent() {
       switch (screenId) {
           case SCREEN_TIME: {
               content += "<div class='panel'>";
-              content += "<label style='margin:0; cursor:pointer;'><input type='checkbox' id='showTime' name='show_time' value='1' " + String(config.show_time ? "checked" : "") + "> Time Screen</label>";
+              content += "<label class='checkbox-label mt-0'><input type='checkbox' id='showTime' name='show_time' value='1' " + String(config.show_time ? "checked" : "") + "> Time Screen</label>";
 
               content += "<div id='timeContent' class='collapsible'>";
               content += "<div class='dashboard-grid'>";
@@ -288,61 +332,70 @@ String WebServerService::generateRootPageContent() {
 
               content += "<div class='tile'>";
               content += "<div class='tile-icon'>📅</div>";
-              content += "<div class='tile-value' id='preview-date' style='font-size: 1.2rem;'>" + getFullDate() + "</div>";
+              content += "<div class='tile-value date-val' id='preview-date'>" + getFullDate() + "</div>";
               content += "<div class='tile-label'>Current Date</div>";
               content += "</div></div>";
 
-              content += "<label style='margin-top:10px; cursor:pointer;'><input type='checkbox' name='date_display' value='1' " + String(config.date_display ? "checked" : "") + "> Display Date</label>";
+              content += "<label class='checkbox-label'><input type='checkbox' name='date_display' value='1' " + String(config.date_display ? "checked" : "") + "> Display Date</label>";
               content += "</div></div>";
               break;
           }
           
           case SCREEN_WEATHER: {
               content += "<div class='panel'>";
-              content += "<label style='margin:0; cursor:pointer;'><input type='checkbox' id='showWeather' name='show_weather' value='1' " + String(config.show_weather ? "checked" : "") + "> Weather Screen</label>";
+              content += "<label class='checkbox-label mt-0'><input type='checkbox' id='showWeather' name='show_weather' value='1' " + String(config.show_weather ? "checked" : "") + "> Weather Screen</label>";
               content += "<div id='weatherContent' class='collapsible'>";
+              
               if (!weatherValid) {
-                  content += "<div class='no-data-tile'>☁️ Weather data will be available after sync</div>";
+                  content += "<div id='weather-no-data' class='no-data-tile'>☁️ Weather data will be available after sync</div>";
+                  content += "<div id='weather-grid' class='hidden'>";
               } else {
-                  content += "<div class='dashboard-grid'>";
-                  content += "<div class='tile'><div class='tile-icon' id='icon-temp'>" + getWeatherIcon(weather.weather_code) + "</div><div class='tile-value' id='value-temp'>" + String(weather.temp, 1) + " °" + config.temp_unit + "</div><div class='tile-label'>Temperature</div></div>";
-                  content += "<div class='tile'><div class='tile-icon'>🤒</div><div class='tile-value' id='value-feels'>" + String(weather.apparent_temperature, 1) + " °" + config.temp_unit + "</div><div class='tile-label'>Feels Like</div></div>";
-                  content += "<div class='tile'><div class='tile-icon'>💧</div><div class='tile-value' id='value-hum'>" + String(weather.humidity) + "%</div><div class='tile-label'>Humidity</div></div>";
-                  content += "<div class='tile'><div class='tile-icon'>💨</div><div class='tile-value' id='value-wind'>" + String(weather.wind_speed, 1) + " km/h</div><div class='tile-label'>Wind Speed</div></div>";
-                  content += "</div>";
-                  content += "<div class='update-footer' id='weather-upd'>Last Update: " + weather.update_time + "</div>";
+                  content += "<div id='weather-no-data' class='no-data-tile hidden'>☁️ Weather data will be available after sync</div>";
+                  content += "<div id='weather-grid'>";
               }
               
-              content += "<label>Temperature Unit:</label><div style='display:flex; gap:15px; margin-top:8px;'>";
-              content += "<label style='cursor:pointer; display:flex; align-items:center;'><input type='radio' name='temp_unit' value='C' " + String(config.temp_unit == "C" ? "checked" : "") + " style='margin-right:6px;'> °C</label>";
-              content += "<label style='cursor:pointer; display:flex; align-items:center;'><input type='radio' name='temp_unit' value='F' " + String(config.temp_unit == "F" ? "checked" : "") + " style='margin-right:6px;'> °F</label></div>";
+              content += "<div class='dashboard-grid'>";
+              content += "<div class='tile'><div class='tile-icon' id='icon-temp'>" + getWeatherIcon(weather.weather_code) + "</div><div class='tile-value' id='value-temp'>" + String(weather.temp, 1) + " °" + config.temp_unit + "</div><div class='tile-label'>Temperature</div></div>";
+              content += "<div class='tile'><div class='tile-icon'>🤒</div><div class='tile-value' id='value-feels'>" + String(weather.apparent_temperature, 1) + " °" + config.temp_unit + "</div><div class='tile-label'>Feels Like</div></div>";
+              content += "<div class='tile'><div class='tile-icon'>💧</div><div class='tile-value' id='value-hum'>" + String(weather.humidity) + "%</div><div class='tile-label'>Humidity</div></div>";
+              content += "<div class='tile'><div class='tile-icon'>💨</div><div class='tile-value' id='value-wind'>" + String(weather.wind_speed, 1) + " km/h</div><div class='tile-label'>Wind Speed</div></div>";
+              content += "</div>";
+              content += "<div class='update-footer' id='weather-upd'>Last Update: " + weather.update_time + "</div></div>";
               
-              content += "<label style='margin-top:10px; cursor:pointer;'><input type='checkbox' name='round_temps' value='1' " + String(config.round_temps ? "checked" : "") + "> Round Temperature Values</label>";
+              content += "<label>Temperature Unit:</label><div class='radio-group'>";
+              content += "<label class='radio-label'><input type='radio' name='temp_unit' value='C' " + String(config.temp_unit == "C" ? "checked" : "") + "> °C</label>";
+              content += "<label class='radio-label'><input type='radio' name='temp_unit' value='F' " + String(config.temp_unit == "F" ? "checked" : "") + "> °F</label></div>";
+              
+              content += "<label class='checkbox-label'><input type='checkbox' name='round_temps' value='1' " + String(config.round_temps ? "checked" : "") + "> Round Temperature Values</label>";
               content += "</div></div>";
               break;
           }
 
           case SCREEN_AIR_QUALITY: {
               content += "<div class='panel'>";
-              content += "<label style='margin:0; cursor:pointer;'><input type='checkbox' id='showAQI' name='show_aqi' value='1' " + String(config.show_aqi ? "checked" : "") + "> Air Quality Screen</label>";
+              content += "<label class='checkbox-label mt-0'><input type='checkbox' id='showAQI' name='show_aqi' value='1' " + String(config.show_aqi ? "checked" : "") + "> Air Quality Screen</label>";
               content += "<div id='aqiContent' class='collapsible'>";
 
               if (!aqiValid) {
-                  content += "<div class='no-data-tile'>🍃 Air quality data will be available after sync</div>";
+                  content += "<div id='aqi-no-data' class='no-data-tile'>🍃 Air quality data will be available after sync</div>";
+                  content += "<div id='aqi-grid' class='hidden'>";
               } else {
-                  content += "<div class='dashboard-grid'>";
-                  content += "<div class='tile'><div class='tile-icon'>🍃</div><div class='tile-value' id='value-aqi'>" + String(aqi.aqi) + "</div><div class='tile-label'>" + aqi.status + " Index</div></div>";
-                  content += "<div class='tile'><div class='tile-icon'>🌫️</div><div class='tile-value' id='value-pm25'>" + String(aqi.pm25, 1) + " <small>µg</small></div><div class='tile-label'>PM 2.5</div></div>";
-                  content += "<div class='tile'><div class='tile-icon'>🏭</div><div class='tile-value' id='value-pm10'>" + String(aqi.pm10, 1) + " <small>µg</small></div><div class='tile-label'>PM 10</div></div>";
-                  content += "<div class='tile'><div class='tile-icon'>🧪</div><div class='tile-value' id='value-no2'>" + String(aqi.no2, 1) + " <small>µg</small></div><div class='tile-label'>Nitrogen Dioxide</div></div>";
-                  content += "</div>";
-                  content += "<div class='update-footer' id='aqi-upd'>Last Update: " + weather.update_time + "</div>";
+                  content += "<div id='aqi-no-data' class='no-data-tile hidden'>🍃 Air quality data will be available after sync</div>";
+                  content += "<div id='aqi-grid'>";
               }
+              
+              content += "<div class='dashboard-grid'>";
+              content += "<div class='tile'><div class='tile-icon'>🍃</div><div class='tile-value' id='value-aqi'>" + String(aqi.aqi) + "</div><div class='tile-label'>" + aqi.status + " Index</div></div>";
+              content += "<div class='tile'><div class='tile-icon'>🌫️</div><div class='tile-value' id='value-pm25'>" + String(aqi.pm25, 1) + " <small>µg</small></div><div class='tile-label'>PM 2.5</div></div>";
+              content += "<div class='tile'><div class='tile-icon'>🏭</div><div class='tile-value' id='value-pm10'>" + String(aqi.pm10, 1) + " <small>µg</small></div><div class='tile-label'>PM 10</div></div>";
+              content += "<div class='tile'><div class='tile-icon'>🧪</div><div class='tile-value' id='value-no2'>" + String(aqi.no2, 1) + " <small>µg</small></div><div class='tile-label'>Nitrogen Dioxide</div></div>";
+              content += "</div>";
+              content += "<div class='update-footer' id='aqi-upd'>Last Update: " + weather.update_time + "</div></div>";
 
-              content += "<label>AQI Standard:</label><div style='display:flex; gap:15px; margin-top:8px;'>";
-              content += "<label style='cursor:pointer; display:flex; align-items:center;'><input type='radio' name='aqi_type' value='US' " + String(config.aqi_type == "US" ? "checked" : "") + " style='margin-right:6px;'> US Standard</label>";
-              content += "<label style='cursor:pointer; display:flex; align-items:center;'><input type='radio' name='aqi_type' value='EU' " + String(config.aqi_type == "EU" ? "checked" : "") + " style='margin-right:6px;'> European Standard</label></div>";
-              content += "<p style='font-size:0.8em; color:#888; margin-top:8px;'>EU: 0-100+ scale | US: 0-500 scale</p>";
+              content += "<label>AQI Standard:</label><div class='radio-group'>";
+              content += "<label class='radio-label'><input type='radio' name='aqi_type' value='US' " + String(config.aqi_type == "US" ? "checked" : "") + "> US Standard</label>";
+              content += "<label class='radio-label'><input type='radio' name='aqi_type' value='EU' " + String(config.aqi_type == "EU" ? "checked" : "") + "> European Standard</label></div>";
+              content += "<p class='help-text mt-0' style='margin-bottom: 15px;'>EU: 0-100+ scale | US: 0-500 scale</p>";
 
               content += "</div></div>";
               break;
@@ -350,18 +403,22 @@ String WebServerService::generateRootPageContent() {
 
           case SCREEN_STOCK: {
               content += "<div class='panel'>";
-              content += "<label style='margin:0; cursor:pointer;'><input type='checkbox' id='showStock' name='show_stock' value='1' " + String(config.show_stock ? "checked" : "") + "> Stock Tracking Screen</label>";
+              content += "<label class='checkbox-label mt-0'><input type='checkbox' id='showStock' name='show_stock' value='1' " + String(config.show_stock ? "checked" : "") + "> Stock Tracking Screen</label>";
               content += "<div id='stockContent' class='collapsible'>";
               
               if (!stockValid) {
-                  content += "<div class='no-data-tile'>📈 Stock data will be available after sync</div>";
+                  content += "<div id='stock-no-data' class='no-data-tile'>📈 Stock data will be available after sync</div>";
+                  content += "<div id='stock-grid' class='hidden'>";
               } else {
-                  content += "<div class='dashboard-grid'>";
-                  content += "<div class='tile'><div class='tile-icon'>📊</div><div class='tile-value' id='stock-price'>$" + String(stock.price, 2) + "</div><div class='tile-label' id='stock-sym'>" + stock.symbol + " Price</div></div>";
-                  content += "<div class='tile'><div class='tile-icon' id='stock-trend-icon'>" + String(stock.percent_change >= 0 ? "📈" : "📉") + "</div><div class='tile-value' id='stock-change'>" + String(stock.percent_change, 2) + "%</div><div class='tile-label'>Daily Change</div></div>";
-                  content += "</div>";
-                  content += "<div class='update-footer' id='stock-upd'>Last Update: " + weather.update_time + "</div>";
+                  content += "<div id='stock-no-data' class='no-data-tile hidden'>📈 Stock data will be available after sync</div>";
+                  content += "<div id='stock-grid'>";
               }
+              
+              content += "<div class='dashboard-grid'>";
+              content += "<div class='tile'><div class='tile-icon'>📊</div><div class='tile-value' id='stock-price'>$" + String(stock.price, 2) + "</div><div class='tile-label' id='stock-sym'>" + stock.symbol + " Price</div></div>";
+              content += "<div class='tile'><div class='tile-icon' id='stock-trend-icon'>" + String(stock.percent_change >= 0 ? "📈" : "📉") + "</div><div class='tile-value' id='stock-change'>" + String(stock.percent_change, 2) + "%</div><div class='tile-label'>Daily Change</div></div>";
+              content += "</div>";
+              content += "<div class='update-footer' id='stock-upd'>Last Update: " + weather.update_time + "</div></div>";
 
               content += "<label>Track Stock/ETF:</label><select name='stock_symbol'>";
               for(auto s : topStocks) {
@@ -370,72 +427,80 @@ String WebServerService::generateRootPageContent() {
                              ">" + String(s.name) + " - " + String(s.ticker) + "</option>";
               }
               content += "</select>";
-              content += "<label style='margin-top:10px; cursor:pointer;'><input type='checkbox' name='stock_fn' value='1' " + String(config.stock_fn ? "checked" : "") + "> Display Full Company Name</label>";
+              content += "<label class='checkbox-label'><input type='checkbox' name='stock_fn' value='1' " + String(config.stock_fn ? "checked" : "") + "> Display Full Company Name</label>";
               content += "</div></div>";
               break;
           }
 
           case SCREEN_CRYPTO: {
               content += "<div class='panel'>";
-              content += "<label style='margin:0; cursor:pointer;'><input type='checkbox' id='showCrypto' name='show_crypto' value='1' " + String(config.show_crypto ? "checked" : "") + "> Crypto Tracking Screen</label>";
+              content += "<label class='checkbox-label mt-0'><input type='checkbox' id='showCrypto' name='show_crypto' value='1' " + String(config.show_crypto ? "checked" : "") + "> Crypto Tracking Screen</label>";
               content += "<div id='cryptoContent' class='collapsible'>";
+              
               if (!cryptoValid) {
-                  content += "<div class='no-data-tile'>💰 Crypto data will be available after sync</div>";
+                  content += "<div id='crypto-no-data' class='no-data-tile'>💰 Crypto data will be available after sync</div>";
+                  content += "<div id='crypto-grid' class='hidden'>";
               } else {
-                  content += "<div class='dashboard-grid'>";
-                  content += "<div class='tile'><div class='tile-icon'>₿</div><div class='tile-value' id='crypto-price'>" + String((int)round(crypto.price_usd)) + "$</div><div class='tile-label' id='crypto-sym'>" + crypto.symbol + " Price</div></div>";
-                  content += "<div class='tile'><div class='tile-icon' id='crypto-trend-icon'>" + String(crypto.percent_change_24h >= 0 ? "📈" : "📉") + "</div><div class='tile-value' id='crypto-change'>" + String(crypto.percent_change_24h, 1) + "%</div><div class='tile-label'>24h Change</div></div>";
-                  content += "</div>";
-                  content += "<div class='update-footer' id='crypto-upd'>Last Update: " + weather.update_time + "</div>";
+                  content += "<div id='crypto-no-data' class='no-data-tile hidden'>💰 Crypto data will be available after sync</div>";
+                  content += "<div id='crypto-grid'>";
               }
+              
+              content += "<div class='dashboard-grid'>";
+              content += "<div class='tile'><div class='tile-icon'>₿</div><div class='tile-value' id='crypto-price'>" + String((int)round(crypto.price_usd)) + "$</div><div class='tile-label' id='crypto-sym'>" + crypto.symbol + " Price</div></div>";
+              content += "<div class='tile'><div class='tile-icon' id='crypto-trend-icon'>" + String(crypto.percent_change_24h >= 0 ? "📈" : "📉") + "</div><div class='tile-value' id='crypto-change'>" + String(crypto.percent_change_24h, 1) + "%</div><div class='tile-label'>24h Change</div></div>";
+              content += "</div>";
+              content += "<div class='update-footer' id='crypto-upd'>Last Update: " + weather.update_time + "</div></div>";
+              
               content += "<label>Track Cryptocurrency:</label><select name='crypto_id'>";
               for(auto coin : topCoins) {
                   content += "<option value='" + String(coin.id) + "' " + (config.crypto_id == coin.id ? "selected" : "") + ">" + String(coin.sym) + "</option>";
               }
               content += "</select>";
-              content += "<label style='margin-top:10px; cursor:pointer;'><input type='checkbox' name='crypto_fn' value='1' " + String(config.crypto_fn ? "checked" : "") + "> Display Full Coin Name</label>";
+              content += "<label class='checkbox-label'><input type='checkbox' name='crypto_fn' value='1' " + String(config.crypto_fn ? "checked" : "") + "> Display Full Coin Name</label>";
               content += "</div></div>";
               break;
           }
 
           case SCREEN_CURRENCY: {
               content += "<div class='panel'>";
-              content += "<label style='margin:0; cursor:pointer;'><input type='checkbox' id='showCurrency' name='show_currency' value='1' " + String(config.show_currency ? "checked" : "") + "> Currency Exchange Screen</label>";
+              content += "<label class='checkbox-label mt-0'><input type='checkbox' id='showCurrency' name='show_currency' value='1' " + String(config.show_currency ? "checked" : "") + "> Currency Exchange Screen</label>";
               content += "<div id='currencyContent' class='collapsible'>";
               
               if (!currencyValid) {
-                  content += "<div class='no-data-tile'>💱 Currency data will be available after sync</div>";
+                  content += "<div id='currency-no-data' class='no-data-tile'>💱 Currency data will be available after sync</div>";
+                  content += "<div id='currency-grid' class='hidden'>";
               } else {
-                  content += "<div class='dashboard-grid'>";
-                  
-                  float displayRate = currency.rate * config.currency_multiplier;
-                  int decimals = 0;
-                  if (displayRate < 10.0) decimals = 3;
-                  else if (displayRate < 100.0) decimals = 2;
-                  else if (displayRate < 1000.0) decimals = 1;
-
-                  content += "<div class='tile'><div class='tile-icon'>💵</div><div class='tile-value' id='currency-base-val'>" + String(config.currency_multiplier) + " " + currency.base + "</div><div class='tile-label'>Base Amount</div></div>";
-                  content += "<div class='tile'><div class='tile-icon'>💱</div><div class='tile-value' id='currency-target-val'>" + String(displayRate, decimals) + " " + currency.target + "</div><div class='tile-label'>Exchange Rate</div></div>";
-                  
-                  content += "</div>";
-                  content += "<div class='update-footer' id='currency-upd'>Last Update: " + weather.update_time + "</div>";
+                  content += "<div id='currency-no-data' class='no-data-tile hidden'>💱 Currency data will be available after sync</div>";
+                  content += "<div id='currency-grid'>";
               }
-
-              content += "<div class='dashboard-grid' style='margin-top: 10px;'>";
               
-              content += "<div><label style='margin-top: 0;'>Base Currency:</label><select name='currency_base'>";
-              for (auto c : allCurrencies) {
-                  String codeUpper = String(c.code);
-                  codeUpper.toUpperCase();
-                  content += "<option value='" + String(c.code) + "' " + (String(config.currency_base) == String(c.code) ? "selected" : "") + ">" + codeUpper + " - " + String(c.name) + "</option>";
+              content += "<div class='dashboard-grid'>";
+              float displayRate = currency.rate * config.currency_multiplier;
+              int decimals = 0;
+              if (displayRate < 10.0) decimals = 3;
+              else if (displayRate < 100.0) decimals = 2;
+              else if (displayRate < 1000.0) decimals = 1;
+
+              content += "<div class='tile'><div class='tile-icon'>💵</div><div class='tile-value' id='currency-base-val'>" + String(config.currency_multiplier) + " " + currency.base + "</div><div class='tile-label'>Base Amount</div></div>";
+              content += "<div class='tile'><div class='tile-icon'>💱</div><div class='tile-value' id='currency-target-val'>" + String(displayRate, decimals) + " " + currency.target + "</div><div class='tile-label'>Exchange Rate</div></div>";
+              content += "</div>";
+              content += "<div class='update-footer' id='currency-upd'>Last Update: " + weather.update_time + "</div></div>";
+
+              content += "<div class='dashboard-grid mt-0'>";
+              
+              content += "<div><label class='mt-0'>Base Currency:</label><select name='currency_base'>";
+              for(auto c : allCurrencies) {
+                  String codeDisplay = String(c.code).substring(0, 3);
+                  codeDisplay.toUpperCase(); 
+                  content += "<option value='" + String(c.code) + "' " + (String(config.currency_base) == String(c.code) ? "selected" : "") + ">" + codeDisplay + "</option>";
               }
               content += "</select></div>";
 
-              content += "<div><label style='margin-top: 0;'>Target Currency:</label><select name='currency_target'>";
-              for (auto c : allCurrencies) {
-                  String codeUpper = String(c.code);
-                  codeUpper.toUpperCase();
-                  content += "<option value='" + String(c.code) + "' " + (String(config.currency_target) == String(c.code) ? "selected" : "") + ">" + codeUpper + " - " + String(c.name) + "</option>";
+              content += "<div><label class='mt-0'>Target Currency:</label><select name='currency_target'>";
+              for(auto c : allCurrencies) {
+                  String codeDisplay = String(c.code).substring(0, 3);
+                  codeDisplay.toUpperCase(); 
+                  content += "<option value='" + String(c.code) + "' " + (String(config.currency_target) == String(c.code) ? "selected" : "") + ">" + codeDisplay + "</option>";
               }
               content += "</select></div>";
               
@@ -447,25 +512,30 @@ String WebServerService::generateRootPageContent() {
                   content += "<option value='" + String(m) + "' " + (config.currency_multiplier == m ? "selected" : "") + ">" + String(m) + "</option>";
               }
               content += "</select>";
-              content += "<label style='margin-top:10px; cursor:pointer;'><input type='checkbox' name='currency_fn' value='1' " + String(config.currency_fn ? "checked" : "") + "> Display Full Currency Name</label>";
+              content += "<label class='checkbox-label'><input type='checkbox' name='currency_fn' value='1' " + String(config.currency_fn ? "checked" : "") + "> Display Full Currency Name</label>";
               content += "</div></div>";
               break;
           }
 
           case SCREEN_PC_MONITOR: {
               content += "<div class='panel'>";
-              content += "<label style='margin:0; cursor:pointer;'><input type='checkbox' id='showPc' name='show_pc' value='1' " + String(config.show_pc ? "checked" : "") + "> PC Monitoring Screen</label>";
+              content += "<label class='checkbox-label mt-0'><input type='checkbox' id='showPc' name='show_pc' value='1' " + String(config.show_pc ? "checked" : "") + "> PC Monitoring Screen</label>";
               content += "<div id='pcContent' class='collapsible'>";
+              
               if (!pcValid) {
-                  content += "<div class='no-data-tile'>🖥️ PC data will be available after sync</div>";
+                  content += "<div id='pc-no-data' class='no-data-tile'>🖥️ PC data will be available after sync</div>";
+                  content += "<div id='pc-grid' class='hidden'>";
               } else {
-                  content += "<div class='dashboard-grid'>";
-                  content += "<div class='tile'><div class='tile-icon'>📊</div><div class='tile-value' id='pc-cpu'>" + String((int)round(pc.cpu_percent)) + "%</div><div class='tile-label'>CPU Usage</div></div>";
-                  content += "<div class='tile'><div class='tile-icon'>🧠</div><div class='tile-value' id='pc-ram'>" + String((int)round(pc.mem_percent)) + "%</div><div class='tile-label'>RAM Usage</div></div>";
-                  content += "<div class='tile'><div class='tile-icon'>💽</div><div class='tile-value' id='pc-disk'>" + String((int)round(pc.disk_percent)) + "%</div><div class='tile-label'>Disk Usage</div></div>";
-                  content += "<div class='tile'><div class='tile-icon'>⬇️</div><div class='tile-value' id='pc-net'>" + String((int)round(pc.net_down_kb)) + " KB/s</div><div class='tile-label'>Download</div></div>";      
-                  content += "</div>";
+                  content += "<div id='pc-no-data' class='no-data-tile hidden'>🖥️ PC data will be available after sync</div>";
+                  content += "<div id='pc-grid'>";
               }
+              
+              content += "<div class='dashboard-grid'>";
+              content += "<div class='tile'><div class='tile-icon'>📊</div><div class='tile-value' id='pc-cpu'>" + String((int)round(pc.cpu_percent)) + "%</div><div class='tile-label'>CPU Usage</div></div>";
+              content += "<div class='tile'><div class='tile-icon'>🧠</div><div class='tile-value' id='pc-ram'>" + String((int)round(pc.mem_percent)) + "%</div><div class='tile-label'>RAM Usage</div></div>";
+              content += "<div class='tile'><div class='tile-icon'>💽</div><div class='tile-value' id='pc-disk'>" + String((int)round(pc.disk_percent)) + "%</div><div class='tile-label'>Disk Usage</div></div>";
+              content += "<div class='tile'><div class='tile-icon'>⬇️</div><div class='tile-value' id='pc-net'>" + String((int)round(pc.net_down_kb)) + " KB/s</div><div class='tile-label'>Download</div></div>";      
+              content += "</div></div>";
               content += "</div></div>";
               break;
           }
@@ -475,6 +545,7 @@ String WebServerService::generateRootPageContent() {
   content += "<button type='submit'>💾 Save & Apply All Settings</button></form>";
   
   content += "<script>";
+  content += "let formDirty = false;";
   content += "function updateVisibility(){";
   
   content += "  var pairs = [['autoDetect','manualFields',true], ['nightMode','nightFields',false], ['showTime', 'timeContent',false], ['showWeather','weatherContent',false], ['showPc','pcContent',false], ['showCrypto','cryptoContent',false], ['showCurrency','currencyContent',false], ['showStock','stockContent',false], ['showAQI','aqiContent',false]];";
@@ -489,7 +560,6 @@ String WebServerService::generateRootPageContent() {
   content += "  var ac = document.getElementById('autoCycle');";
   content += "  var si = document.getElementById('screenIntInput');";
   content += "  if(ac && si) si.disabled = !ac.checked;";
-
   content += "}";
   
   content += "['autoDetect', 'nightMode', 'showTime', 'showWeather', 'showPc', 'showCrypto', 'showCurrency', 'showStock', 'showAQI', 'autoCycle'].forEach(id => { var el=document.getElementById(id); if(el) el.addEventListener('change', updateVisibility); });";
@@ -499,7 +569,6 @@ String WebServerService::generateRootPageContent() {
   content += "function toggleNone() {";
   content += "  const noneBox = document.getElementById('animNone');";
   content += "  const others = document.querySelectorAll('.anim-chk');";
-  
   content += "  others.forEach(cb => {";
   content += "    cb.disabled = noneBox.checked;";
   content += "    if(noneBox.checked) cb.checked = false;";
@@ -584,7 +653,7 @@ String WebServerService::generateRootPageContent() {
 
   // Standard Mouse Events (PC)
   content += "list.addEventListener('dragstart', e => { if (e.target.classList.contains('disabled')) { e.preventDefault(); return; } e.target.classList.add('dragging'); });";
-  content += "list.addEventListener('dragend', e => { e.target.classList.remove('dragging'); updateOrderValue(); });";
+  content += "list.addEventListener('dragend', e => { e.target.classList.remove('dragging'); updateOrderValue(); formDirty = true; });";
   content += "list.addEventListener('dragover', e => { e.preventDefault(); moveItem(e.clientY); });";
 
   // Touch Events (Mobile)
@@ -596,13 +665,13 @@ String WebServerService::generateRootPageContent() {
 
   content += "list.addEventListener('touchmove', e => {";
   content += "  if (!document.querySelector('.dragging')) return;";
-  content += "  e.preventDefault();"; // Stops the whole page from scrolling while you drag the item
+  content += "  e.preventDefault();"; 
   content += "  moveItem(e.touches[0].clientY);";
   content += "}, {passive: false});";
 
   content += "list.addEventListener('touchend', e => {";
   content += "  const dragging = document.querySelector('.dragging');";
-  content += "  if (dragging) { dragging.classList.remove('dragging'); updateOrderValue(); }";
+  content += "  if (dragging) { dragging.classList.remove('dragging'); updateOrderValue(); formDirty = true; }";
   content += "});";
 
   content += "syncScreenOrder();";
@@ -616,23 +685,92 @@ String WebServerService::generateRootPageContent() {
   content += "  document.getElementById('finalMask').value = mask;";
   content += "});";
   
-  content += "function updateData() { fetch('/update').then(r => r.json()).then(d => {";
-  content += "  const set = (id, val, html=false) => { const el = document.getElementById(id); if(el) { if(html) el.innerHTML = val; else el.innerText = val; }};";
+  content += "formDirty = false;";
+  content += "document.querySelector('form').addEventListener('input', () => formDirty = true);";
+  content += "document.querySelector('form').addEventListener('change', () => formDirty = true);";
 
+  content += "function updateData() { fetch('/update').then(r => r.json()).then(d => {";
+  content += "  const set = (id, val, html=false) => { const el = document.getElementById(id); if(el) { if(html) el.innerHTML = val; else el.innerText = val; return true; } return false; };";
+  content += "  const hide = (id, state) => { const el = document.getElementById(id); if(el) el.classList.toggle('hidden', state); };";
+
+  content += "  const setVal = (name, val) => { const el = document.querySelector('[name=\"'+name+'\"]'); if(el && document.activeElement !== el) el.value = val; };";
+  content += "  const setCb = (id, val, byName=false) => { const el = byName ? document.querySelector('[name=\"'+id+'\"]') : document.getElementById(id); if(el) el.checked = (val === 1 || val === true || val === '1'); };";
+  content += "  const setRadio = (name, val) => { const el = document.querySelector('[name=\"'+name+'\"][value=\"'+val+'\"]'); if(el) el.checked = true; };";
+
+  content += "  if (d.refresh_min !== undefined && !formDirty) {";
+  content += "    setVal('refresh_min', d.refresh_min);";
+  content += "    setCb('autoCycle', d.auto_cycle);";
+  content += "    setVal('screen_int', d.screen_int);";
+  content += "    setRadio('time_format', d.time_format);";
+  
+  content += "    setCb('autoDetect', d.auto_detect);";
+  content += "    setVal('city', d.city);";
+  content += "    setVal('latitude', d.latitude);";
+  content += "    setVal('longitude', d.longitude);";
+  content += "    setVal('timezone', d.timezone);";
+  
+  content += "    setCb('nightMode', d.night_mode);";
+  content += "    setVal('night_start', d.night_start);";
+  content += "    setVal('night_end', d.night_end);";
+  content += "    setVal('night_action', d.night_action);";
+  
+  content += "    setCb('showTime', d.show_time);";
+  content += "    setCb('date_display', d.date_display, true);";
+  content += "    setCb('showWeather', d.show_weather);";
+  content += "    setRadio('temp_unit', d.temp_unit);";
+  content += "    setCb('round_temps', d.round_temps, true);";
+  content += "    setCb('showAQI', d.show_aqi);";
+  content += "    setRadio('aqi_type', d.aqi_type);";
+  content += "    setCb('showPc', d.show_pc);";
+  content += "    setCb('showStock', d.show_stock);";
+  content += "    setVal('stock_symbol', d.stock_symbol);";
+  content += "    setCb('stock_fn', d.stock_fn, true);";
+  content += "    setCb('showCrypto', d.show_crypto);";
+  content += "    setVal('crypto_id', d.crypto_id);";
+  content += "    setCb('crypto_fn', d.crypto_fn, true);";
+  content += "    setCb('showCurrency', d.show_currency);";
+  content += "    setVal('currency_base', d.currency_base);";
+  content += "    setVal('currency_target', d.currency_target);";
+  content += "    setVal('currency_multiplier', d.currency_multiplier);";
+  content += "    setCb('currency_fn', d.currency_fn, true);";
+
+  content += "    const mask = d.anim_mask;";
+  content += "    document.querySelectorAll('.anim-chk').forEach(cb => { cb.checked = (mask & parseInt(cb.value)) !== 0; });";
+  content += "    const noneBox = document.getElementById('animNone');";
+  content += "    if (noneBox) { noneBox.checked = (mask === 0); toggleNone(); }";
+
+  content += "    if (d.screen_order && !document.querySelector('.dragging')) {";
+  content += "      const orderArr = d.screen_order.split(',');";
+  content += "      const list = document.getElementById('sortable-list');";
+  content += "      if (list) {";
+  content += "        const items = [...list.querySelectorAll('.sortable-item')];";
+  content += "        orderArr.forEach(id => { const item = items.find(el => el.getAttribute('data-id') === id); if(item) list.appendChild(item); });";
+  content += "        updateOrderValue();";
+  content += "      }";
+  content += "    }";
+
+  content += "    updateVisibility();";
+  content += "    syncScreenOrder();";
+  content += "    formDirty = false;";
+  content += "  }";
+
+  // Live Data Render Block
   content += "  set('time-display', d.time);"; 
   content += "  set('preview-time', d.time);";
   content += "  set('preview-date', d.date);";
 
-  content += "  if (d.temp !== undefined) {";
-  content += "    set('value-temp', d.temp + ' °' + d.temp_unit);";
+  content += "  if (d.temp !== undefined && d.temp !== 'nan') {";
+  content += "    if (!set('value-temp', d.temp + ' °' + d.temp_unit)) { location.reload(); return; }";
+  content += "    hide('weather-no-data', true); hide('weather-grid', false);";
   content += "    set('value-feels', d.apparent_temperature + ' °' + d.temp_unit);";
   content += "    set('value-hum', d.humidity + '%');";
   content += "    set('value-wind', d.wind_speed + ' km/h');";
   content += "    set('weather-upd', 'Last Update: ' + d.update_time);";
   content += "  }";
 
-  content += "  if (d.aqi !== undefined && d.aqi !== -1) {";
-  content += "    set('value-aqi', d.aqi);";
+  content += "  if (d.aqi !== undefined && d.aqi !== 'nan') {";
+  content += "    if (!set('value-aqi', d.aqi)) { location.reload(); return; }";
+  content += "    hide('aqi-no-data', true); hide('aqi-grid', false);";
   content += "    const aqiLabel = document.querySelector('#value-aqi + .tile-label'); if(aqiLabel) aqiLabel.innerText = d.aqi_status + ' Index';"; 
   content += "    set('value-pm25', d.pm25 + ' <small>µg</small>', true);";
   content += "    set('value-pm10', d.pm10 + ' <small>µg</small>', true);";
@@ -640,34 +778,39 @@ String WebServerService::generateRootPageContent() {
   content += "    set('aqi-upd', 'Last Update: ' + d.update_time);";
   content += "  }";
 
-  content += "  if (d.pc_cpu !== undefined) {";
-  content += "    set('pc-cpu', Math.round(d.pc_cpu) + '%');";
-  content += "    set('pc-net', Math.round(d.pc_net) + ' KB/s');";
-  content += "    set('pc-ram', Math.round(d.pc_ram) + '%');";
-  content += "    set('pc-disk', Math.round(d.pc_disk) + '%');";
+  content += "  if (d.pc_cpu !== undefined && d.pc_cpu !== '0.00' && d.pc_cpu !== '0') {";
+  content += "    if (!set('pc-cpu', Math.round(parseFloat(d.pc_cpu)) + '%')) { location.reload(); return; }";
+  content += "    hide('pc-no-data', true); hide('pc-grid', false);";
+  content += "    set('pc-net', Math.round(parseFloat(d.pc_net)) + ' KB/s');";
+  content += "    set('pc-ram', Math.round(parseFloat(d.pc_ram)) + '%');";
+  content += "    set('pc-disk', Math.round(parseFloat(d.pc_disk)) + '%');";
   content += "  }";
 
-  content += "  if (d.crypto_price !== undefined) {";
-  content += "    set('crypto-price', d.crypto_price + '$');";
+  content += "  if (d.crypto_price !== undefined && d.crypto_price !== 'nan') {";
+  content += "    if (!set('crypto-price', d.crypto_price + '$')) { location.reload(); return; }";
+  content += "    hide('crypto-no-data', true); hide('crypto-grid', false);";
   content += "    set('crypto-change', d.crypto_change + '%');";
-  content += "    set('crypto-trend-icon', d.crypto_change >= 0 ? '📈' : '📉');";
+  content += "    set('crypto-trend-icon', parseFloat(d.crypto_change) >= 0 ? '📈' : '📉');";
   content += "    set('crypto-upd', 'Last Update: ' + d.update_time);";
   content += "  }";
 
   content += "  if (d.currency_base_text !== undefined) {";
-  content += "    set('currency-base-val', d.currency_base_text);";
+  content += "    if (!set('currency-base-val', d.currency_base_text)) { location.reload(); return; }";
+  content += "    hide('currency-no-data', true); hide('currency-grid', false);";
   content += "    set('currency-target-val', d.currency_target_text);";
   content += "    set('currency-upd', 'Last Update: ' + d.update_time);";
   content += "  }";
   
-  content += "  if (d.stock_price !== undefined) {";
-  content += "    set('stock-price', '$' + d.stock_price);";
+  content += "  if (d.stock_price !== undefined && d.stock_price !== 'nan') {";
+  content += "    if (!set('stock-price', '$' + d.stock_price)) { location.reload(); return; }";
+  content += "    hide('stock-no-data', true); hide('stock-grid', false);";
   content += "    set('stock-change', d.stock_change + '%');";
-  content += "    set('stock-trend-icon', d.stock_change >= 0 ? '📈' : '📉');";
+  content += "    set('stock-trend-icon', parseFloat(d.stock_change) >= 0 ? '📈' : '📉');";
   content += "    set('stock-sym', d.stock_symbol + ' Price');"; 
   content += "    set('stock-upd', 'Last Update: ' + d.update_time);";
   content += "  }";
-    
+  
+  content += "  if (d.pc_status !== undefined) set('pc-link-status', d.pc_status);";
   content += "}).catch(e => console.log('Sync error:', e)); } setInterval(updateData, 15000); updateData();";
   content += "</script></div></body></html>";
 
@@ -818,34 +961,98 @@ void WebServerService::handleUpdate() {
   StockData& stock = state->stock;
   PcStats& pc = state->pc;
 
-  DynamicJsonDocument doc(1024); 
+  DynamicJsonDocument doc(3072); 
+  
+  // Global Settings
+  doc["device_id"] = config.device_id;
+  doc["ip_address"] = config.ip_address;
+  doc["refresh_min"] = config.refresh_interval_min;
+  doc["auto_cycle"] = config.screen_auto_cycle ? 1 : 0;
+  doc["screen_int"] = config.screen_interval_sec;
+  doc["anim_mask"] = config.anim_mask;
+  doc["time_format"] = config.time_format;
+  
+  // Location Settings
+  doc["auto_detect"] = config.auto_detect ? 1 : 0;
+  doc["city"] = config.city;
+  doc["latitude"] = config.latitude;
+  doc["longitude"] = config.longitude;
+  doc["timezone"] = config.timezone;
+
+  // Night Mode Settings
+  doc["night_mode"] = config.night_mode ? 1 : 0;
+  doc["night_start"] = config.night_start;
+  doc["night_end"] = config.night_end;
+  doc["night_action"] = config.night_action;
+
+  // Screen Toggles
+  doc["show_time"] = config.show_time ? 1 : 0;
+  doc["date_display"] = config.date_display ? 1 : 0;
+  
+  doc["show_weather"] = config.show_weather ? 1 : 0;
+  doc["temp_unit"] = config.temp_unit;
+  doc["round_temps"] = config.round_temps ? 1 : 0;
+  
+  doc["show_aqi"] = config.show_aqi ? 1 : 0;
+  doc["aqi_type"] = config.aqi_type;
+  
+  doc["show_pc"] = config.show_pc ? 1 : 0;
+  
+  doc["show_stock"] = config.show_stock ? 1 : 0;
+  doc["stock_symbol"] = config.stock_symbol;
+  doc["stock_fn"] = config.stock_fn ? 1 : 0;
+  
+  doc["show_crypto"] = config.show_crypto ? 1 : 0;
+  doc["crypto_id"] = config.crypto_id;
+  doc["crypto_fn"] = config.crypto_fn ? 1 : 0;
+  
+  doc["show_currency"] = config.show_currency ? 1 : 0;
+  doc["currency_base"] = config.currency_base;
+  doc["currency_target"] = config.currency_target;
+  doc["currency_multiplier"] = config.currency_multiplier;
+  doc["currency_fn"] = config.currency_fn ? 1 : 0;
+
+  String orderStr = "";
+  for(int i = 0; i < NUM_SCREENS; i++) {
+      orderStr += String(config.screen_order[i]);
+      if(i < NUM_SCREENS - 1) orderStr += ",";
+  }
+  doc["screen_order"] = orderStr;
   
   doc["time"] = getCurrentTimeShort(config.time_format);
   doc["date"] = getFullDate();
-  
   doc["update_time"] = weather.update_time;
-  doc["temp"] = String(weather.temp, 1);
-  doc["apparent_temperature"] = String(weather.apparent_temperature, 1);
-  doc["humidity"] = String(weather.humidity);
-  doc["wind_speed"] = String(weather.wind_speed, 1);
-  doc["weather_code"] = weather.weather_code;
   doc["temp_unit"] = config.temp_unit;
   doc["time_format"] = config.time_format;
 
-  doc["aqi"] = String(aqi.aqi);
-  doc["aqi_status"] = aqi.status;
-  doc["pm25"] = String(aqi.pm25, 1);
-  doc["pm10"] = String(aqi.pm10, 1);
-  doc["no2"] = String(aqi.no2, 1);
+  if (!isnan(weather.temp)) {
+    doc["temp"] = String(weather.temp, 1);
+    doc["apparent_temperature"] = String(weather.apparent_temperature, 1);
+    doc["humidity"] = String(weather.humidity);
+    doc["wind_speed"] = String(weather.wind_speed, 1);
+    doc["weather_code"] = weather.weather_code;
+  }
 
-  doc["pc_cpu"] = String(pc.cpu_percent);
-  doc["pc_net"] = String(pc.net_down_kb);
-  doc["pc_ram"] = String(pc.mem_percent);
-  doc["pc_disk"] = String(pc.disk_percent);
+  if (!isnan(aqi.pm25) && !isnan(aqi.pm10) && !isnan(aqi.no2)) {
+    doc["aqi"] = String(aqi.aqi);
+    doc["aqi_status"] = aqi.status;
+    doc["pm25"] = String(aqi.pm25, 1);
+    doc["pm10"] = String(aqi.pm10, 1);
+    doc["no2"] = String(aqi.no2, 1);
+  }
 
-  doc["crypto_symbol"] = String(crypto.symbol);
-  doc["crypto_price"] = String(crypto.price_usd);
-  doc["crypto_change"] = String(crypto.percent_change_24h);
+  if (pc.cpu_percent > 0.1) {
+    doc["pc_cpu"] = String(pc.cpu_percent);
+    doc["pc_net"] = String(pc.net_down_kb);
+    doc["pc_ram"] = String(pc.mem_percent);
+    doc["pc_disk"] = String(pc.disk_percent);
+  }
+
+  if (!isnan(crypto.price_usd) && crypto.price_usd > 0) {
+    doc["crypto_symbol"] = String(crypto.symbol);
+    doc["crypto_price"] = String(crypto.price_usd);
+    doc["crypto_change"] = String(crypto.percent_change_24h);
+  }
   
   if (currency.updated) {
     float displayRate = currency.rate * config.currency_multiplier;
@@ -861,13 +1068,56 @@ void WebServerService::handleUpdate() {
   }
   
   if (stock.updated) {
-      doc["stock_symbol"] = stock.symbol;
-      doc["stock_price"] = String(stock.price, 2);
-      doc["stock_change"] = String(stock.percent_change, 2);
+    doc["stock_symbol"] = stock.symbol;
+    doc["stock_price"] = String(stock.price, 2);
+    doc["stock_change"] = String(stock.percent_change, 2);
   }
+
+  String activeId = config.active_pc_id;
+  int lastDashSync = activeId.lastIndexOf(':');
+  if (lastDashSync > 3) activeId = activeId.substring(0, lastDashSync);
+
+  bool isPcPaired = (activeId != "" && (millis() - pc.last_update < 5000));
+  doc["pc_status"] = isPcPaired ? ("🔒 Paired to " + activeId) : "";
   
   String jsonResponse;
   serializeJson(doc, jsonResponse);
   
   server.send(200, "application/json", jsonResponse);
+}
+
+void WebServerService::handlePcStats() {
+  if (!server.hasArg("plain")) {
+    server.send(400, "application/json", "{\"status\":\"error\", \"message\":\"Body not received\"}");
+    return;
+  }
+  
+  String body = server.arg("plain");
+  DynamicJsonDocument doc(512);
+  DeserializationError error = deserializeJson(doc, body);
+  
+  if (error) {
+    server.send(400, "application/json", "{\"status\":\"error\", \"message\":\"Invalid JSON\"}");
+    return;
+  }
+
+  String incoming_pc_id = doc["pc_id"] | "";
+  if (incoming_pc_id == "") {
+    server.send(400, "application/json", "{\"status\":\"error\", \"message\":\"Missing PC ID\"}");
+    return;
+  }
+
+  if (millis() - state->pc.last_update > 5000 || state->config.active_pc_id == incoming_pc_id || state->config.active_pc_id == "") {
+    
+    state->config.active_pc_id = incoming_pc_id;
+    state->pc.cpu_percent = doc["cpu_percent"] | 0.0;
+    state->pc.mem_percent = doc["mem_percent"] | 0.0;
+    state->pc.disk_percent = doc["disk_percent"] | 0.0;
+    state->pc.net_down_kb = doc["net_down_kb"] | 0.0;
+    state->pc.last_update = millis();
+
+    server.send(200, "application/json", "{\"status\":\"ok\"}");
+  } else {
+    server.send(403, "application/json", "{\"status\":\"error\", \"message\":\"Device is already paired to another PC\"}");
+  }
 }

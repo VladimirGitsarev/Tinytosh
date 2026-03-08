@@ -35,6 +35,11 @@ enum AnimType {
 };
 
 struct Config {
+  // Network Data
+  String device_id = "";
+  String ip_address = "";
+  String active_pc_id = "";
+
   // Global Settings
   bool auto_detect = true;
   float latitude = 0.0;
@@ -127,10 +132,11 @@ struct CurrencyData {
 };
 
 struct PcStats {
-    float cpu_percent = NAN;
-    float mem_percent = NAN;
-    float disk_percent = NAN;
-    float net_down_kb = NAN;
+    float cpu_percent;
+    float mem_percent;
+    float disk_percent;
+    float net_down_kb;
+    unsigned long last_update = 0;
 };
 
 struct StockOption {

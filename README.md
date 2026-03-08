@@ -21,16 +21,22 @@
 
 ## 🧐 What is this?
 
-**Tinytosh** is a DIY project that fits a smart dashboard inside a tiny, 3D-printed Macintosh-style case. It connects to your WiFi to display useful information or hooks up to your PC via USB to show real-time hardware stats.
+**Tinytosh** is a DIY project that fits a smart dashboard inside a tiny, 3D-printed Macintosh-style case. It connects to your WiFi to display useful information or hooks up to your PC via USB or Wi-Fi to show real-time hardware stats.
+
+### Available Screens & Services
+* 🕒 **Internet Clock:** Auto-syncs time and date based on your location.
+* 🌤️ **Weather Station:** Live Temperature, Humidity, and Forecasts (via Open-Meteo).
+* 🍃 **Air Quality:** Monitor local AQI levels (US & EU Standards).
+* 📊 **Stock Tracker:** Track market data for ~100 top global assets, ETFs, and Mega-Cap Tech with daily trend indicators.
+* 📈 **Crypto Tracker:** Watch your favorite coin (from top 75 global cryptos) with price and trend indicators.
+* 💱 **Currency Tracker:** Track exchange rates for over 150 fiat currency pairs with custom scaling multipliers.
+* 🖥️ **PC Hardware Monitor:** Connects via **USB** or **Wirelessly** to your Windows/Mac/Linux computer to show CPU Load, RAM Usage, and Network Speeds in real-time!
 
 ### ✨ Key Features
-* **Modular Dashboard:** Enable/Disable screens on the fly via a Web Panel. 
-* **Drag & Drop Reordering:** Fully customize your display sequence. Grab and drag screens in the Web Panel to change their order. Disabled screens are locked at the bottom, and the configuration UI dynamically rearranges itself to match your custom layout perfectly.
+* **Modular Dashboard:** Enable/Disable screens on the fly via a Web Panel or PC App. 
+* **Drag & Drop Reordering:** Fully customize your display sequence. Grab and drag screens to change their order. The configuration UI dynamically rearranges itself to match your custom layout perfectly.
 * **Night Mode & Power Saving:** Set a quiet schedule to minimize sleep distractions. Choose between *Dim Display* or *Turn Display Off*. Features "Smart Latching" (waits for the primary screen before sleeping), 10x slower background API fetching to save power, and a temporary 30-second wake feature via the physical button.
 * **Zero Config APIs:** Uses free public APIs for Stocks, Crypto, Currency, Weather, and Air Quality. No API keys required.
-* **Finance, Crypto & Currency Tracker:** Track ~100 global assets (ETFs, Mega-Cap Tech, ADRs), top cryptocurrencies, and over 150 fiat currency exchange rates with custom multipliers. 
-* **PC Monitoring:** View CPU, RAM, Disk, and Network usage via the USB Bridge.
-* **Visuals:** Smooth OLED animations (Slide, Dissolve, Curtain, Blinds) and 60fps refresh rates.
 * **Privacy First:** No accounts, no cloud tracking. Everything runs locally on the ESP32.
 
 ![Interface Demo](img/web_panel_demo.gif)
@@ -45,10 +51,11 @@ For developers, makers, and the curious, here is how the magic happens. The proj
 *Written in C++ using the Arduino Framework.*
 
 The firmware is designed to be **non-blocking** and **modular**.
-* **Web-Based Config:** The device hosts its own Web Server. The UI is built with HTML/CSS/JS stored in `PROGMEM` (gzipped) to save space.
+* **Universal Config Sync:** The device hosts its own Web Server, but also accepts and instantly applies full configuration payloads over the PC Serial/USB connection.
+* **Hardware Pairing Lock:** Telemetry streams are protected. Tinytosh securely pairs to the active PC to ensure multiple computers on the same network don't fight over the display.
 * **Dynamic Rendering:** The `DisplayService` handles the OLED. It supports "partial screen buffering," allowing for complex transition effects (like dissolving pixels or sliding curtains) without needing a massive frame buffer.
 * **Smart Wifi Manager:** Uses a Captive Portal for initial setup. If WiFi drops, it auto-reconnects without freezing the UI.
-* **Preference Storage:** Configuration (selected screens, custom screen order, location, animation speed) is saved to the ESP32's Non-Volatile Storage (NVS) using a custom bitmask system for efficiency.
+* **Preference Storage:** Configuration is saved to the ESP32's Non-Volatile Storage (NVS) using a custom bitmask system for efficiency.
 
 #### 🏗️ Build & Compile Guide
 
@@ -98,14 +105,16 @@ lib_deps =
 * `Preferences.h`
 * `Wire.h` (I2C)
 * `time.h`
+* `ESPmDNS.h`
 
 ### 2. PC Bridge App (Desktop)
 *Written in Rust 🦀 & Tauri.*
 
-To display PC statistics (CPU/RAM/Net), the ESP32 needs a helper app running on the computer. We chose **Rust** for its speed and memory safety.
+To display PC statistics (CPU/RAM/Net) and manage device settings, the ESP32 uses a lightweight helper app running on the computer.
 * **Cross-Platform:** Runs on Windows, macOS, and Linux from a single codebase.
-* **Tiny Footprint:** The app sits in the system tray and uses negligible resources (<10MB RAM).
-* **Auto-Discovery:** No manual COM port selection needed. The app scans USB devices, identifies the ESP32 (via VID/PID or driver names), and establishes a serial handshake automatically.
+* **Dynamic UI Rendering:** The PC app dashboard physically mirrors your device! Configuration panels automatically reorder themselves in real-time to match the exact screen sequence you set on your Tinytosh.
+* **Wireless Telemetry (mDNS):** The PC app automatically discovers Tinytosh devices on your local network. You can broadcast your PC's hardware stats completely wirelessly!
+* **Smart Connection Fallback:** The app constantly monitors your hardware and instantly prioritizes a wired USB connection for maximum stability. Yank the USB cable? The app instantly and silently falls back to Wi-Fi to keep the data flowing with zero hesitation.
 * **Native Telemetry:** Fetches system stats directly from the OS kernel—no third-party bloatware (like AIDA64) required.
 
 **Build it yourself:**
@@ -161,10 +170,11 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 | Version | Date | Key Changes |
 | :--- | :--- | :--- |
+| **v1.0.4** | *Mar 2026* | 🖥️ **PC App Upgrade:** Added **Wireless Telemetry via Wi-Fi (mDNS)**, **Dynamic UI Rendering** that mirrors Web Panel functionality (update device settings and monitor current API data), and **Smart Connection Fallback** (instant USB-to-WiFi switching). <br>⚙️ **Firmware:** Added Universal Config Sync (saving settings via PC app), Smart IP Reporting via Serial, and Hardware Pairing Locks. |
 | **v1.0.3** | *Mar 2026* | 🌙 Added **Night Mode** with smart latching, screen dimming/off scheduling, and 10x background API power saving. 🔄 Introduced **Drag & Drop Reordering** for dynamic screen sequencing directly in the Web Panel. |
 | **v1.0.2** | *Mar 2026* | 📈 Added **Stock Tracker** module (~100 global assets, ETFs, Mega-Cap Tech, ADRs). Added customizable "Full Name" layout toggles for Crypto, Currency, and Stock screens. Fixed an animation bug for single-screen setups. |
 | **v1.0.1** | *Feb 2026* | 💱 Added **Currency Tracker** module (150+ fiat pairs), introduced dynamic multipliers for large conversion gaps, and optimized logging. Expanded Crypto list to top 75. |
-| **v1.0.0** | *Initial* | 🚀 Initial release: Time, Weather, AQI, Crypto, and PC Monitor modules. Web panel, firmware flasher, and 3D printable case released. |
+| **v1.0.0** | *Initial* | 🚀 Initial release: Time, Weather, AQI, Crypto, and PC Monitor modules. Web Panel, firmware flasher, and 3D printable case released. |
 
 <p align="center">
   <sub>Built with ❤️ and too much coffee.</sub>

@@ -7,51 +7,455 @@
   --border: #334155;
 }
 
-html, body {
-  height: 100%;
-  margin: 0;
+* { 
+  box-sizing: border-box; 
+}
+
+html, body { 
+  margin: 0; 
+  padding: 0; 
+}
+
+body { 
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+  background-color: var(--bg); 
+  color: var(--text); 
+  padding: 20px; 
+  line-height: 1.6; 
+}
+
+.container { 
+  max-width: 800px; 
+  margin: 0 auto; 
+}
+
+.app-header { 
+  padding-bottom: 20px; 
+  font-size: 2.5rem; 
+  color: var(--accent); 
+  font-weight: 700; 
+  text-align: center; 
+}
+
+/* Global Utilities */
+.mt-0 { 
+  margin-top: 0 !important; 
+}
+
+.mt-25 { 
+  margin-top: 25px; 
+}
+
+.mb-20 { 
+  margin-bottom: 20px; 
+}
+
+.hidden { 
+  display: none !important; 
+}
+
+hr { 
+  border: 0; 
+  border-top: 1px solid var(--border); 
+  margin: 25px 0; 
+}
+
+/* Panels */
+.panel { 
+  background: var(--card); 
+  padding: 25px; 
+  border-radius: 12px; 
+  border: 1px solid var(--border); 
+  margin-bottom: 24px; 
+}
+
+.header-panel { 
+  background: rgba(59, 130, 246, 0.05); 
+  border: 1px solid var(--accent); 
+}
+
+.panel-title { 
+  margin-top: 0; 
+  color: var(--accent); 
+  font-size: 1.17em; 
+}
+
+/* Header Elements */
+#time-display { 
+  text-align: center; 
+  color: var(--text); 
+  font-size: 4.5rem; 
+  font-weight: 800; 
+  letter-spacing: -2px; 
+}
+
+#location-info { 
+  text-align: center; 
+  margin-top: 0px; 
+  color: var(--text-muted); 
+  font-weight: 400; 
+}
+
+/* Identity Box */
+.identity-box { 
+  text-align: center; 
+  margin-top: 15px; 
+  padding: 12px; 
+  background: rgba(0,0,0,0.15); 
+  border-radius: 8px; 
+  border: 1px solid var(--border); 
+}
+
+.id-text { 
+  color: var(--accent); 
+  font-weight: 700; 
+  font-family: monospace; 
+  text-transform: uppercase; 
+  font-size: 1.1rem; 
+  margin-bottom: 2px; 
+}
+
+.ip-text { 
+  font-size: 0.9rem; 
+  color: var(--text-muted); 
+  text-transform: uppercase; 
+  font-family: monospace; 
+  margin-bottom: 5px; 
+}
+
+/* Status Badges */
+.status-badge { 
+  text-align: center; 
+  font-size: 0.85rem; 
+  font-weight: 600; 
+  text-transform: uppercase; 
+  letter-spacing: 1px; 
+  font-family: monospace; 
+}
+
+#status-text { 
+  color: var(--text-muted); 
+}
+
+#tinytosh-link-status { 
+  color: #888; 
+}
+
+/* Grid & Tiles */
+.dashboard-grid { 
+  display: grid; 
+  grid-template-columns: repeat(2, 1fr); 
+  gap: 15px; 
+  margin-top: 20px; 
+}
+
+.dashboard-grid > div { 
+  min-width: 0; 
+}
+
+.tile { 
+  background: rgba(15, 23, 42, 0.4); 
+  border: 1px dashed var(--border); 
+  padding: 20px; 
+  border-radius: 10px; 
+  text-align: center; 
+}
+
+.tile-icon { 
+  font-size: 2.2rem; 
+  margin-bottom: 8px; 
+}
+
+.tile-label { 
+  font-size: 0.75rem; 
+  color: var(--text-muted); 
+  text-transform: uppercase; 
+  letter-spacing: 1px; 
+}
+
+.tile-value { 
+  font-size: 1.6rem; 
+  font-weight: 600; 
+  color: var(--text); 
+}
+
+.unit-text { 
+  font-size: 0.75rem; 
+}
+
+.date-val { 
+  font-size: 1.2rem; 
+}
+
+.no-data-tile { 
+  grid-column: 1 / -1; 
+  background: rgba(59, 130, 246, 0.05); 
+  border: 1px solid var(--accent); 
+  padding: 30px; 
+  color: var(--accent); 
+  border-radius: 10px; 
+  text-align: center; 
+  margin-top: 15px; 
+}
+
+/* Typography & Forms */
+.section-label { 
+  font-size: 0.8rem; 
+  color: var(--text-muted); 
+  margin-bottom: 5px; 
+  display: block; 
+  text-transform: uppercase; 
+  letter-spacing: 1px; 
+}
+
+label { 
+  display: block; 
+  margin-top: 15px; 
+  font-weight: 600; 
+  color: var(--text); 
+}
+
+.help-text { 
+  font-size: 0.8em; 
+  color: var(--text-muted); 
+  margin-top: 8px; 
+}
+
+.anim-help { 
+  margin-top: -5px; 
+  margin-bottom: 10px; 
+}
+
+.order-help { 
+  margin-top: -5px; 
+}
+
+/* Custom Inputs & Dropdowns */
+select, 
+input[type='text'], 
+input[type='number'], 
+input[type='time'] { 
+  display: block; 
+  width: 100% !important; 
+  padding: 12px; 
+  margin: 8px 0; 
+  border: 1px solid var(--border); 
+  border-radius: 6px; 
+  background-color: var(--bg); 
+  color: var(--text); 
+  font-size: 15px; 
+}
+
+select:focus, 
+input:focus { 
+  border-color: var(--accent); 
+  outline: none; 
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2); 
+}
+
+input:disabled { 
+  opacity: 0.5; 
+  cursor: not-allowed; 
+  background-color: #1e293b; 
+}
+
+/* Overriding OS Default Select */
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: url('data:image/svg+xml;utf8,<svg fill="%23f1f5f9" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/></svg>');
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+}
+
+/* Custom Radios and Checkboxes */
+input[type="checkbox"], 
+input[type="radio"] { 
+  accent-color: var(--accent); 
+  cursor: pointer; 
+  width: 16px; 
+  height: 16px; 
+}
+
+.checkbox-wrapper { 
+  display: flex; 
+  align-items: center; 
+  justify-content: flex-start; 
+  margin-bottom: 20px; 
+  padding: 15px; 
+  background: rgba(0,0,0,0.1); 
+  border-radius: 8px; 
+  border: 1px solid var(--border); 
+}
+
+.checkbox-wrapper label { 
+  margin-left: 10px; 
+  font-weight: 600; 
+  color: var(--text); 
+  font-size: 0.9rem; 
+  cursor: pointer; 
+}
+
+.checkbox-label { 
+  display: flex; 
+  align-items: center; 
+  gap: 8px; 
+  margin-top: 10px; 
+  cursor: pointer; 
+  font-weight: 600; 
+}
+
+.radio-group { 
+  display: flex; 
+  gap: 15px; 
+  margin-top: 8px; 
+}
+
+.radio-label { 
+  display: flex; 
+  align-items: center; 
+  gap: 6px; 
+  cursor: pointer; 
+  margin-top: 0; 
+  font-weight: normal; 
+}
+
+/* Buttons */
+button { 
+  background-color: var(--accent); 
+  color: white; 
+  padding: 16px; 
+  border: none; 
+  border-radius: 8px; 
+  cursor: pointer; 
+  margin-top: 8px; 
+  width: 100%; 
+  font-size: 1.1rem; 
+  font-weight: 700; 
+  transition: opacity 0.2s; 
+}
+
+button:hover { 
+  opacity: 0.9; 
+}
+
+.btn-red { 
+  background-color: #ef4444 !important; 
+}
+
+.btn-red:hover { 
+  background-color: #dc2626 !important; 
+}
+
+/* Fieldsets */
+fieldset { 
+  border: 1px solid var(--border); 
+  border-radius: 8px; 
+  padding: 20px; 
+  margin-top: 15px; 
+  background: rgba(0,0,0,0.1); 
+  min-width: 0; 
   overflow: hidden; 
 }
 
-body {
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  background-color: var(--bg);
-  color: var(--text);
-  padding: 25px; 
-  box-sizing: border-box;
+legend { 
+  color: var(--accent); 
+  font-weight: 700; 
+  padding: 0 10px; 
+  font-size: 0.9rem; 
+  text-transform: uppercase; 
 }
 
-.container {
-  display: flex;
-  flex-direction: column;
-  height: 100%; 
-  width: 100%;
-  max-width: 100%; 
-  margin: 0 auto;
+/* Animation Controls */
+.anim-label { 
+  margin-top: 20px; 
+  margin-bottom: 10px; 
+  font-weight: 600; 
+  display: block; 
 }
 
-.app-header {
-  padding-bottom: 25px;
-  font-size: 1.5rem; 
-  color: var(--accent);
-  font-weight: 700;
-  text-align: center;
-  letter-spacing: 1px;
-  flex: 0 0 auto; 
+.anim-grid { 
+  display: grid; 
+  grid-template-columns: 1fr 1fr; 
+  gap: 8px; 
+  margin-bottom: 15px; 
+  padding: 12px; 
+  background: rgba(255,255,255,0.05); 
+  border-radius: 8px; 
+  border: 1px solid rgba(255,255,255,0.1); 
 }
 
-.dashboard-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr); 
-  grid-template-rows: repeat(2, 1fr);    
-  gap: 15px;
-  flex: 1; 
-  margin-bottom: 25px;
-  min-height: 0; 
+.anim-item { 
+  display: flex; 
+  align-items: center; 
+  gap: 6px; 
+  cursor: pointer; 
+  font-size: 0.9em; 
+  margin-top: 0; 
 }
 
-.tile {
-  background: var(--card);      
+/* Sortable List */
+.sortable-list { 
+  list-style: none; 
+  padding: 0; 
+  margin: 15px 0 0; 
+  border: 1px solid var(--border); 
+  border-radius: 8px; 
+  overflow: hidden; 
+  background: rgba(0,0,0,0.1); 
+}
+
+.sortable-item { 
+  padding: 12px 15px; 
+  border-bottom: 1px solid var(--border); 
+  display: flex; 
+  align-items: center; 
+  cursor: grab; 
+  color: var(--text); 
+  background: var(--card); 
+  transition: background 0.2s; 
+}
+
+.sortable-item:last-child { 
+  border-bottom: none; 
+}
+
+.sortable-item:active { 
+  cursor: grabbing; 
+}
+
+.sortable-item.disabled { 
+  opacity: 0.4; 
+  background: transparent; 
+}
+
+.drag-handle { 
+  margin-right: 15px; 
+  color: var(--text-muted); 
+  font-size: 1.2rem; 
+}
+
+.sortable-item.dragging { 
+  opacity: 0.5; 
+  background: rgba(59, 130, 246, 0.2); 
+}
+
+.update-footer { 
+  text-align: center; 
+  font-size: 0.8rem; 
+  color: var(--text-muted); 
+  margin-top: 15px; 
+  font-family: monospace; 
+}
+
+.collapsible { 
+  transition: all 0.3s ease; 
+}
+
+/* PC Telemetry Tiles */
+.telemetry-tile {
+  background: rgba(0, 0, 0, 0.1);      
   border: 1px solid var(--border); 
   border-radius: 12px;         
   display: flex;
@@ -60,22 +464,22 @@ body {
   align-items: center;
   transition: border-color 0.2s; 
   width: 100%;
-  height: 100%; 
+  padding: 25px 0;
   box-sizing: border-box;
 }
 
-.tile:hover {
+.telemetry-tile:hover {
   border-color: var(--accent);
 }
 
-.tile-value {
+.telemetry-tile .tile-value {
   font-size: 2rem; 
   font-weight: 600;
   color: var(--text);
   line-height: 1.2;
 }
 
-.tile-label {
+.telemetry-tile .tile-label {
   font-size: 0.8rem;
   color: var(--text-muted);
   text-transform: uppercase;
@@ -83,88 +487,9 @@ body {
   margin-top: 5px;
 }
 
-.controls {
-  flex: 0 0 auto; 
-}
-
-select {
-  width: 100%;
-  padding: 12px;
-  margin: 8px 0 15px 0;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background-color: var(--bg); 
-  color: var(--text);
-  font-size: 14px;
-  appearance: none; 
-  outline: none;
-  cursor: pointer;
-  background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%233b82f6%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E');
-  background-repeat: no-repeat;
-  background-position: right 12px top 50%;
-  background-size: 10px auto;
-}
-
-select:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
-}
-
-.checkbox-wrapper {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  margin-bottom: 20px;
-  padding: 15px;
-  background: rgba(0,0,0,0.1); 
-  border-radius: 8px;
-  border: 1px solid var(--border);
-}
-
-.checkbox-wrapper input[type="checkbox"] {
-  accent-color: var(--accent);
-  width: 18px;
-  height: 18px;
-  cursor: pointer;
-}
-
-.checkbox-wrapper label {
-  margin-left: 10px;
-  font-weight: 600;
-  color: var(--text);
-  font-size: 0.9rem;
-  cursor: pointer;
-}
-
-button {
-  background-color: var(--accent);
-  color: white;
-  padding: 16px;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  width: 100%;
-  font-size: 1.1rem;
-  font-weight: 700;
-  transition: opacity 0.2s;
-  text-transform: uppercase;
-}
-
-button:hover {
-  opacity: 0.9;
-}
-
-#status-text {
-  text-align: center;
-  margin-top: 25px;
-  color: var(--text-muted);
-  font-size: 0.8rem;
-  font-family: monospace;
-}
-
-.btn-red {
-  background-color: #ef4444 !important;
-}
-.btn-red:hover {
-  background-color: #dc2626 !important;
+@media (max-width: 400px) {
+  
+  #time-display { 
+    font-size: 3.5rem; 
+  }
 }

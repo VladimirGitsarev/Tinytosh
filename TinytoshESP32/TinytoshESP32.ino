@@ -212,7 +212,7 @@ void setup() {
   displayService.showOLEDStatus({"Starting...", "Loading Config..."}, true);
   configManager.loadConfig(appState.config); 
 
-  // 3. Connect WiFi
+  // 3. Connect WiFi and set device info
   WiFiManager wm;
   // wm.resetSettings(); 
   wm.setAPCallback([](WiFiManager* m) {
@@ -221,10 +221,27 @@ void setup() {
   displayService.showOLEDStatus({"\n", "\n", "Connecting...", "\n", "\n", "Searching WiFi..."}, true);
 
   if (wm.autoConnect(AP_SSID, AP_PASS)) {
+    String ipAddress = WiFi.localIP().toString();
+    String mac = WiFi.macAddress();
+    mac.replace(":", "");
+    String uniqueName = "tinytosh-" + mac.substring(8);
+    uniqueName.toLowerCase();
+
     Serial.println("WiFi Connected!"); 
     Serial.print("IP Address: "); 
-    Serial.println(WiFi.localIP()); 
-    displayService.showOLEDStatus({"\n", "Connected to WiFi!", "\n", "Web Panel:", WiFi.localIP().toString(), "\n", "\n", "Loading..."}, true);
+    Serial.println(ipAddress); 
+
+    appState.config.device_id = uniqueName;
+    appState.config.ip_address = ipAddress;
+    displayService.showOLEDStatus({
+        "Connected to WiFi!", 
+        "", 
+        "IP: " + ipAddress, 
+        "Name: " + uniqueName, 
+        "", 
+        "Loading..."
+    }, true);
+    
     delay(3000); 
 
     // 4. Initial Data Fetch
@@ -242,8 +259,10 @@ void setup() {
 void loop() {
   webServerService.handleClient();
 
-  if (appState.config.show_pc) {
-    pcMonitorService.handleSerial(appState.pc);
+  if (pcMonitorService.handleSerial(appState)) {
+    Serial.println("Config updated via USB! Saving and applying...");
+    configManager.saveConfig(appState.config);
+    updateAllData();
   }
 
   // 1. Night Latch Logic

@@ -17,6 +17,7 @@ public:
     void handleRoot();
     void handleSave();
     void handleUpdate();
+    void handlePcStats();
 
     String generateRootPageContent();
     
@@ -26,7 +27,9 @@ private:
     ConfigSaveCallback saveCallback;
     
     AppState* state;
-    
+
+    const char* LOCAL_DOMAIN_NAME = "tinytosh";
+
     String getWeatherIcon(int wmo_code);
     String getCurrentTimeShort(String format);
     String getFullDate();
