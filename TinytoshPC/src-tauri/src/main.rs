@@ -13,6 +13,46 @@ use serialport::{SerialPort, SerialPortType};
 use tauri_plugin_autostart::ManagerExt;
 use mdns_sd::{ServiceDaemon, ServiceEvent};
 use mac_address::get_mac_address;
+use futures::StreamExt;
+use nowhear::{MediaEvent, MediaSourceBuilder, MediaSource};
+use any_ascii::any_ascii;
+
+
+// Constants
+
+// Main Loop
+const LOOP_INTERVAL_MS: u64 = 1000;          // Base speed of the main background loop
+
+// Wi-Fi Telemetry & Connection
+const WIFI_THROTTLE_TICKS: i32 = 3;         // 3 ticks * 1000ms = 3 seconds. Prevents overloading the ESP32's sync web server
+const MAX_WIFI_FAILURES: i32 = 6;           // Consecutive failed HTTP requests before dropping connection and rescanning
+const HTTP_REQUEST_TIMEOUT_MS: u64 = 500;   // Max time to wait for ESP32 to acknowledge the telemetry payload
+
+// Wi-Fi Settings Sync (UI Panel)
+const FETCH_CONFIG_TIMEOUT_SEC: u64 = 2;    // Time to wait when requesting the full settings JSON over Wi-Fi
+const SAVE_CONFIG_TIMEOUT_SEC: u64 = 12;    // Long timeout for saving settings (ESP32 takes time to parse and write to flash memory)
+
+// USB Serial Connection
+const SERIAL_BAUD_RATE: u32 = 115_200;      // Communication speed. Must exactly match Serial.begin() on the ESP32
+const SERIAL_TIMEOUT_MS: u64 = 100;         // Max time to wait for a standard serial read/write operation
+const USB_SCAN_INTERVAL_TICKS: i32 = 2;     // How often to check for newly plugged in USB devices (2 ticks * 500ms = 1.0 second)
+
+// USB Serial Formatting (Buffer Safety)
+const SERIAL_CHUNK_SIZE: usize = 64;        // Bytes sent per chunk to prevent overflowing the ESP32's hardware buffer
+const SERIAL_CHUNK_DELAY_MS: u64 = 5;       // Brief 5ms pause between chunks so ESP32 can process the incoming bytes
+const SERIAL_CMD_DELAY_MS: u64 = 150;       // Pause after a full command finishes before firing the next one
+const SERIAL_READ_BUFFER_SIZE: usize = 1024;// Max memory allocated to read incoming serial data from the ESP32
+
+// USB Settings Sync (UI Panel)
+const FETCH_CONFIG_MAX_RETRIES: i32 = 30;   // How many times to poll the serial buffer while waiting for the config JSON
+const FETCH_CONFIG_RETRY_DELAY_MS: u64 = 100; // Delay between polls (30 retries * 100ms = 3.0 seconds max total wait)
+
+// Desktop App UI
+const WINDOW_MIN_WIDTH: f64 = 450.0;        // Minimum width of the Tauri desktop window
+const WINDOW_MIN_HEIGHT: f64 = 450.0;       // Minimum height of the Tauri desktop window
+
+
+// Structs
 
 struct AppState {
     stats: Mutex<String>,
@@ -26,6 +66,15 @@ struct AppState {
     serial_buffer: Mutex<String>,
     latest_config: Mutex<String>,
     user_forced_wifi: Mutex<bool>,
+    media_info: Mutex<MediaStats>,
+}
+
+#[derive(serde::Serialize, Clone, Default)]
+struct MediaStats {
+    media_status: String,
+    media_name: String,
+    media_author: String,
+    media_album: String,
 }
 
 #[derive(serde::Serialize)]
@@ -35,6 +84,8 @@ struct BridgeStats {
     net_down_kb: u64, 
     mem_percent: f64,
     disk_percent: u64,
+    #[serde(flatten)]
+    media: MediaStats,
 }
 
 #[derive(serde::Serialize)]
@@ -44,6 +95,9 @@ struct PortStatus {
     status_text: String,
     target_ip: String,
 }
+
+
+// Functions 
 
 #[tauri::command]
 fn set_autostart(app: tauri::AppHandle, enable: bool) -> Result<(), String> {
@@ -133,7 +187,7 @@ async fn toggle_connection(state: tauri::State<'_, AppState>, port_name: String,
         port_name.clone()
     };
 
-    match serialport::new(actual_port, 115200).timeout(Duration::from_millis(100)).open() {
+    match serialport::new(actual_port, SERIAL_BAUD_RATE).timeout(Duration::from_millis(SERIAL_TIMEOUT_MS)).open() {
         Ok(p) => {
             *port_guard = Some(p);
             *name_guard = port_name;
@@ -159,7 +213,7 @@ async fn fetch_device_data(state: tauri::State<'_, AppState>) -> Result<String, 
         if ip.is_empty() { return Err("No IP".into()); }
         let url = format!("http://{}/update", ip);
         
-        let agent = ureq::builder().timeout(Duration::from_secs(2)).build();
+        let agent = ureq::builder().timeout(Duration::from_secs(FETCH_CONFIG_TIMEOUT_SEC)).build();
         match agent.get(&url).call() {
             Ok(response) => response.into_string().map_err(|e| e.to_string()),
             Err(e) => Err(e.to_string())
@@ -168,10 +222,10 @@ async fn fetch_device_data(state: tauri::State<'_, AppState>) -> Result<String, 
         state.latest_config.lock().unwrap().clear();
         state.command_queue.lock().unwrap().push("GET_UPDATE\n".to_string());
         
-        for _ in 0..30 {
+        for _ in 0..FETCH_CONFIG_MAX_RETRIES {
             let cfg = state.latest_config.lock().unwrap().clone();
             if !cfg.is_empty() { return Ok(cfg); }
-            thread::sleep(Duration::from_millis(100));
+            thread::sleep(Duration::from_millis(FETCH_CONFIG_RETRY_DELAY_MS));
         }
         Err("Serial timeout".into())
     } else {
@@ -188,7 +242,7 @@ async fn save_device_settings(state: tauri::State<'_, AppState>, query: String, 
         if ip.is_empty() { return Err("No IP".into()); }
         let url = format!("http://{}/save?{}", ip, query);
         
-        let agent = ureq::builder().timeout(Duration::from_secs(12)).build();
+        let agent = ureq::builder().timeout(Duration::from_secs(SAVE_CONFIG_TIMEOUT_SEC)).build();
         match agent.get(&url).call() {
             Ok(_) => Ok("Success".into()),
             Err(e) => Err(e.to_string())
@@ -202,7 +256,7 @@ async fn save_device_settings(state: tauri::State<'_, AppState>, query: String, 
 }
 
 fn show_window_safely(window: tauri::WebviewWindow) {
-    let _ = window.set_min_size(Some(Size::Logical(LogicalSize { width: 450.0, height: 450.0 })));
+    let _ = window.set_min_size(Some(Size::Logical(LogicalSize { width: WINDOW_MIN_WIDTH, height: WINDOW_MIN_HEIGHT })));
     let _ = window.unminimize(); 
     let _ = window.show();
     let _ = window.set_focus();
@@ -221,6 +275,7 @@ fn main() {
         serial_buffer: Mutex::new(String::new()),
         latest_config: Mutex::new(String::new()),
         user_forced_wifi: Mutex::new(false),
+        media_info: Mutex::new(MediaStats::default()),
     };
 
     let my_pc_id = match get_mac_address() {
@@ -268,6 +323,115 @@ fn main() {
                 })
                 .build(app)?;
             
+            let app_handle_media = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                match MediaSourceBuilder::new().build().await {
+                    Ok(source) => {                        
+                        let mut current_player: Option<String> = None;
+
+                        if let Ok(players) = source.list_players().await {
+                            for player_name in players {
+                                if let Ok(info) = source.get_player(&player_name).await {
+                                    let has_title = info.current_track.as_ref().map_or(false, |t| !t.title.trim().is_empty());
+                                    if !has_title { continue; }
+                                    
+                                    let status = format!("{:?}", info.playback_state).to_lowercase();
+                                    if status == "playing" || status == "paused" {
+                                        current_player = Some(player_name.clone());
+                                        let state = app_handle_media.state::<AppState>();
+                                        let mut m = state.media_info.lock().unwrap();
+                                        m.media_status = status.clone();
+                                        if let Some(track) = info.current_track {
+                                            m.media_name = any_ascii(&track.title);
+                                            m.media_author = any_ascii(&track.artist.join(", "));
+                                            m.media_album = any_ascii(&track.album.unwrap_or_default());
+                                        }
+                                        if status == "playing" { break; }
+                                    }
+                                }
+                            }
+                        }
+
+                        if let Ok(mut stream) = source.event_stream().await {
+                            while let Some(event) = stream.next().await {
+                                if matches!(event, MediaEvent::PositionChanged { .. }) { continue; }
+
+                                match event {
+                                    MediaEvent::TrackChanged { player_name, .. } | MediaEvent::StateChanged { player_name, .. } => {
+                                        if let Ok(info) = source.get_player(&player_name).await {
+                                            let status = format!("{:?}", info.playback_state).to_lowercase();
+                                            let has_title = info.current_track.as_ref().map_or(false, |t| !t.title.trim().is_empty());
+
+                                            if has_title {
+                                                let is_stealing_focus = status == "playing";
+                                                let is_current = current_player.as_ref() == Some(&player_name);
+
+                                                if is_stealing_focus || is_current {
+                                                    current_player = Some(player_name.clone());
+                                                    let state = app_handle_media.state::<AppState>();
+                                                    let mut m = state.media_info.lock().unwrap();
+                                                    m.media_status = status.clone();
+                                                    if let Some(track) = info.current_track {
+                                                        m.media_name = any_ascii(&track.title);
+                                                        m.media_author = any_ascii(&track.artist.join(", "));
+                                                        m.media_album = any_ascii(&track.album.unwrap_or_default());
+                                                    }
+                                                }
+                                            } else if status == "stopped" && current_player.as_ref() == Some(&player_name) {
+                                                current_player = None;
+                                                let state = app_handle_media.state::<AppState>();
+                                                let mut m = state.media_info.lock().unwrap();
+                                                m.media_status = "stopped".to_string();
+                                                m.media_name = String::new();
+                                                m.media_author = String::new();
+                                                m.media_album = String::new();
+                                            }
+                                        }
+                                    },
+                                    MediaEvent::PlayerRemoved { player_name } => {
+                                        if current_player.as_ref() == Some(&player_name) {
+                                            current_player = None;
+                                            let state = app_handle_media.state::<AppState>();
+                                            let mut m = state.media_info.lock().unwrap();
+                                            m.media_status = "stopped".to_string();
+                                            m.media_name = String::new();
+                                            m.media_author = String::new();
+                                            m.media_album = String::new();
+                                        }
+                                    },
+                                    _ => {}
+                                }
+
+                                if current_player.is_none() {
+                                    if let Ok(players) = source.list_players().await {
+                                        for p_name in players {
+                                            if let Ok(info) = source.get_player(&p_name).await {
+                                                let status = format!("{:?}", info.playback_state).to_lowercase();
+                                                let has_title = info.current_track.as_ref().map_or(false, |t| !t.title.trim().is_empty());
+                                                
+                                                if has_title && (status == "playing" || status == "paused") {
+                                                    current_player = Some(p_name.clone());
+                                                    let state = app_handle_media.state::<AppState>();
+                                                    let mut m = state.media_info.lock().unwrap();
+                                                    m.media_status = status;
+                                                    if let Some(track) = info.current_track {
+                                                        m.media_name = any_ascii(&track.title);
+                                                        m.media_author = any_ascii(&track.artist.join(", "));
+                                                        m.media_album = any_ascii(&track.album.unwrap_or_default());
+                                                    }
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    Err(_) => {}
+                }
+            });
+
             let app_handle_mdns = app.handle().clone();
             thread::spawn(move || {
                 let mdns = ServiceDaemon::new().expect("Failed to create mDNS daemon");
@@ -307,11 +471,12 @@ fn main() {
                 let mut wifi_failures = 0; 
                 let mut background_scanning = false;
                 let mut previous_target = String::new();
+                let mut wifi_tick = 0;
                 
                 let agent = ureq::builder()
-                    .timeout_connect(Duration::from_millis(500))
-                    .timeout_read(Duration::from_millis(500))
-                    .timeout_write(Duration::from_millis(500))
+                    .timeout_connect(Duration::from_millis(HTTP_REQUEST_TIMEOUT_MS))
+                    .timeout_read(Duration::from_millis(HTTP_REQUEST_TIMEOUT_MS))
+                    .timeout_write(Duration::from_millis(HTTP_REQUEST_TIMEOUT_MS))
                     .build();
 
                 loop {
@@ -332,12 +497,15 @@ fn main() {
                     let total_rx_bytes: u64 = networks.iter().map(|(_, n)| n.received()).sum();
                     let download_kb = total_rx_bytes / 1024; 
 
+                    let media_data = state.media_info.lock().unwrap().clone();
+
                     let data = BridgeStats { 
                         pc_id: thread_pc_id.clone(),
                         cpu_percent: cpu, 
                         net_down_kb: download_kb, 
                         mem_percent: ram, 
-                        disk_percent: disk_usage 
+                        disk_percent: disk_usage,
+                        media: media_data
                     };
                     
                     let payload = serde_json::to_string(&data).unwrap_or("{}".to_string());
@@ -373,10 +541,10 @@ fn main() {
                     // 2. USB SCANNER
                     if !is_port_open && !manual_disconnect && !user_forced_wifi {
                         scan_counter += 1;
-                        if scan_counter > 2 { 
+                        if scan_counter > USB_SCAN_INTERVAL_TICKS { 
                             scan_counter = 0;
                             if !target_port.is_empty() {
-                                if let Ok(p) = serialport::new(target_port.clone(), 115200).timeout(Duration::from_millis(100)).open() {
+                                if let Ok(p) = serialport::new(target_port.clone(), SERIAL_BAUD_RATE).timeout(Duration::from_millis(SERIAL_TIMEOUT_MS)).open() {
                                     let mut port_guard = state.port.lock().unwrap();
                                     *port_guard = Some(p);
                                     *state.active_port_name.lock().unwrap() = format!("Serial: {}", target_port);
@@ -394,13 +562,13 @@ fn main() {
                             let mut cmds = state.command_queue.lock().unwrap();
                             let has_cmds = !cmds.is_empty();
                             for cmd in cmds.iter() {
-                                for chunk in cmd.as_bytes().chunks(64) {
+                                for chunk in cmd.as_bytes().chunks(SERIAL_CHUNK_SIZE) {
                                     let _ = port.write(chunk);
-                                    thread::sleep(Duration::from_millis(5)); 
+                                    thread::sleep(Duration::from_millis(SERIAL_CHUNK_DELAY_MS)); 
                                 }
                             }
                             cmds.clear();
-                            if has_cmds { thread::sleep(Duration::from_millis(150)); }
+                            if has_cmds { thread::sleep(Duration::from_millis(SERIAL_CMD_DELAY_MS)); }
 
                             if port.write(format!("{}\n", payload).as_bytes()).is_ok() {
                                 sent_via_serial = true;
@@ -409,7 +577,7 @@ fn main() {
                                 *state.status_msg.lock().unwrap() = "🔌 Connected via USB".to_string();
                                 *state.target_wifi_ip.lock().unwrap() = String::new(); 
                                 
-                                let mut temp_buf: Vec<u8> = vec![0; 1024];
+                                let mut temp_buf: Vec<u8> = vec![0; SERIAL_READ_BUFFER_SIZE];
                                 while let Ok(bytes_read) = port.read(&mut temp_buf) {
                                     if bytes_read == 0 { break; }
                                     let incoming = String::from_utf8_lossy(&temp_buf[..bytes_read]);
@@ -458,56 +626,62 @@ fn main() {
                         }
                         
                         if !target_ip.is_empty() {
-                            let url = format!("http://{}/pc-stats", target_ip); 
-                            
-                            match agent.post(&url)
-                                .set("Content-Type", "application/json")
-                                .set("Connection", "close")
-                                .send_string(&payload) {
-                                Ok(_) => {
-                                    wifi_failures = 0; 
-                                    background_scanning = false;
-                                    let wifi_map = state.discovered_wifi.lock().unwrap();
-                                    let pretty_name = wifi_map.get(&target_ip).unwrap_or(&target_ip).clone();
-                                    let ui_string = format!("WiFi: {} ({})", pretty_name, target_ip);
-                                    
-                                    *state.status_msg.lock().unwrap() = "📶 Connected via WiFi".to_string();
-                                    *state.active_port_name.lock().unwrap() = ui_string;
-                                }
-                                Err(ureq::Error::Status(403, _)) => {
-                                    *state.status_msg.lock().unwrap() = "❌ Device already paired to another PC".to_string();
-                                    *state.active_port_name.lock().unwrap() = String::new();
-                                    *state.target_wifi_ip.lock().unwrap() = String::new();
-                                    state.discovered_wifi.lock().unwrap().remove(&target_ip);
-                                    background_scanning = true; 
-                                }
-                                Err(_) => {
-                                    wifi_failures += 1;
-                                    
-                                    if !background_scanning && wifi_failures <= 6 { 
-                                        *state.status_msg.lock().unwrap() = "⏳ Reconnecting...".to_string();
-                                    } else {
-                                        background_scanning = true;
-                                        *state.status_msg.lock().unwrap() = "⏳ Scanning network for devices...".to_string();
-                                        *state.active_port_name.lock().unwrap() = String::new();
-                                        *state.user_forced_wifi.lock().unwrap() = false; 
-                                        
+                            wifi_tick += 1;
+
+                            if wifi_tick >= WIFI_THROTTLE_TICKS {
+                                wifi_tick = 0; 
+                                
+                                let url = format!("http://{}/pc-stats", target_ip); 
+                                
+                                match agent.post(&url)
+                                    .set("Content-Type", "application/json")
+                                    .set("Connection", "close")
+                                    .send_string(&payload) {
+                                    Ok(_) => {
+                                        wifi_failures = 0; 
+                                        background_scanning = false;
                                         let wifi_map = state.discovered_wifi.lock().unwrap();
-                                        if !wifi_map.is_empty() {
-                                            let ips: Vec<String> = wifi_map.keys().cloned().collect();
-                                            if let Some(pos) = ips.iter().position(|x| x == &target_ip) {
-                                                let next_pos = (pos + 1) % ips.len();
-                                                let next_ip = ips[next_pos].clone();
-                                                *state.target_wifi_ip.lock().unwrap() = next_ip.clone();
-                                                previous_target = next_ip;
-                                            } else {
-                                                let next_ip = ips[0].clone();
-                                                *state.target_wifi_ip.lock().unwrap() = next_ip.clone();
-                                                previous_target = next_ip;
-                                            }
+                                        let pretty_name = wifi_map.get(&target_ip).unwrap_or(&target_ip).clone();
+                                        let ui_string = format!("WiFi: {} ({})", pretty_name, target_ip);
+                                        
+                                        *state.status_msg.lock().unwrap() = "📶 Connected via WiFi".to_string();
+                                        *state.active_port_name.lock().unwrap() = ui_string;
+                                    }
+                                    Err(ureq::Error::Status(403, _)) => {
+                                        *state.status_msg.lock().unwrap() = "❌ Device already paired to another PC".to_string();
+                                        *state.active_port_name.lock().unwrap() = String::new();
+                                        *state.target_wifi_ip.lock().unwrap() = String::new();
+                                        state.discovered_wifi.lock().unwrap().remove(&target_ip);
+                                        background_scanning = true; 
+                                    }
+                                    Err(_) => {
+                                        wifi_failures += 1;
+                                        
+                                        if !background_scanning && wifi_failures <= MAX_WIFI_FAILURES { 
+                                            *state.status_msg.lock().unwrap() = "⏳ Reconnecting...".to_string();
                                         } else {
-                                            *state.target_wifi_ip.lock().unwrap() = String::new();
-                                            previous_target = String::new();
+                                            background_scanning = true;
+                                            *state.status_msg.lock().unwrap() = "⏳ Scanning network for devices...".to_string();
+                                            *state.active_port_name.lock().unwrap() = String::new();
+                                            *state.user_forced_wifi.lock().unwrap() = false; 
+                                            
+                                            let wifi_map = state.discovered_wifi.lock().unwrap();
+                                            if !wifi_map.is_empty() {
+                                                let ips: Vec<String> = wifi_map.keys().cloned().collect();
+                                                if let Some(pos) = ips.iter().position(|x| x == &target_ip) {
+                                                    let next_pos = (pos + 1) % ips.len();
+                                                    let next_ip = ips[next_pos].clone();
+                                                    *state.target_wifi_ip.lock().unwrap() = next_ip.clone();
+                                                    previous_target = next_ip;
+                                                } else {
+                                                    let next_ip = ips[0].clone();
+                                                    *state.target_wifi_ip.lock().unwrap() = next_ip.clone();
+                                                    previous_target = next_ip;
+                                                }
+                                            } else {
+                                                *state.target_wifi_ip.lock().unwrap() = String::new();
+                                                previous_target = String::new();
+                                            }
                                         }
                                     }
                                 }
@@ -520,7 +694,7 @@ fn main() {
                         *state.status_msg.lock().unwrap() = "⏸️ Disconnected".to_string();
                     }
 
-                    thread::sleep(Duration::from_secs(1));
+                    thread::sleep(Duration::from_millis(LOOP_INTERVAL_MS));
                 }
             });
             Ok(())

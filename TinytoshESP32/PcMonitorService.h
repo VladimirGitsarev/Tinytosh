@@ -21,7 +21,7 @@ private:
     void parseJson(const char* jsonString, AppState &state);
     bool parseConfigJson(const char* jsonString, AppState &state);
 
-    const unsigned long DATA_TIMEOUT_MS = 3000;
+    const unsigned long DATA_TIMEOUT_MS = 5000;
 };
 
 #endif

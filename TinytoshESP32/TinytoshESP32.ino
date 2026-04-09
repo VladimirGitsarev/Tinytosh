@@ -1,7 +1,9 @@
 #include <WiFi.h>
 #include <WiFiManager.h>
 #include <ArduinoJson.h>
+#include <OneButton.h>
 #include "structs.h"
+#include "images.h"
 #include "ConfigManager.h"
 #include "TimeService.h"
 #include "WeatherService.h"
@@ -29,7 +31,6 @@ const int CONTRAST_MAX = 255;
 
 // TTP223 Button Settings
 const int BUTTON_PIN = 10;
-const unsigned long DEBOUNCE_DELAY = 50;
 
 // Global Data Structure
 AppState appState;
@@ -53,9 +54,9 @@ unsigned long lastScreenSwitch = 0;
 int currentScreen = 0;
 bool nightModeLatched = false;
 
-int buttonState;             
-int lastButtonState = LOW;   
-unsigned long lastDebounceTime = 0;  
+OneButton button(BUTTON_PIN, false, false); 
+unsigned long lastInteractionTime = 0; 
+unsigned long lastScreenUpdate = 0;
 
 // Helper Functions
 
@@ -85,7 +86,7 @@ void switchToNextScreen() {
 
     int candidateId = appState.config.screen_order[checkIndex];
     
-    if (displayService.isScreenEnabled(appState.config, candidateId)) {
+    if (displayService.isScreenEnabled(appState, candidateId)) {
       nextScreenCandidate = candidateId;
       foundVisible = true;
       break;
@@ -102,7 +103,7 @@ void switchToNextScreen() {
 int getFirstEnabledScreen() {
   for (int i = 0; i < NUM_SCREENS; i++) {
     int screenId = appState.config.screen_order[i];
-    if (displayService.isScreenEnabled(appState.config, screenId)) {
+    if (displayService.isScreenEnabled(appState, screenId)) {
       return screenId;
     }
   }
@@ -133,6 +134,51 @@ bool isNightModeActive() {
 }
 
 // Core Application Logic
+
+void handleSingleClick() {
+  bool wasScreenOff = (nightModeLatched && appState.config.night_action == 2 && (millis() - lastInteractionTime >= NIGHT_WAKE_DURATION_MS));
+
+  if (wasScreenOff) {
+    Serial.println("🌙 Night Mode: Waking display temporarily on Primary Screen.");
+    currentScreen = getFirstEnabledScreen();
+    
+    displayService.display.ssd1306_command(SSD1306_SETCONTRAST);
+    displayService.display.ssd1306_command(CONTRAST_DIM);
+  } else {
+    Serial.println("👆 Button Pressed: Switching Screen");
+    if (nightModeLatched) {
+      displayService.display.ssd1306_command(SSD1306_SETCONTRAST);
+      displayService.display.ssd1306_command((appState.config.night_action == 0) ? CONTRAST_MAX : CONTRAST_DIM);
+    }
+    switchToNextScreen();
+  }
+  
+  lastScreenSwitch = millis();
+  lastInteractionTime = millis();
+  lastScreenUpdate = 0;
+}
+
+void handleLongPress() {
+  appState.config.screen_auto_cycle = !appState.config.screen_auto_cycle;
+  
+  if (appState.config.screen_auto_cycle) {
+    Serial.println("🔄 Auto Cycle: ENABLED");
+    displayService.drawInfoScreen(icon_unlock, "Auto Cycle On");
+    displayService.display.display();
+  } else {
+    Serial.println("🔒 Auto Cycle: DISABLED (Screen Locked)");
+    displayService.drawInfoScreen(icon_lock, "Auto Cycle Off");
+    displayService.display.display();
+  }
+  
+  configManager.saveConfig(appState.config);
+  
+  delay(1000); 
+  
+  lastScreenUpdate = 0; 
+  lastScreenSwitch = millis(); 
+  lastInteractionTime = millis();
+}
 
 void updateAllData() {
   nightModeLatched = false;
@@ -199,8 +245,13 @@ void updateAllDataCallback() {
 }
 
 void setup() {
+  Serial.setRxBufferSize(1024);
   Serial.begin(115200);
-  pinMode(BUTTON_PIN, INPUT);
+  button.attachClick(handleSingleClick);
+  button.attachLongPressStart(handleLongPress);
+  button.setDebounceTicks(50); 
+  button.setClickTicks(100);
+  button.setPressTicks(750);
   delay(100);
   // configManager.clearAllPreferences();
 
@@ -258,6 +309,7 @@ void setup() {
 
 void loop() {
   webServerService.handleClient();
+  button.tick();
 
   if (pcMonitorService.handleSerial(appState)) {
     Serial.println("Config updated via USB! Saving and applying...");
@@ -267,9 +319,6 @@ void loop() {
 
   // 1. Night Latch Logic
   bool nightScheduleActive = isNightModeActive();
-  
-  static unsigned long lastScreenUpdate = 0;
-  static unsigned long lastInteractionTime = 0;
 
   if (!nightScheduleActive) {
     if (nightModeLatched) {
@@ -292,45 +341,7 @@ void loop() {
     }
   }
 
-  // 2. Button Press Handling
-  int reading = digitalRead(BUTTON_PIN);
-  if (reading != lastButtonState) {
-    lastDebounceTime = millis();
-  }
-
-  if ((millis() - lastDebounceTime) > DEBOUNCE_DELAY) {
-    if (reading != buttonState) {
-      buttonState = reading;
-      if (buttonState == HIGH) {
-        
-        // Calculate if the display is currently OFF due to Night Mode Action 2
-        bool wasScreenOff = (nightModeLatched && appState.config.night_action == 2 && (millis() - lastInteractionTime >= NIGHT_WAKE_DURATION_MS));
-        
-        if (wasScreenOff) {
-          Serial.println("👀 Night Mode: Waking display temporarily on Primary Screen.");
-          currentScreen = getFirstEnabledScreen();
-          
-          // Pre-emptively dim hardware
-          displayService.display.ssd1306_command(SSD1306_SETCONTRAST);
-          displayService.display.ssd1306_command(CONTRAST_DIM);
-        } else {
-          Serial.println("🔘 Button Pressed: Switching Screen");
-          if (nightModeLatched) {
-            displayService.display.ssd1306_command(SSD1306_SETCONTRAST);
-            displayService.display.ssd1306_command((appState.config.night_action == 0) ? CONTRAST_MAX : CONTRAST_DIM);
-          }
-          switchToNextScreen();
-        }
-        
-        lastScreenSwitch = millis();
-        lastInteractionTime = millis();
-        lastScreenUpdate = 0;
-      }
-    }
-  }
-  lastButtonState = reading;
-
-  // 3. Scheduled Data Refresh
+  // 2. Scheduled Data Refresh
   static unsigned long lastDataUpdate = 0;
   unsigned long dataInterval = appState.config.refresh_interval_min * 60 * 1000;
   if (nightModeLatched) {
@@ -347,7 +358,7 @@ void loop() {
     lastDataUpdate = millis();
   }
 
-  // 4. Auto Screen Switching Logic
+  // 3. Auto Screen Switching Logic
   if (appState.config.screen_auto_cycle && !nightModeLatched) {
     unsigned long intervalMs = appState.config.screen_interval_sec * 1000;
     if (millis() - lastScreenSwitch >= intervalMs) {
@@ -356,7 +367,7 @@ void loop() {
     }
   }
 
-  // 5. Screen Redraw & Visual Action Logic
+  // 4. Screen Redraw & Visual Action Logic
   static bool screenClearedForNight = false;
   bool isScreenOffAction = (nightModeLatched && appState.config.night_action == 2);
   bool isTemporarilyAwake = isScreenOffAction && (millis() - lastInteractionTime < NIGHT_WAKE_DURATION_MS);

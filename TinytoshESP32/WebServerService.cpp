@@ -77,6 +77,7 @@ String WebServerService::generateRootPageContent() {
   CurrencyData& currency = state->currency;
   StockData& stock = state->stock;
   PcStats& pc = state->pc;
+  PcMedia& media = state->media;
   
   bool weatherValid = !isnan(weather.temp);
   bool aqiValid = !isnan(aqi.pm25) && !isnan(aqi.pm10) && !isnan(aqi.no2);
@@ -193,7 +194,7 @@ String WebServerService::generateRootPageContent() {
   
   // Auto Cycle Checkbox
   content += "<label class='checkbox-label mt-0' style='margin-top: 10px !important;'><input type='checkbox' id='autoCycle' name='auto_cycle' value='1' " + String(config.screen_auto_cycle ? "checked" : "") + "> Cycle Screens Automatically</label>";
-  content += "<p class='help-text mt-0' style='margin-left: 24px;'>If disabled, screens will only change when you press the button.</p>";
+  content += "<p class='help-text mt-0'>If disabled, screens will only change when you press the button.</p>";
   
   // Screen Cycle Interval
   content += "<label>Screen Cycle Interval (Secs):</label><input type='number' id='screenIntInput' name='screen_int' value='" + String(config.screen_interval_sec) + "'>";
@@ -242,7 +243,7 @@ String WebServerService::generateRootPageContent() {
 
   // Location Sub-section
   content += "<label class='checkbox-label mt-0'><input type='checkbox' id='autoDetect' name='auto_detect' value='1' " + String(config.auto_detect ? "checked" : "") + "> Detect Location Automatically (IP)</label>";
-  content += "<p class='help-text mt-0' style='margin-left: 24px; margin-bottom: 15px;'>Uses your IP address to determine city, coordinates, and timezone.</p>";
+  content += "<p class='help-text mt-0'>Uses your IP address to determine city, coordinates, and timezone.</p>";
 
   content += "<fieldset id='manualFields' class='collapsible'>";
   content += "<legend>Manual Location Entry</legend>";
@@ -267,7 +268,7 @@ String WebServerService::generateRootPageContent() {
   
   // Night Mode Sub-section
   content += "<label class='checkbox-label mt-0'><input type='checkbox' id='nightMode' name='night_mode' value='1' " + String(config.night_mode ? "checked" : "") + "> Enable Night Mode</label>";
-  content += "<p class='help-text mt-0' style='margin-left: 24px; margin-bottom: 15px;'>Set a quiet schedule to pause animations, dim the screen, or save API calls.</p>";
+  content += "<p class='help-text mt-0'>Set a quiet schedule to pause animations, dim the screen, or save API calls.</p>";
 
   content += "<fieldset id='nightFields' class='collapsible'>";
   content += "<legend>Night Schedule</legend>";
@@ -289,8 +290,7 @@ String WebServerService::generateRootPageContent() {
   
   content += "<ul id='sortable-list' class='sortable-list'>";
   
-  for (int i = 0; i < NUM_SCREENS; i++) {
-    int screenId = config.screen_order[i];
+  for (int screenId = 0; screenId < NUM_SCREENS; screenId++) {
     
     String targetId = "";
     switch(screenId) {
@@ -301,6 +301,7 @@ String WebServerService::generateRootPageContent() {
       case SCREEN_CURRENCY: targetId = "showCurrency"; break;
       case SCREEN_STOCK: targetId = "showStock"; break;
       case SCREEN_PC_MONITOR: targetId = "showPc"; break;
+      case SCREEN_PC_MEDIA: targetId = "showMedia"; break;
     }
     
     content += "<li class='sortable-item' data-id='" + String(screenId) + "' data-target='" + targetId + "' draggable='true'>";
@@ -313,12 +314,13 @@ String WebServerService::generateRootPageContent() {
   content += "</div>";
 
   // Dynamic Screen Panels
+  content += "<div id='dynamic-panels-container'>";
   for (int i = 0; i < NUM_SCREENS; i++) {
       int screenId = config.screen_order[i];
 
       switch (screenId) {
           case SCREEN_TIME: {
-              content += "<div class='panel'>";
+              content += "<div class='panel' id='panel-" + String(screenId) + "'>";
               content += "<label class='checkbox-label mt-0'><input type='checkbox' id='showTime' name='show_time' value='1' " + String(config.show_time ? "checked" : "") + "> Time Screen</label>";
 
               content += "<div id='timeContent' class='collapsible'>";
@@ -342,7 +344,7 @@ String WebServerService::generateRootPageContent() {
           }
           
           case SCREEN_WEATHER: {
-              content += "<div class='panel'>";
+              content += "<div class='panel' id='panel-" + String(screenId) + "'>";
               content += "<label class='checkbox-label mt-0'><input type='checkbox' id='showWeather' name='show_weather' value='1' " + String(config.show_weather ? "checked" : "") + "> Weather Screen</label>";
               content += "<div id='weatherContent' class='collapsible'>";
               
@@ -372,7 +374,7 @@ String WebServerService::generateRootPageContent() {
           }
 
           case SCREEN_AIR_QUALITY: {
-              content += "<div class='panel'>";
+              content += "<div class='panel' id='panel-" + String(screenId) + "'>";
               content += "<label class='checkbox-label mt-0'><input type='checkbox' id='showAQI' name='show_aqi' value='1' " + String(config.show_aqi ? "checked" : "") + "> Air Quality Screen</label>";
               content += "<div id='aqiContent' class='collapsible'>";
 
@@ -395,14 +397,14 @@ String WebServerService::generateRootPageContent() {
               content += "<label>AQI Standard:</label><div class='radio-group'>";
               content += "<label class='radio-label'><input type='radio' name='aqi_type' value='US' " + String(config.aqi_type == "US" ? "checked" : "") + "> US Standard</label>";
               content += "<label class='radio-label'><input type='radio' name='aqi_type' value='EU' " + String(config.aqi_type == "EU" ? "checked" : "") + "> European Standard</label></div>";
-              content += "<p class='help-text mt-0' style='margin-bottom: 15px;'>EU: 0-100+ scale | US: 0-500 scale</p>";
+              content += "<p class='help-text mt-0'>EU: 0-100+ scale | US: 0-500 scale</p>";
 
               content += "</div></div>";
               break;
           }
 
           case SCREEN_STOCK: {
-              content += "<div class='panel'>";
+              content += "<div class='panel' id='panel-" + String(screenId) + "'>";
               content += "<label class='checkbox-label mt-0'><input type='checkbox' id='showStock' name='show_stock' value='1' " + String(config.show_stock ? "checked" : "") + "> Stock Tracking Screen</label>";
               content += "<div id='stockContent' class='collapsible'>";
               
@@ -433,7 +435,7 @@ String WebServerService::generateRootPageContent() {
           }
 
           case SCREEN_CRYPTO: {
-              content += "<div class='panel'>";
+              content += "<div class='panel' id='panel-" + String(screenId) + "'>";
               content += "<label class='checkbox-label mt-0'><input type='checkbox' id='showCrypto' name='show_crypto' value='1' " + String(config.show_crypto ? "checked" : "") + "> Crypto Tracking Screen</label>";
               content += "<div id='cryptoContent' class='collapsible'>";
               
@@ -462,7 +464,7 @@ String WebServerService::generateRootPageContent() {
           }
 
           case SCREEN_CURRENCY: {
-              content += "<div class='panel'>";
+              content += "<div class='panel' id='panel-" + String(screenId) + "'>";
               content += "<label class='checkbox-label mt-0'><input type='checkbox' id='showCurrency' name='show_currency' value='1' " + String(config.show_currency ? "checked" : "") + "> Currency Exchange Screen</label>";
               content += "<div id='currencyContent' class='collapsible'>";
               
@@ -518,7 +520,7 @@ String WebServerService::generateRootPageContent() {
           }
 
           case SCREEN_PC_MONITOR: {
-              content += "<div class='panel'>";
+              content += "<div class='panel' id='panel-" + String(screenId) + "'>";
               content += "<label class='checkbox-label mt-0'><input type='checkbox' id='showPc' name='show_pc' value='1' " + String(config.show_pc ? "checked" : "") + "> PC Monitoring Screen</label>";
               content += "<div id='pcContent' class='collapsible'>";
               
@@ -536,19 +538,38 @@ String WebServerService::generateRootPageContent() {
               content += "<div class='tile'><div class='tile-icon'>💽</div><div class='tile-value' id='pc-disk'>" + String((int)round(pc.disk_percent)) + "%</div><div class='tile-label'>Disk Usage</div></div>";
               content += "<div class='tile'><div class='tile-icon'>⬇️</div><div class='tile-value' id='pc-net'>" + String((int)round(pc.net_down_kb)) + " KB/s</div><div class='tile-label'>Download</div></div>";      
               content += "</div></div>";
+              content += "<label class='checkbox-label'><input type='checkbox' name='hide_empty_pc' value='1' " + String(config.hide_empty_pc ? "checked" : "") + "> Hide empty screen</label>";
+              content += "<p class='help-text mt-0'>Screen is excluded from rotation when there is no data.</p>";
+              content += "</div></div>";
+              break;
+          }
+
+          case SCREEN_PC_MEDIA: {
+              content += "<div class='panel' id='panel-" + String(screenId) + "'>";
+              content += "<label class='checkbox-label mt-0'><input type='checkbox' id='showMedia' name='show_media' value='1' " + String(config.show_media ? "checked" : "") + "> PC Media Screen</label>";
+              content += "<div id='mediaContent' class='collapsible'>";
+              content += "<div class='dashboard-grid'>";
+              content += "<div class='tile'><div class='tile-icon'>🎵</div><div class='tile-value' id='web-media-status' style='font-size:1.2rem'>" + media.status + "</div><div class='tile-label'>Status</div></div>";
+              content += "<div class='tile'><div class='tile-icon'>🎧</div><div class='tile-value' id='web-media-name' style='font-size:1.2rem'>" + media.name + "</div><div class='tile-label'>Track</div></div>";
+              content += "<div class='tile'><div class='tile-icon'>👤</div><div class='tile-value' id='web-media-author' style='font-size:1.2rem'>" + media.author + "</div><div class='tile-label'>Author</div></div>";
+              content += "<div class='tile'><div class='tile-icon'>💿</div><div class='tile-value' id='web-media-album' style='font-size:1.2rem'>" + media.album + "</div><div class='tile-label'>Album</div></div>";
+              content += "</div>";
+              content += "<label class='checkbox-label'><input type='checkbox' name='hide_empty_media' value='1' " + String(config.hide_empty_media ? "checked" : "") + "> Hide empty screen</label>";
+              content += "<p class='help-text mt-0'>Screen is excluded from rotation when there is no data.</p>";
               content += "</div></div>";
               break;
           }
       }
   }
 
+  content += "</div>";
   content += "<button type='submit'>💾 Save & Apply All Settings</button></form>";
   
   content += "<script>";
   content += "let formDirty = false;";
   content += "function updateVisibility(){";
   
-  content += "  var pairs = [['autoDetect','manualFields',true], ['nightMode','nightFields',false], ['showTime', 'timeContent',false], ['showWeather','weatherContent',false], ['showPc','pcContent',false], ['showCrypto','cryptoContent',false], ['showCurrency','currencyContent',false], ['showStock','stockContent',false], ['showAQI','aqiContent',false]];";
+  content += "  var pairs = [['autoDetect','manualFields',true], ['nightMode','nightFields',false], ['showTime', 'timeContent',false], ['showWeather','weatherContent',false], ['showPc','pcContent',false], ['showCrypto','cryptoContent',false], ['showCurrency','currencyContent',false], ['showStock','stockContent',false], ['showAQI','aqiContent',false], ['showMedia','mediaContent',false]];";  
   content += "  pairs.forEach(p => {";
   content += "    var ch = document.getElementById(p[0]); if(!ch) return;";
   content += "    var target = document.getElementById(p[1]);";
@@ -562,7 +583,7 @@ String WebServerService::generateRootPageContent() {
   content += "  if(ac && si) si.disabled = !ac.checked;";
   content += "}";
   
-  content += "['autoDetect', 'nightMode', 'showTime', 'showWeather', 'showPc', 'showCrypto', 'showCurrency', 'showStock', 'showAQI', 'autoCycle'].forEach(id => { var el=document.getElementById(id); if(el) el.addEventListener('change', updateVisibility); });";
+  content += "['autoDetect', 'nightMode', 'showTime', 'showWeather', 'showPc', 'showCrypto', 'showCurrency', 'showStock', 'showAQI', 'showMedia', 'autoCycle'].forEach(id => { var el=document.getElementById(id); if(el) el.addEventListener('change', updateVisibility); });";
   content += "updateVisibility();";
 
   // Handle "None" Checkbox Logic
@@ -618,13 +639,24 @@ String WebServerService::generateRootPageContent() {
   content += "  updateOrderValue();";
   content += "}";
 
+  content += "function reorderPhysicalPanels(orderCsv) {";
+  content += "  const container = document.getElementById('dynamic-panels-container');";
+  content += "  if (!container || !orderCsv) return;";
+  content += "  const orderArr = orderCsv.split(',');";
+  content += "  orderArr.forEach(id => {";
+  content += "    const panel = document.getElementById('panel-' + id);";
+  content += "    if (panel) container.appendChild(panel);";
+  content += "  });";
+  content += "}";
+
   content += "function updateOrderValue() {";
   content += "  const items = [...list.querySelectorAll('.sortable-item')];";
   content += "  orderInput.value = items.map(item => item.getAttribute('data-id')).join(',');";
+  content += "  reorderPhysicalPanels(orderInput.value);";
   content += "}";
 
   // Hook Checkboxes to the sync function
-  content += "const panelCheckboxes = ['showTime', 'showWeather', 'showAQI', 'showCrypto', 'showCurrency', 'showStock', 'showPc'];";
+  content += "const panelCheckboxes = ['showTime', 'showWeather', 'showAQI', 'showCrypto', 'showCurrency', 'showStock', 'showPc', 'showMedia'];";
   content += "panelCheckboxes.forEach(id => {";
   content += "  const el = document.getElementById(id);";
   content += "  if (el) el.addEventListener('change', syncScreenOrder);";
@@ -733,6 +765,9 @@ String WebServerService::generateRootPageContent() {
   content += "    setVal('currency_target', d.currency_target);";
   content += "    setVal('currency_multiplier', d.currency_multiplier);";
   content += "    setCb('currency_fn', d.currency_fn, true);";
+  content += "    setCb('showMedia', d.show_media);";
+  content += "    setCb('hide_empty_pc', d.hide_empty_pc, true);";
+  content += "    setCb('hide_empty_media', d.hide_empty_media, true);";
 
   content += "    const mask = d.anim_mask;";
   content += "    document.querySelectorAll('.anim-chk').forEach(cb => { cb.checked = (mask & parseInt(cb.value)) !== 0; });";
@@ -809,6 +844,14 @@ String WebServerService::generateRootPageContent() {
   content += "    set('stock-sym', d.stock_symbol + ' Price');"; 
   content += "    set('stock-upd', 'Last Update: ' + d.update_time);";
   content += "  }";
+
+  content += "  if (d.media_status !== undefined) {";
+  content += "    let s = d.media_status || 'stopped';";
+  content += "    set('web-media-status', s.charAt(0).toUpperCase() + s.slice(1));";
+  content += "    set('web-media-name', d.media_name || 'No Media');";
+  content += "    set('web-media-author', d.media_author || 'Unknown');";
+  content += "    set('web-media-album', d.media_album || 'Unknown');";
+  content += "  }";
   
   content += "  if (d.pc_status !== undefined) set('pc-link-status', d.pc_status);";
   content += "}).catch(e => console.log('Sync error:', e)); } setInterval(updateData, 15000); updateData();";
@@ -829,6 +872,7 @@ void WebServerService::handleSave() {
   CurrencyData& currency = state->currency;
   StockData& stock = state->stock;
   PcStats& pc = state->pc;
+  PcMedia& media = state->media;
 
   // 1. Update Screen Visibility & Master Toggles
   config.auto_detect = server.hasArg("auto_detect");
@@ -842,6 +886,10 @@ void WebServerService::handleSave() {
   config.show_pc = server.hasArg("show_pc");
   config.show_currency = server.hasArg("show_currency");
   config.show_stock = server.hasArg("show_stock");
+  config.show_media = server.hasArg("show_media");
+
+  config.hide_empty_pc = server.hasArg("hide_empty_pc");
+  config.hide_empty_media = server.hasArg("hide_empty_media");
 
   if (server.hasArg("screen_order")) {
     String orderStr = server.arg("screen_order");
@@ -942,6 +990,11 @@ void WebServerService::handleSave() {
     stock.updated = false;
   }
 
+  if (!config.show_media) {
+    media.status = "stopped";
+    media.name = "";
+  }
+
   if (config.refresh_interval_min <= 0) config.refresh_interval_min = 1; 
 
   if (saveCallback) {
@@ -960,6 +1013,7 @@ void WebServerService::handleUpdate() {
   CurrencyData& currency = state->currency;
   StockData& stock = state->stock;
   PcStats& pc = state->pc;
+  PcMedia& media = state->media;
 
   DynamicJsonDocument doc(3072); 
   
@@ -997,6 +1051,10 @@ void WebServerService::handleUpdate() {
   doc["aqi_type"] = config.aqi_type;
   
   doc["show_pc"] = config.show_pc ? 1 : 0;
+
+  doc["show_media"] = config.show_media ? 1 : 0;
+  doc["media_status"] = state->media.status;
+  doc["media_name"] = state->media.name;
   
   doc["show_stock"] = config.show_stock ? 1 : 0;
   doc["stock_symbol"] = config.stock_symbol;
@@ -1011,6 +1069,9 @@ void WebServerService::handleUpdate() {
   doc["currency_target"] = config.currency_target;
   doc["currency_multiplier"] = config.currency_multiplier;
   doc["currency_fn"] = config.currency_fn ? 1 : 0;
+
+  doc["hide_empty_pc"] = config.hide_empty_pc ? 1 : 0;
+  doc["hide_empty_media"] = config.hide_empty_media ? 1 : 0;
 
   String orderStr = "";
   for(int i = 0; i < NUM_SCREENS; i++) {
@@ -1041,13 +1102,6 @@ void WebServerService::handleUpdate() {
     doc["no2"] = String(aqi.no2, 1);
   }
 
-  if (pc.cpu_percent > 0.1) {
-    doc["pc_cpu"] = String(pc.cpu_percent);
-    doc["pc_net"] = String(pc.net_down_kb);
-    doc["pc_ram"] = String(pc.mem_percent);
-    doc["pc_disk"] = String(pc.disk_percent);
-  }
-
   if (!isnan(crypto.price_usd) && crypto.price_usd > 0) {
     doc["crypto_symbol"] = String(crypto.symbol);
     doc["crypto_price"] = String(crypto.price_usd);
@@ -1073,6 +1127,20 @@ void WebServerService::handleUpdate() {
     doc["stock_change"] = String(stock.percent_change, 2);
   }
 
+  if (pc.cpu_percent > 0.1) {
+    doc["pc_cpu"] = String(pc.cpu_percent);
+    doc["pc_net"] = String(pc.net_down_kb);
+    doc["pc_ram"] = String(pc.mem_percent);
+    doc["pc_disk"] = String(pc.disk_percent);
+  }
+
+  if (media.status.length() > 0) {
+    doc["media_status"] = media.status;
+    doc["media_name"] = media.name;
+    doc["media_author"] = media.author;
+    doc["media_album"] = media.album;
+  }
+
   String activeId = config.active_pc_id;
   int lastDashSync = activeId.lastIndexOf(':');
   if (lastDashSync > 3) activeId = activeId.substring(0, lastDashSync);
@@ -1093,7 +1161,8 @@ void WebServerService::handlePcStats() {
   }
   
   String body = server.arg("plain");
-  DynamicJsonDocument doc(512);
+  
+  DynamicJsonDocument doc(1024); 
   DeserializationError error = deserializeJson(doc, body);
   
   if (error) {
@@ -1110,11 +1179,18 @@ void WebServerService::handlePcStats() {
   if (millis() - state->pc.last_update > 5000 || state->config.active_pc_id == incoming_pc_id || state->config.active_pc_id == "") {
     
     state->config.active_pc_id = incoming_pc_id;
+    
     state->pc.cpu_percent = doc["cpu_percent"] | 0.0;
     state->pc.mem_percent = doc["mem_percent"] | 0.0;
     state->pc.disk_percent = doc["disk_percent"] | 0.0;
     state->pc.net_down_kb = doc["net_down_kb"] | 0.0;
     state->pc.last_update = millis();
+
+    state->media.status = doc["media_status"] | "stopped";
+    state->media.name = doc["media_name"] | "";
+    state->media.author = doc["media_author"] | "";
+    state->media.album = doc["media_album"] | "";
+    state->media.last_update = millis();
 
     server.send(200, "application/json", "{\"status\":\"ok\"}");
   } else {

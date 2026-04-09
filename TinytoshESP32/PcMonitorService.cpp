@@ -30,11 +30,18 @@ bool PcMonitorService::handleSerial(AppState &state) {
         state.pc.disk_percent = 0;
     }
 
+    if (millis() - state.media.last_update > DATA_TIMEOUT_MS) {
+        state.media.status = "stopped";
+        state.media.name = "";
+        state.media.author = "";
+        state.media.album = "";
+    }
+
     return configUpdated;
 }
 
 void PcMonitorService::parseJson(const char* jsonString, AppState &state) {
-    DynamicJsonDocument doc(512);
+    DynamicJsonDocument doc(1024); 
     DeserializationError error = deserializeJson(doc, jsonString);
 
     if (!error) {
@@ -43,12 +50,19 @@ void PcMonitorService::parseJson(const char* jsonString, AppState &state) {
         state.pc.disk_percent = doc["disk_percent"] | 0.0;
         state.pc.net_down_kb = doc["net_down_kb"] | 0.0;
         
+        state.media.status = doc["media_status"] | "stopped";
+        state.media.name = doc["media_name"] | "";
+        state.media.author = doc["media_author"] | "";
+        state.media.album = doc["media_album"] | "";
+        
         String incoming_id = doc["pc_id"] | "";
         if (incoming_id != "") {
             state.config.active_pc_id = incoming_id;
         }
         
-        state.pc.last_update = millis(); 
+        unsigned long current_time = millis();
+        state.pc.last_update = current_time; 
+        state.media.last_update = current_time;
     }
 }
 
@@ -96,6 +110,9 @@ void PcMonitorService::sendUpdateOverSerial(AppState &state) {
     doc["currency_target"] = config.currency_target;
     doc["currency_multiplier"] = config.currency_multiplier;
     doc["currency_fn"] = config.currency_fn ? 1 : 0;
+    doc["show_media"] = config.show_media ? 1 : 0;
+    doc["hide_empty_pc"] = config.hide_empty_pc ? 1 : 0;
+    doc["hide_empty_media"] = config.hide_empty_media ? 1 : 0;
 
     String orderStr = "";
     for(int i = 0; i < NUM_SCREENS; i++) {
@@ -110,6 +127,7 @@ void PcMonitorService::sendUpdateOverSerial(AppState &state) {
     CurrencyData& currency = state.currency;
     StockData& stock = state.stock;
     PcStats& pc = state.pc;
+    PcMedia& media = state.media;
 
     doc["update_time"] = weather.update_time;
     if (!isnan(weather.temp)) {
@@ -144,6 +162,20 @@ void PcMonitorService::sendUpdateOverSerial(AppState &state) {
         doc["stock_symbol"] = stock.symbol;
         doc["stock_price"] = String(stock.price, 2);
         doc["stock_change"] = String(stock.percent_change, 2);
+    }
+
+    if (pc.cpu_percent > 0.1) {
+        doc["pc_cpu"] = String(pc.cpu_percent);
+        doc["pc_net"] = String(pc.net_down_kb);
+        doc["pc_ram"] = String(pc.mem_percent);
+        doc["pc_disk"] = String(pc.disk_percent);
+    }
+    
+    if (media.status.length() > 0) {
+        doc["media_status"] = media.status;
+        doc["media_name"] = media.name;
+        doc["media_author"] = media.author;
+        doc["media_album"] = media.album;
     }
 
     String activeId = config.active_pc_id;
@@ -208,6 +240,11 @@ bool PcMonitorService::parseConfigJson(const char* jsonString, AppState &state) 
     if (doc.containsKey("currency_target")) config.currency_target = doc["currency_target"].as<String>();
     if (doc.containsKey("currency_multiplier")) config.currency_multiplier = doc["currency_multiplier"];
     if (doc.containsKey("currency_fn")) config.currency_fn = doc["currency_fn"] == 1;
+
+    if (doc.containsKey("show_media")) config.show_media = doc["show_media"] == 1;
+    
+    if (doc.containsKey("hide_empty_pc")) config.hide_empty_pc = doc["hide_empty_pc"] == 1;
+    if (doc.containsKey("hide_empty_media")) config.hide_empty_media = doc["hide_empty_media"] == 1;
 
     if (doc.containsKey("screen_order")) {
         String orderStr = doc["screen_order"].as<String>();

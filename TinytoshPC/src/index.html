@@ -37,6 +37,16 @@
       </div>
 
       <div class="panel">
+        <h3 class="panel-title">Now Playing</h3>
+        <div class="identity-box" style="margin-top: 10px;">
+          <div id="media-status" class="status-badge" style="margin-bottom: 5px; color: #888;">STOPPED</div>
+          <div id="media-name" class="id-text" style="font-size: 1.3rem;">No Media</div>
+          <div id="media-author" class="ip-text hidden"></div>
+          <div id="media-album" class="tile-label hidden"></div>
+        </div>
+      </div>
+
+      <div class="panel">
         <h3 class="panel-title">Local PC Telemetry</h3>
         <div class="dashboard-grid">
           <div class="telemetry-tile">
@@ -93,9 +103,11 @@
               <label class="radio-label"><input type="radio" name="time_format" value="24"> 24-Hour</label>
               <label class="radio-label"><input type="radio" name="time_format" value="12"> 12-Hour</label>
             </div>
+            <p class='help-text'>Format affects both the OLED display and the Web Panel.</p>
 
             <hr>
             <label class="checkbox-label mt-0"><input type="checkbox" id="autoDetect" name="auto_detect"> Detect Location Automatically (IP)</label>
+            <p class='help-text mt-0'>Uses your IP address to determine city, coordinates, and timezone.</p>
             <fieldset id="manualFields" class="collapsible">
               <legend>Manual Location Entry</legend>
               <label>City Name:</label><input type="text" name="city">
@@ -108,6 +120,7 @@
 
             <hr>
             <label class="checkbox-label mt-0"><input type="checkbox" id="nightMode" name="night_mode"> Enable Night Mode</label>
+            <p class='help-text mt-0'>Set a quiet schedule to pause animations, dim the screen, or save API calls.</p>
             <fieldset id="nightFields" class="collapsible">
               <legend>Night Schedule</legend>
               <div class="dashboard-grid mt-0">
@@ -133,6 +146,7 @@
               <li class="sortable-item" data-id="4" data-target="showCurrency" draggable="true"><span class="drag-handle">☰</span>Currency</li>
               <li class="sortable-item" data-id="5" data-target="showStock" draggable="true"><span class="drag-handle">☰</span>Stock Tracking</li>
               <li class="sortable-item" data-id="6" data-target="showPc" draggable="true"><span class="drag-handle">☰</span>PC Monitor</li>
+              <li class="sortable-item" data-id="7" data-target="showMedia" draggable="true"><span class="drag-handle">☰</span>PC Media</li>
             </ul>
             <input type="hidden" name="screen_order" id="screenOrderInput">
           </div>
@@ -189,6 +203,7 @@
                   <label class="radio-label"><input type="radio" name="aqi_type" value="US"> US Standard</label>
                   <label class="radio-label"><input type="radio" name="aqi_type" value="EU"> European Standard</label>
                 </div>
+                <p class='help-text mt-0'>EU: 0-100+ scale | US: 0-500 scale</p>
               </div>
             </div>
 
@@ -214,13 +229,18 @@
               <div id="currencyContent" class="collapsible">
                 <div id="currency-no-data" class="no-data-tile">💱 Currency data will be available after sync</div>
                 <div id="currency-grid" class="hidden">
-                    <div class="dashboard-grid mt-0">
-                      <div><label>Base Currency:</label><select name="currency_base"></select></div>
-                      <div><label>Target Currency:</label><select name="currency_target"></select></div>
+                    <div class="dashboard-grid">
+                      <div class="tile"><div class="tile-icon">💵</div><div class="tile-value" id="currency-base-val">--</div><div class="tile-label">Base Currency</div></div>
+                      <div class="tile"><div class="tile-icon">💱</div><div class="tile-value" id="currency-target-val">--</div><div class="tile-label">Target Currency</div></div>
                     </div>
                     <div class="update-footer" id="currency-upd">Last Update: --</div>
                 </div>
-                <label>Multiplier Amount:</label><select name="currency_multiplier">
+                <div class="dashboard-grid mt-0">
+                  <div><label>Base Currency:</label><select name="currency_base"></select></div>
+                  <div><label>Target Currency:</label><select name="currency_target"></select></div>
+                </div>
+                <label>Multiplier Amount:</label>
+                <select name="currency_multiplier">
                   <option value="1">1</option><option value="10">10</option><option value="100">100</option>
                   <option value="1000">1000</option><option value="10000">10000</option><option value="100000">100000</option>
                 </select>
@@ -255,6 +275,22 @@
                   <div class="tile"><div class="tile-icon">⬇️</div><div class="tile-value" id="remote-pc-net">-- KB/s</div><div class="tile-label">Download</div></div>      
                 </div>
               </div>
+              <label class="checkbox-label"><input type="checkbox" name="hide_empty_pc"> Hide empty screen</label>
+              <p class="help-text mt-0">Screen is excluded from rotation when there is no data.</p>
+            </div>
+          </div>
+
+          <div class="panel" id="panel-7">
+            <label class="checkbox-label mt-0"><input type="checkbox" id="showMedia" name="show_media"> PC Media Screen</label>
+            <div id="mediaContent" class="collapsible">
+              <div class="dashboard-grid">
+                <div class="tile"><div class="tile-icon">🎵</div><div class="tile-value" id="settings-media-status" style="font-size:1.2rem">Stopped</div><div class="tile-label">Status</div></div>
+                <div class="tile"><div class="tile-icon">🎧</div><div class="tile-value" id="settings-media-name" style="font-size:1.2rem">No Media</div><div class="tile-label">Track</div></div>
+                <div class="tile"><div class="tile-icon">👤</div><div class="tile-value" id="settings-media-author" style="font-size:1.2rem">Unknown</div><div class="tile-label">Author</div></div>
+                <div class="tile"><div class="tile-icon">💿</div><div class="tile-value" id="settings-media-album" style="font-size:1.2rem">Unknown</div><div class="tile-label">Album</div></div>
+              </div>
+              <label class="checkbox-label"><input type="checkbox" name="hide_empty_media"> Hide empty screen</label>
+              <p class="help-text mt-0">Screen is excluded from rotation when there is no data.</p>
             </div>
           </div>
 

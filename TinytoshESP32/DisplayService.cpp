@@ -1,6 +1,7 @@
 #include "DisplayService.h"
 #include "images.h"
 #include <Arduino.h>
+#include <Fonts/Picopixel.h>
 
 String DisplayService::getWeatherDescription(int wmo_code) {
     if (wmo_code == 0) return "Clear Sky";
@@ -62,8 +63,11 @@ void DisplayService::begin() {
 
 void DisplayService::showOLEDStatus(std::initializer_list<String> lines, bool clear) {
     if (clear) display.clearDisplay();
+
     display.setTextColor(SSD1306_WHITE);
+    display.setTextWrap(false);
     display.setTextSize(1);
+    display.setFont(); 
     
     int lineHeight = 10;
     int cursorY = 0;
@@ -92,7 +96,11 @@ void DisplayService::showOLEDStatus(std::initializer_list<String> lines, bool cl
 
 void DisplayService::drawTimeScreen(const Config& config, String timeStr, String dateStr) {
     display.clearDisplay();
-    display.setTextColor(1);
+
+    display.setTextColor(SSD1306_WHITE);
+    display.setTextWrap(false);
+    display.setTextSize(1);
+    display.setFont(); 
 
     int16_t x1, y1;
     uint16_t w, h;
@@ -100,20 +108,20 @@ void DisplayService::drawTimeScreen(const Config& config, String timeStr, String
     if (config.date_display) {
         display.setTextSize(3);
         display.getTextBounds(timeStr, 0, 0, &x1, &y1, &w, &h);
-        display.setCursor((128 - w) / 2, 10); 
+        display.setCursor((128 - w) / 2, 10);
         display.print(timeStr);
 
         display.setTextSize(1);
         display.getTextBounds(dateStr, 0, 0, &x1, &y1, &w, &h);
-        display.setCursor((128 - w) / 2, 48); 
+        display.setCursor((128 - w) / 2, 48);
         display.print(dateStr);
     } else {
         display.setTextSize(4);
         display.getTextBounds(timeStr, 0, 0, &x1, &y1, &w, &h);
 
         int xPos = (128 - w) / 2;
-        int yPos = (64 - h) / 2 - y1; 
-        
+        int yPos = (64 - h) / 2 - y1;
+
         display.setCursor(xPos, yPos);
         display.print(timeStr);
     }
@@ -121,7 +129,11 @@ void DisplayService::drawTimeScreen(const Config& config, String timeStr, String
 
 void DisplayService::drawWeatherScreen(const Config& config, const WeatherData& data, const String& currentTime) {
     display.clearDisplay();
+
     display.setTextColor(SSD1306_WHITE);
+    display.setTextWrap(false);
+    display.setTextSize(1);
+    display.setFont(); 
     
     int16_t x1, y1;
     uint16_t w, h;
@@ -150,9 +162,7 @@ void DisplayService::drawWeatherScreen(const Config& config, const WeatherData& 
     
     display.setTextSize(3); 
     
-    String tempValueStr = valid ? 
-                          (config.round_temps ? String((int)round(data.temp)) : String(data.temp, 1)) : 
-                          "--";
+    String tempValueStr = valid ? (config.round_temps ? String((int)round(data.temp)) : String(data.temp, 1)) : "--";
     
     display.getTextBounds(tempValueStr.c_str(), 0, 0, &x1, &y1, &w, &h);
     int yTemp = yMiddleStart + ((middleHeight - h) / 2); 
@@ -218,7 +228,11 @@ void DisplayService::drawWeatherScreen(const Config& config, const WeatherData& 
 
 void DisplayService::drawAQIScreen(const Config& config, const AirQualityData& data, const String& currentTime) {
     display.clearDisplay();
+
     display.setTextColor(SSD1306_WHITE);
+    display.setTextWrap(false);
+    display.setTextSize(1);
+    display.setFont(); 
     
     int16_t x1, y1;
     uint16_t w, h;
@@ -325,8 +339,11 @@ void DisplayService::drawAQIScreen(const Config& config, const AirQualityData& d
 
 void DisplayService::drawCryptoScreen(const Config& config, const CryptoData& data) {
     display.clearDisplay();
-    display.setTextColor(1);
+
+    display.setTextColor(SSD1306_WHITE);
     display.setTextWrap(false);
+    display.setTextSize(1);
+    display.setFont(); 
 
     // 1. Symbol
     display.setTextSize(3);
@@ -362,8 +379,11 @@ void DisplayService::drawCryptoScreen(const Config& config, const CryptoData& da
 
 void DisplayService::drawCurrencyScreen(const Config& config, const CurrencyData& data) {
     display.clearDisplay();
-    display.setTextColor(1);
+
+    display.setTextColor(SSD1306_WHITE);
     display.setTextWrap(false);
+    display.setTextSize(1);
+    display.setFont(); 
 
     // 1. Base Currency Symbol
     display.setTextSize(3);
@@ -415,8 +435,11 @@ void DisplayService::drawCurrencyScreen(const Config& config, const CurrencyData
 
 void DisplayService::drawStockScreen(const Config& config, const StockData& data) {
     display.clearDisplay();
-    display.setTextColor(1);
+
+    display.setTextColor(SSD1306_WHITE);
     display.setTextWrap(false);
+    display.setTextSize(1);
+    display.setFont(); 
 
     // 1. Symbol
     display.setTextSize(3);
@@ -451,17 +474,19 @@ void DisplayService::drawStockScreen(const Config& config, const StockData& data
 }
 
 void DisplayService::drawPcScreen(const PcStats& pcStats) {
-    bool isInvalid = (isnan(pcStats.cpu_percent) || pcStats.cpu_percent == 0) &&
-                     (isnan(pcStats.mem_percent) || pcStats.mem_percent == 0); 
+    bool isInvalid = (isnan(pcStats.cpu_percent) || pcStats.cpu_percent == 0) && (isnan(pcStats.mem_percent) || pcStats.mem_percent == 0); 
 
     if (isInvalid) {
-        drawNoData(); 
+        drawInfoScreen(icon_monitor); 
         return; 
     }
 
     display.clearDisplay();
+
+    display.setTextColor(SSD1306_WHITE);
+    display.setTextWrap(false);
     display.setTextSize(1);
-    display.setTextColor(1);
+    display.setFont(); 
 
     const int BAR_X = 20;
     const int BAR_W = 86;
@@ -516,20 +541,148 @@ void DisplayService::drawPcScreen(const PcStats& pcStats) {
     }
 }
 
-void DisplayService::drawNoData() {
+void DisplayService::drawMediaScreen(const PcMedia& media) {
+    bool isInvalid = (media.status.length() == 0 || media.name.length() == 0);
+
+    if (isInvalid) {
+        drawInfoScreen(icon_note, "No Media"); 
+        return; 
+    }
+
     display.clearDisplay();
 
-    display.drawRect(1, 1, 126, 62, 1);
-    display.drawRect(3, 3, 122, 58, 1);
-
-    display.setTextColor(1);
-    display.setTextSize(2);
+    display.setTextColor(SSD1306_WHITE);
     display.setTextWrap(false);
-    display.setCursor(23, 25);
-    display.print("No data");
+    display.setTextSize(1);
+    display.setFont(); 
+
+    display.drawBitmap(2, 4, icon_note, 32, 32, 1);
+
+    display.setFont(&Picopixel);
+    String statusStr = media.status;
+    statusStr.toUpperCase();
+    if (statusStr == "") statusStr = "STOPPED";
+    
+    int16_t x1, y1; uint16_t w, h;
+    display.getTextBounds(statusStr.c_str(), 0, 0, &x1, &y1, &w, &h);
+    display.setCursor(18 - (w / 2), 46);
+    display.print(statusStr);
+
+    const unsigned char* iconBits = icon_stop;
+    if (statusStr == "PLAYING") iconBits = icon_play;
+    if (statusStr == "PAUSED")  iconBits = icon_pause;
+    display.drawBitmap(14, 52, iconBits, 8, 8, 1);
+
+    auto drawSmartText = [&](String text, int x, int &y, const GFXfont* font, bool isPicopixel) {
+        if (text == "") return;
+        display.setFont(font);
+        
+        String lines[2] = {"", ""};
+        int lineCount = 0;
+        int start = 0;
+        int maxWidth = 82; 
+        
+        while (start < text.length()) {
+            int spaceIdx = text.indexOf(' ', start);
+            if (spaceIdx == -1) spaceIdx = text.length();
+            String word = text.substring(start, spaceIdx);
+            
+            String testLine = lines[lineCount].length() == 0 ? word : lines[lineCount] + " " + word;
+            display.getTextBounds(testLine.c_str(), 0, 0, &x1, &y1, &w, &h);
+            
+            if (w > maxWidth) {
+                if (lines[lineCount].length() == 0) {
+                    lines[lineCount++] = word; 
+                } else {
+                    lineCount++;
+                    if (lineCount < 2) lines[lineCount] = word;
+                }
+                if (lineCount == 2) break; 
+            } else {
+                lines[lineCount] = testLine;
+            }
+            start = spaceIdx + 1;
+        }
+        if (lineCount < 2 && lines[lineCount].length() > 0) lineCount++;
+        
+        if (start < text.length() && lineCount == 2) {
+            String& lastLine = lines[1];
+            while (lastLine.length() > 0) {
+                display.getTextBounds((lastLine + "...").c_str(), 0, 0, &x1, &y1, &w, &h);
+                if (w <= maxWidth) break;
+                int lastSpace = lastLine.lastIndexOf(' ');
+                if (lastSpace == -1) lastLine = lastLine.substring(0, lastLine.length() - 1);
+                else lastLine = lastLine.substring(0, lastSpace);
+            }
+            lastLine += "...";
+        }
+        
+        for (int i = 0; i < lineCount; i++) {
+            if (isPicopixel) {
+                y += 5; 
+                display.setCursor(x, y);
+                display.print(lines[i]);
+                y += 1; 
+            } else {
+                display.setCursor(x, y);
+                display.print(lines[i]);
+                y += 8 + 1; 
+            }
+        }
+        y += 6; 
+    };
+
+    int cursorY = 4;
+
+    String trackName = media.name;
+    trackName.toUpperCase();
+
+    String albumName = media.album;
+    albumName.toUpperCase();
+    
+    drawSmartText(trackName, 44, cursorY, nullptr, false);
+    drawSmartText(media.author, 44, cursorY, nullptr, false);
+    drawSmartText(albumName, 44, cursorY, &Picopixel, true);
 }
 
-bool DisplayService::isScreenEnabled(const Config& config, int screenIndex) {
+void DisplayService::drawInfoScreen(const unsigned char* image, String text) {
+    display.clearDisplay();
+
+    display.setTextColor(SSD1306_WHITE);
+    display.setTextWrap(false);
+    display.setTextSize(1);
+    display.setFont(); 
+    
+    display.drawRect(1, 1, 126, 62, 1);
+    display.drawRect(3, 3, 122, 58, 1);
+    
+    int16_t x1, y1; 
+    uint16_t w, h;
+
+    if (image != nullptr) {
+        display.setTextSize(1);
+        
+        display.getTextBounds(text.c_str(), 0, 0, &x1, &y1, &w, &h);
+        int textX = (128 - w) / 2;
+        
+        display.drawBitmap(48, 10, image, 32, 32, 1);
+        display.setCursor(textX, 46); 
+        display.print(text);
+    } else {
+        display.setTextSize(2);
+        
+        display.getTextBounds(text.c_str(), 0, 0, &x1, &y1, &w, &h);
+        int textX = (128 - w) / 2;
+        int textY = (64 - h) / 2;
+        
+        display.setCursor(textX, textY);
+        display.print(text);
+    }
+}
+
+bool DisplayService::isScreenEnabled(const AppState& state, int screenIndex) {
+    const Config& config = state.config;
+
     switch (screenIndex) {
         case SCREEN_TIME:           return config.show_time;
         case SCREEN_WEATHER:        return config.show_weather;
@@ -537,8 +690,23 @@ bool DisplayService::isScreenEnabled(const Config& config, int screenIndex) {
         case SCREEN_STOCK:          return config.show_stock;
         case SCREEN_CRYPTO:         return config.show_crypto;
         case SCREEN_CURRENCY:       return config.show_currency;
-        case SCREEN_PC_MONITOR:     return config.show_pc;
-        default:                    return false;
+        case SCREEN_PC_MONITOR: {
+            if (!config.show_pc) return false;
+            if (config.hide_empty_pc) {
+                bool isInvalid = (isnan(state.pc.cpu_percent) || state.pc.cpu_percent == 0) && (isnan(state.pc.mem_percent) || state.pc.mem_percent == 0); 
+                if (isInvalid) return false;
+            }
+            return true;
+        }
+        case SCREEN_PC_MEDIA: {
+            if (!config.show_media) return false;
+            if (config.hide_empty_media) {
+                bool isInvalid = (state.media.status.length() == 0 || state.media.name.length() == 0);
+                if (isInvalid) return false;
+            }
+            return true;
+        }
+        default: return false;
     }
 }
 
@@ -564,6 +732,9 @@ void DisplayService::drawScreen(int screenIndex, const AppState& state, TimeServ
       break;
     case SCREEN_PC_MONITOR:
       drawPcScreen(state.pc);
+      break;
+    case SCREEN_PC_MEDIA:
+      drawMediaScreen(state.media);
       break;
   }
 }

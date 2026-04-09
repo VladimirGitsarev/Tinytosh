@@ -1,10 +1,24 @@
 const { invoke } = window.__TAURI__.core;
 
-let isConnected = false;
-let isConfigLoaded = false;
-let formDirty = false;
-let currentDeviceId = "";
-let currentDeviceIp = "";
+
+// Constants
+
+// UI Update Intervals
+const LOCAL_TELEMETRY_INTERVAL_MS = 500;   // How often the local PC dashboard updates (matches Rust backend)
+const PORT_SCAN_INTERVAL_MS = 2000;        // How often to scan for new USB/Wi-Fi devices
+const HARDWARE_SYNC_INTERVAL_MS = 15000;   // How often to fetch full settings from the ESP32
+
+// Event Delays
+const INITIAL_SYNC_DELAY_MS = 2000;        // Delay before fetching config on app startup
+const POST_CONNECT_SYNC_DELAY_MS = 800;    // Wait time after connecting before fetching config
+const POST_SAVE_SYNC_DELAY_MS = 1000;      // Wait time after saving settings to refresh the UI
+const BUTTON_RESET_DELAY_MS = 3000;        // How long the "Saved Successfully" button stays green
+
+// UI Colors
+const COLOR_SUCCESS = "#10b981";          // Green (Playing, USB, Success)
+const COLOR_INFO = "#3b82f6";             // Blue (Paused, Wi-Fi)
+const COLOR_ERROR = "#ef4444";            // Red (Errors, Failed)
+const COLOR_MUTED = "#888";               // Gray (Stopped, Not Connected)
 
 const topStocks = [
   ["S&P 500 ETF", "SPY"], ["Invesco QQQ (Tech)", "QQQ"], ["Dow Jones ETF", "DIA"],
@@ -113,6 +127,18 @@ const allCurrencies = [
   ["zwl", "Zimbabwean Dollar"]
 ];
 
+
+// State variables
+
+let isConnected = false;
+let isConfigLoaded = false;
+let formDirty = false;
+let currentDeviceId = "";
+let currentDeviceIp = "";
+
+
+// Functions
+
 function populateDropdowns() {
     const stockSelect = document.querySelector('select[name="stock_symbol"]');
     if (stockSelect) {
@@ -174,26 +200,56 @@ async function updateStats() {
         }
 
         if (data.cpu_percent !== undefined) {
-            let cpu = Math.round(data.cpu_percent) + "%";
-            document.getElementById("cpu").innerText = cpu;
-            if(document.getElementById("remote-pc-cpu")) document.getElementById("remote-pc-cpu").innerText = cpu;
+            document.getElementById("cpu").innerText = Math.round(data.cpu_percent) + "%";
         }
         if (data.net_down_kb !== undefined) {
             let val = data.net_down_kb >= 1024 ? (data.net_down_kb / 1024).toFixed(1) : data.net_down_kb;
             let unit = data.net_down_kb >= 1024 ? "MB/s" : "KB/s";
             document.getElementById("dl-val").innerText = val;
             document.getElementById("dl-unit").innerText = unit;
-            if(document.getElementById("remote-pc-net")) document.getElementById("remote-pc-net").innerText = val + " " + unit;
         }
         if (data.mem_percent !== undefined) {
-            let ram = Math.round(data.mem_percent) + "%";
-            document.getElementById("ram").innerText = ram;
-            if(document.getElementById("remote-pc-ram")) document.getElementById("remote-pc-ram").innerText = ram;
+            document.getElementById("ram").innerText = Math.round(data.mem_percent) + "%";
         }
         if (data.disk_percent !== undefined) {
-            let disk = Math.round(data.disk_percent) + "%";
-            document.getElementById("disk").innerText = disk;
-            if(document.getElementById("remote-pc-disk")) document.getElementById("remote-pc-disk").innerText = disk;
+            document.getElementById("disk").innerText = Math.round(data.disk_percent) + "%";
+        }
+        if (data.media_status !== undefined) {
+            const mStatus = document.getElementById("media-status");
+            const mName = document.getElementById("media-name");
+            const mAuthor = document.getElementById("media-author");
+            const mAlbum = document.getElementById("media-album");
+            
+            if (mStatus) {
+                const statusText = data.media_status || "stopped"; 
+                mStatus.innerText = statusText.toUpperCase();
+                
+                if (statusText === "playing") mStatus.style.color = COLOR_SUCCESS; 
+                else if (statusText === "paused") mStatus.style.color = COLOR_INFO; 
+                else mStatus.style.color = COLOR_MUTED; 
+            }
+            
+            if (mName) {
+                mName.innerText = data.media_name || "No Media";
+            }
+            
+            if (mAuthor) {
+                if (data.media_author) {
+                    mAuthor.innerText = data.media_author;
+                    mAuthor.classList.remove("hidden");
+                } else {
+                    mAuthor.classList.add("hidden");
+                }
+            }
+            
+            if (mAlbum) {
+                if (data.media_album) {
+                    mAlbum.innerText = data.media_album;
+                    mAlbum.classList.remove("hidden");
+                } else {
+                    mAlbum.classList.add("hidden");
+                }
+            }
         }
     } catch (e) { }
 }
@@ -241,7 +297,7 @@ async function loadPorts() {
                 const ph = document.getElementById("config-placeholder");
                 if(ph && !isConfigLoaded) { ph.innerText = "Connection established - waiting for configuration data..."; }
 
-                setTimeout(fetchDeviceData, 800);
+                setTimeout(fetchDeviceData, POST_CONNECT_SYNC_DELAY_MS);
             }
         } else {
             if (isConnected) {
@@ -260,13 +316,13 @@ async function loadPorts() {
         if (statusObj.status_text) {
             const lowerText = statusObj.status_text.toLowerCase();
             if (lowerText.includes("failed") || lowerText.includes("error") || lowerText.includes("❌")) {
-                setUiStatus(statusObj.status_text, "#ef4444"); 
+                setUiStatus(statusObj.status_text, COLOR_ERROR); 
             } else if (lowerText.includes("wifi")) {
-                setUiStatus(statusObj.status_text, "#3b82f6"); 
+                setUiStatus(statusObj.status_text, COLOR_INFO); 
             } else if (lowerText.includes("usb")) {
-                setUiStatus(statusObj.status_text, "#10b981"); 
+                setUiStatus(statusObj.status_text, COLOR_SUCCESS); 
             } else {
-                setUiStatus(statusObj.status_text, "#888");    
+                setUiStatus(statusObj.status_text, COLOR_MUTED);    
             }
         }
 
@@ -299,17 +355,17 @@ async function loadPorts() {
                 if (target.startsWith("WiFi:")) {
                     let name = target.split(" ")[1]; 
                     linkStatus.innerText = "🔒 PAIRED TO " + (name ? name.toUpperCase() : "TINYTOSH");
-                    linkStatus.style.color = "#10b981";
+                    linkStatus.style.color = COLOR_SUCCESS;
                 } 
                 else if (target.startsWith("Serial:")) {
                     let port = target.replace("Serial: ", "");
                     let devName = currentDeviceId ? currentDeviceId.toUpperCase() : "USB DEVICE";
                     linkStatus.innerText = "🔒 PAIRED TO " + devName;
-                    linkStatus.style.color = "#10b981";
+                    linkStatus.style.color = COLOR_SUCCESS;
                 }
             } else {
                 linkStatus.innerText = "NOT CONNECTED";
-                linkStatus.style.color = "#888";
+                linkStatus.style.color = COLOR_MUTED;
                 currentDeviceId = "";
                 currentDeviceIp = "";
             }
@@ -333,10 +389,10 @@ async function toggleConnection() {
             if(btn) { btn.innerText = "Disconnect"; btn.className = "btn-red"; }
             if(select) select.disabled = true;
 
-            setTimeout(fetchDeviceData, 800);
+            setTimeout(fetchDeviceData, POST_CONNECT_SYNC_DELAY_MS);
 
         } catch (error) {
-            setUiStatus(error, "#ef4444");
+            setUiStatus(error, COLOR_ERROR);
         }
     } else {
         try {
@@ -370,7 +426,7 @@ function updateVisibility() {
       ['showTime', 'timeContent',false], ['showWeather','weatherContent',false], 
       ['showPc','pcContent',false], ['showCrypto','cryptoContent',false], 
       ['showCurrency','currencyContent',false], ['showStock','stockContent',false], 
-      ['showAQI','aqiContent',false]
+      ['showAQI','aqiContent',false], ['showMedia', 'mediaContent', false]
   ];
   pairs.forEach(p => {
     var ch = document.getElementById(p[0]); if(!ch) return;
@@ -533,6 +589,9 @@ async function fetchDeviceData() {
             setVal('currency_target', d.currency_target);
             setVal('currency_multiplier', d.currency_multiplier);
             setCb('currency_fn', d.currency_fn, true);
+            setCb('showMedia', d.show_media);
+            setCb('hide_empty_pc', d.hide_empty_pc, true);
+            setCb('hide_empty_media', d.hide_empty_media, true);
 
             if (d.anim_mask !== undefined) {
                 const mask = d.anim_mask;
@@ -630,6 +689,28 @@ async function fetchDeviceData() {
             set('stock-upd', 'Last Update: ' + d.update_time);
         }
 
+        if (d.pc_cpu !== undefined && d.pc_cpu !== "0.00" && d.pc_cpu !== "0") {
+            set('remote-pc-cpu', Math.round(parseFloat(d.pc_cpu)) + '%');
+            
+            let netDown = parseFloat(d.pc_net);
+            let netVal = netDown >= 1024 ? (netDown / 1024).toFixed(1) : Math.round(netDown);
+            let netUnit = netDown >= 1024 ? "MB/s" : "KB/s";
+            set('remote-pc-net', netVal + " " + netUnit);
+            
+            set('remote-pc-ram', Math.round(parseFloat(d.pc_ram)) + '%');
+            set('remote-pc-disk', Math.round(parseFloat(d.pc_disk)) + '%');
+        }
+
+        if (d.media_status !== undefined) {
+            let status = d.media_status || "stopped";
+            let capitalizedStatus = status.charAt(0).toUpperCase() + status.slice(1);
+
+            set('settings-media-status', capitalizedStatus);
+            set('settings-media-name', d.media_name || 'No Media');
+            set('settings-media-author', d.media_author || 'Unknown');
+            set('settings-media-album', d.media_album || 'Unknown');
+        }
+
     } catch (e) {
         console.error("Config Sync Error:", e.message); 
     }
@@ -643,12 +724,12 @@ window.addEventListener("DOMContentLoaded", () => {
     initAutostart();
     loadPorts();
     
-    setInterval(loadPorts, 2000); 
-    setInterval(updateStats, 1000); 
-    setInterval(fetchDeviceData, 15000); 
-    setTimeout(fetchDeviceData, 2000); 
+    setInterval(loadPorts, PORT_SCAN_INTERVAL_MS); 
+    setInterval(updateStats, LOCAL_TELEMETRY_INTERVAL_MS); 
+    setInterval(fetchDeviceData, HARDWARE_SYNC_INTERVAL_MS); 
+    setTimeout(fetchDeviceData, INITIAL_SYNC_DELAY_MS); 
 
-    ['autoDetect', 'nightMode', 'showTime', 'showWeather', 'showPc', 'showCrypto', 'showCurrency', 'showStock', 'showAQI', 'autoCycle'].forEach(id => { 
+    ['autoDetect', 'nightMode', 'showTime', 'showWeather', 'showPc', 'showCrypto', 'showCurrency', 'showStock', 'showAQI', 'showMedia', 'autoCycle'].forEach(id => { 
         var el = document.getElementById(id); 
         if(el) el.addEventListener('change', () => { updateVisibility(); syncScreenOrder(true); }); 
     });
@@ -660,22 +741,38 @@ window.addEventListener("DOMContentLoaded", () => {
     toggleNone();
 
     const list = document.getElementById('sortable-list');
+    
     list.addEventListener('dragstart', e => { 
         const item = e.target.closest('.sortable-item');
-        if (!item || item.classList.contains('disabled')) { e.preventDefault(); return; }
-        item.classList.add('dragging'); 
-        if(e.dataTransfer) {
-            e.dataTransfer.setData('text/plain', item.dataset.id);
+        if (!item || item.classList.contains('disabled')) { 
+            e.preventDefault(); 
+            return; 
+        }
+        
+        setTimeout(() => item.classList.add('dragging'), 0); 
+        
+        if (e.dataTransfer) {
             e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', item.dataset.id);
         }
     });
+
+    list.addEventListener('dragenter', e => e.preventDefault());
+    
+    list.addEventListener('drop', e => e.preventDefault());
+
+    list.addEventListener('dragover', e => { 
+        e.preventDefault(); 
+        if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+        moveItem(e.clientY); 
+    });
+    
     list.addEventListener('dragend', e => { 
         const item = e.target.closest('.sortable-item');
-        if(item) item.classList.remove('dragging'); 
+        if (item) item.classList.remove('dragging'); 
+        document.querySelectorAll('.dragging').forEach(el => el.classList.remove('dragging'));
         syncScreenOrder(true); 
-    }); 
-    list.addEventListener('dragover', e => { e.preventDefault(); moveItem(e.clientY); });
-    syncScreenOrder();
+    });
 
     document.getElementById('settings-form').addEventListener('input', () => formDirty = true);
     document.getElementById('settings-form').addEventListener('change', () => formDirty = true);
@@ -713,21 +810,21 @@ window.addEventListener("DOMContentLoaded", () => {
             await invoke("save_device_settings", { query: queryStr, jsonPayload: jsonPayload });
             
             saveBtn.innerText = "✅ Saved Successfully!";
-            saveBtn.style.backgroundColor = "#10b981";
+            saveBtn.style.backgroundColor = COLOR_SUCCESS;
             formDirty = false;
-            setTimeout(fetchDeviceData, 1000);
+            setTimeout(fetchDeviceData, POST_SAVE_SYNC_DELAY_MS);
             
         } catch (err) {
             console.error("Save Error:", err);
             alert("Backend Error: " + err); 
             saveBtn.innerText = "❌ Failed to Save";
-            saveBtn.style.backgroundColor = "#ef4444";
+            saveBtn.style.backgroundColor = COLOR_ERROR;
         }
 
         setTimeout(() => {
             saveBtn.innerText = "💾 Save & Apply All Settings";
             saveBtn.style.backgroundColor = "var(--accent)";
             saveBtn.style.opacity = "1";
-        }, 3000);
+        }, BUTTON_RESET_DELAY_MS);
     });
 });

@@ -31,10 +31,13 @@
 * 📈 **Crypto Tracker:** Watch your favorite coin (from top 75 global cryptos) with price and trend indicators.
 * 💱 **Currency Tracker:** Track exchange rates for over 150 fiat currency pairs with custom scaling multipliers.
 * 🖥️ **PC Hardware Monitor:** Connects via **USB** or **Wirelessly** to your Windows/Mac/Linux computer to show CPU Load, RAM Usage, and Network Speeds in real-time!
+* 🎧 **PC Media:** Displays currently playing track, artist, album, and playback status streamed directly from your connected computer.
 
 ### ✨ Key Features
 * **Modular Dashboard:** Enable/Disable screens on the fly via a Web Panel or PC App. 
 * **Drag & Drop Reordering:** Fully customize your display sequence. Grab and drag screens to change their order. The configuration UI dynamically rearranges itself to match your custom layout perfectly.
+* **Touch Button Controls:** Supports an optional TTP223 touch sensor. Tap to instantly skip screens (or wake the display), and **Long Press** to lock/unlock auto-rotation to keep your favorite screen visible indefinitely.
+* **Smart Auto-Hide:** PC Monitor and PC Media screens can intelligently hide themselves and skip rotation when your PC is off, disconnected, or no media is playing.
 * **Night Mode & Power Saving:** Set a quiet schedule to minimize sleep distractions. Choose between *Dim Display* or *Turn Display Off*. Features "Smart Latching" (waits for the primary screen before sleeping), 10x slower background API fetching to save power, and a temporary 30-second wake feature via the physical button.
 * **Zero Config APIs:** Uses free public APIs for Stocks, Crypto, Currency, Weather, and Air Quality. No API keys required.
 * **Privacy First:** No accounts, no cloud tracking. Everything runs locally on the ESP32.
@@ -52,6 +55,7 @@ For developers, makers, and the curious, here is how the magic happens. The proj
 
 The firmware is designed to be **non-blocking** and **modular**.
 * **Universal Config Sync:** The device hosts its own Web Server, but also accepts and instantly applies full configuration payloads over the PC Serial/USB connection.
+* **mDNS Support:** Easily access the device's Web Panel without memorizing IPs using its unique local domain (e.g., `http://tinytosh-ab12.local`).
 * **Hardware Pairing Lock:** Telemetry streams are protected. Tinytosh securely pairs to the active PC to ensure multiple computers on the same network don't fight over the display.
 * **Dynamic Rendering:** The `DisplayService` handles the OLED. It supports "partial screen buffering," allowing for complex transition effects (like dissolving pixels or sliding curtains) without needing a massive frame buffer.
 * **Smart Wifi Manager:** Uses a Captive Portal for initial setup. If WiFi drops, it auto-reconnects without freezing the UI.
@@ -86,6 +90,7 @@ lib_deps =
     adafruit/Adafruit SSD1306 @ ^2.5.7
     adafruit/Adafruit GFX Library @ ^1.11.5
     adafruit/Adafruit BusIO @ ^1.14.1
+    mathertel/OneButton @ ^2.5.0
 ```
 
 **Option B: Arduino IDE** If you prefer the Arduino IDE, you must install the external libraries manually via the Library Manager (`Sketch` -> `Include Library` -> `Manage Libraries...`).:
@@ -96,6 +101,7 @@ lib_deps =
 | **ArduinoJson** | *Benoit Blanchon* | Parsing API data and settings |
 | **Adafruit SSD1306** | *Adafruit* | Driver for the OLED screen |
 | **Adafruit GFX Library** | *Adafruit* | Core graphics and text support |
+| **OneButton** | *Matthias Hertel* | Touch button handling and long presses |
 
 > ⚠️ **Important:** When installing `Adafruit SSD1306`, the IDE may ask if you want to install dependencies like **"Adafruit BusIO"**. Click **"Install All"** to ensure the screen works correctly.
 
@@ -170,6 +176,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 | Version | Date | Key Changes |
 | :--- | :--- | :--- |
+| **v1.0.5** | *Apr 2026* | 🎧 Added **PC Media** screen (Track, Artist, Album, Status). 👆 Added **Touch Button Controls** (Long press to lock/unlock auto-rotation). 👻 Added **Auto-hide** toggles to completely skip empty PC Monitor and Media screens. 🌐 Added local mDNS domain access (e.g., `tinytosh-XXXX.local`). |
 | **v1.0.4** | *Mar 2026* | 🖥️ **PC App Upgrade:** Added **Wireless Telemetry via Wi-Fi (mDNS)**, **Dynamic UI Rendering** that mirrors Web Panel functionality (update device settings and monitor current API data), and **Smart Connection Fallback** (instant USB-to-WiFi switching). <br>⚙️ **Firmware:** Added Universal Config Sync (saving settings via PC app), Smart IP Reporting via Serial, and Hardware Pairing Locks. |
 | **v1.0.3** | *Mar 2026* | 🌙 Added **Night Mode** with smart latching, screen dimming/off scheduling, and 10x background API power saving. 🔄 Introduced **Drag & Drop Reordering** for dynamic screen sequencing directly in the Web Panel. |
 | **v1.0.2** | *Mar 2026* | 📈 Added **Stock Tracker** module (~100 global assets, ETFs, Mega-Cap Tech, ADRs). Added customizable "Full Name" layout toggles for Crypto, Currency, and Stock screens. Fixed an animation bug for single-screen setups. |

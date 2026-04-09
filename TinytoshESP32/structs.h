@@ -11,6 +11,7 @@ enum ScreenType {
   SCREEN_CRYPTO,
   SCREEN_CURRENCY,
   SCREEN_PC_MONITOR,
+  SCREEN_PC_MEDIA,
   NUM_SCREENS
 };
 
@@ -21,7 +22,8 @@ inline constexpr const char* SCREEN_NAMES[] = {
   "Stock Tracking",
   "Crypto Tracking",
   "Currency Exchange",
-  "PC Monitor"
+  "PC Monitor",
+  "PC Media"
 };
 
 enum AnimType {
@@ -53,7 +55,7 @@ struct Config {
   // Screens Settings
   bool screen_auto_cycle = true;
   int screen_interval_sec = 15;
-  int screen_order[NUM_SCREENS] = {0, 1, 2, 3, 4, 5, 6};
+  int screen_order[NUM_SCREENS] = {0, 1, 2, 3, 4, 5, 6, 7};
 
   bool show_time = true;
   bool show_weather = true;
@@ -62,6 +64,10 @@ struct Config {
   bool show_crypto = true;
   bool show_currency = true;
   bool show_pc = true;
+  bool show_media = true;
+
+  bool hide_empty_pc = false;
+  bool hide_empty_media = false;
 
   // Weather & AQI Settings
   bool round_temps = true; 
@@ -107,51 +113,59 @@ struct AirQualityData {
 };
 
 struct StockData {
-    String symbol;
-    String name;
-    float price;
-    float previous_close;
-    float percent_change;
-    bool updated = false;
+  String symbol;
+  String name;
+  float price;
+  float previous_close;
+  float percent_change;
+  bool updated = false;
 };
 
 struct CryptoData {
-    String name;
-    String symbol;
-    float price_usd;
-    float percent_change_24h;
-    bool updated = false;
+  String name;
+  String symbol;
+  float price_usd;
+  float percent_change_24h;
+  bool updated = false;
 };
 
 struct CurrencyData {
-    String base;
-    String target;
-    float rate;
-    String date;
-    bool updated = false;
+  String base;
+  String target;
+  float rate;
+  String date;
+  bool updated = false;
 };
 
 struct PcStats {
-    float cpu_percent;
-    float mem_percent;
-    float disk_percent;
-    float net_down_kb;
-    unsigned long last_update = 0;
+  float cpu_percent;
+  float mem_percent;
+  float disk_percent;
+  float net_down_kb;
+  unsigned long last_update = 0;
+};
+
+struct PcMedia {
+  String status;
+  String name;
+  String author;
+  String album;
+  unsigned long last_update = 0;
 };
 
 struct StockOption {
-    const char* name;
-    const char* ticker;
+  const char* name;
+  const char* ticker;
 };
 
 struct CoinOption { 
-    int id; 
-    const char* sym; 
+  int id;
+  const char* sym; 
 };
 
 struct CurrencyOption {
-    const char* code;
-    const char* name;
+  const char* code;
+  const char* name;
 };
 
 inline constexpr StockOption topStocks[] = {
@@ -299,5 +313,6 @@ struct AppState {
   CurrencyData currency;
   StockData stock;
   PcStats pc;
+  PcMedia media;
 };
 #endif

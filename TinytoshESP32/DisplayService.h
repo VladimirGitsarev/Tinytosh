@@ -21,12 +21,13 @@ public:
     void drawCurrencyScreen(const Config& config, const CurrencyData& data);
     void drawStockScreen(const Config& config, const StockData& data);
     void drawPcScreen(const PcStats& pcStats);
-    void drawNoData();
+    void drawMediaScreen(const PcMedia& media);
+    void drawInfoScreen(const unsigned char* image = nullptr, String text = "No Data");
 
     void drawScreen(int screenIndex, const AppState& state, TimeService& timeService);
     void animateTransition(int prevScreen, int nextScreen, const AppState& state, TimeService& timeService);
 
-    bool isScreenEnabled(const Config& config, int screenIndex);
+    bool isScreenEnabled(const AppState& state, int screenIndex);
 
 private:    
     uint8_t screenBufferOld[1024];
