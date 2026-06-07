@@ -235,11 +235,29 @@ void WebServerService::handleRoot() {
   add("  </select></div>");
 
   add("  <div><label class='mt-0'>Timezone:</label><select name='timezone'>");
-  DynamicJsonDocument tzDoc(6144); 
-  deserializeJson(tzDoc, POSIX_TIMEZONE_MAP); 
-  for (JsonPair p : tzDoc.as<JsonObject>()) {
-      String key = p.key().c_str();
+  const char* tzCursor = POSIX_TIMEZONE_MAP;
+  while ((tzCursor = strchr(tzCursor, '"')) != nullptr) {
+      const char* keyStart = tzCursor + 1;
+      const char* keyEnd = strchr(keyStart, '"');
+      if (!keyEnd) break;
+
+      const char* colon = keyEnd + 1;
+      while (*colon == ' ' || *colon == '\t') colon++;
+      if (*colon != ':') {
+          tzCursor = keyEnd + 1;
+          continue;
+      }
+
+      String key;
+      key.reserve(keyEnd - keyStart);
+      for (const char* p = keyStart; p < keyEnd; p++) key += *p;
       add("<option value='" + key + "'" + (key == config.timezone ? " selected" : "") + ">" + key + "</option>");
+
+      const char* valueStart = strchr(colon, '"');
+      if (!valueStart) break;
+      const char* valueEnd = strchr(valueStart + 1, '"');
+      if (!valueEnd) break;
+      tzCursor = valueEnd + 1;
   }
   add("  </select></div>");
   add("</div></fieldset><hr>");

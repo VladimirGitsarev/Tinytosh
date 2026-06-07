@@ -45,12 +45,21 @@ bool TimeService::fetchLocationData(Config& config) {
 }
 
 String TimeService::lookupPosixTimezone(const String& ianaTimezone) {
-  DynamicJsonDocument doc(6144); 
-  DeserializationError error = deserializeJson(doc, POSIX_TIMEZONE_MAP); 
-  if (!error) {
-    if (doc.containsKey(ianaTimezone)) {
-      return doc[ianaTimezone].as<String>();
-    } 
+  String needle = "\"" + ianaTimezone + "\":";
+  const char* match = strstr(POSIX_TIMEZONE_MAP, needle.c_str());
+  if (match) {
+    const char* valueStart = match + needle.length();
+    while (*valueStart == ' ' || *valueStart == '\t') valueStart++;
+    if (*valueStart == '"') {
+      valueStart++;
+      const char* valueEnd = strchr(valueStart, '"');
+      if (valueEnd) {
+        String timezone;
+        timezone.reserve(valueEnd - valueStart);
+        for (const char* p = valueStart; p < valueEnd; p++) timezone += *p;
+        return timezone;
+      }
+    }
   }
   return "GMT0";
 }
