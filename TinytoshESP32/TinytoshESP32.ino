@@ -32,7 +32,9 @@ const int CONTRAST_DIM = 1;
 const int CONTRAST_MAX = 255;
 
 // TTP223 Button Settings
-const int BUTTON_PIN = 10;
+const int DEFAULT_TOUCH_PIN = 10;
+const int MIN_TOUCH_PIN = 0;
+const int MAX_TOUCH_PIN = 21;
 
 // Global Data Structure
 AppState appState;
@@ -58,7 +60,7 @@ unsigned long lastScreenSwitch = 0;
 int currentScreen = 0;
 bool nightModeLatched = false;
 
-OneButton button(BUTTON_PIN, false, false); 
+OneButton button;
 unsigned long lastInteractionTime = 0; 
 unsigned long lastScreenUpdate = 0;
 
@@ -195,6 +197,25 @@ void handleLongPress() {
   lastInteractionTime = millis();
 }
 
+int sanitizeTouchPin(int pin) {
+  if (pin < MIN_TOUCH_PIN || pin > MAX_TOUCH_PIN) {
+    return DEFAULT_TOUCH_PIN;
+  }
+  return pin;
+}
+
+void configureTouchButton() {
+  appState.config.touch_pin = sanitizeTouchPin(appState.config.touch_pin);
+  button.setup(appState.config.touch_pin, INPUT, false);
+  button.attachClick(handleSingleClick);
+  button.attachLongPressStart(handleLongPress);
+  button.setDebounceMs(50);
+  button.setClickMs(100);
+  button.setPressMs(750);
+  button.reset();
+  Serial.printf("TTP223 touch sensor configured on GPIO %d\n", appState.config.touch_pin);
+}
+
 void updateAllData() {
   nightModeLatched = false;
 
@@ -262,17 +283,13 @@ void updateAllData() {
 
 // Global function wrapper for the class method
 void updateAllDataCallback() {
+  configureTouchButton();
   updateAllData();
 }
 
 void setup() {
   Serial.setRxBufferSize(1024);
   Serial.begin(115200);
-  button.attachClick(handleSingleClick);
-  button.attachLongPressStart(handleLongPress);
-  button.setDebounceTicks(50); 
-  button.setClickTicks(100);
-  button.setPressTicks(750);
   delay(100);
   // configManager.clearAllPreferences();
 
@@ -283,6 +300,7 @@ void setup() {
   // 2. Load Configuration
   displayService.showOLEDStatus({"\n", "\n", "Starting...", "\n", "\n", "Loading Config..."}, true);
   configManager.loadConfig(appState.config); 
+  configureTouchButton();
   bambuService.begin(&appState.config, &appState.bambu);
 
   // 3. Connect WiFi and set device info
@@ -338,6 +356,7 @@ void loop() {
 
   if (pcMonitorService.handleSerial(appState)) {
     Serial.println("Config updated via USB! Saving and applying...");
+    configureTouchButton();
     configManager.saveConfig(appState.config);
     updateAllData();
   }

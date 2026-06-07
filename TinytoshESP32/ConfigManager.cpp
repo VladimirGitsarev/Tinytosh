@@ -17,6 +17,7 @@ void ConfigManager::loadConfig(Config& config) {
   config.time_format = preferences.getString("time_format", "24");
   config.date_display = preferences.getBool("date_display", true);
   config.refresh_interval_min = preferences.getULong("refresh_min", 15);
+  config.touch_pin = preferences.getInt("touch_pin", 10);
 
   // Screens Settings
   config.screen_auto_cycle = preferences.getBool("auto_cycle", true);
@@ -97,6 +98,7 @@ void ConfigManager::saveConfig(const Config& config) {
   preferences.putString("time_format", config.time_format);
   preferences.putBool("date_display", config.date_display);
   preferences.putULong("refresh_min", config.refresh_interval_min);
+  preferences.putInt("touch_pin", config.touch_pin);
 
   // Screens Settings
   preferences.putBool("auto_cycle", config.screen_auto_cycle);

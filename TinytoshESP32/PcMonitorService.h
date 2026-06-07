@@ -15,7 +15,7 @@ private:
     static const unsigned long DATA_TIMEOUT_MS = 3000;
     static const unsigned long WIFI_DATA_TIMEOUT_MS = 10000;
 
-    PcStats currentStats = {0.0, 0.0, 0.0, 0.0};
+    PcStats currentStats;
     char serialBuffer[JSON_BUF_SIZE];
     int bufferIndex = 0;
 

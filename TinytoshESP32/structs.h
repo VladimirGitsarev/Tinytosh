@@ -62,6 +62,7 @@ struct Config {
   String time_format = "24";
   bool date_display = true;
   unsigned long refresh_interval_min = 15;
+  int touch_pin = 10;
 
   // Screens Settings
   bool screen_auto_cycle = true;

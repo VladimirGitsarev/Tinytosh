@@ -184,6 +184,8 @@ void WebServerService::handleRoot() {
   add("<label class='checkbox-label mt-0' style='margin-top: 10px !important;'><input type='checkbox' id='autoCycle' name='auto_cycle' value='1' " + String(config.screen_auto_cycle ? "checked" : "") + "> Cycle Screens Automatically</label>");
   add("<p class='help-text mt-0'>If disabled, screens will only change when you press the button.</p>");
   add("<label>Screen Cycle Interval (Secs):</label><input type='number' id='screenIntInput' name='screen_int' value='" + String(config.screen_interval_sec) + "'>");
+  add("<label>Touch Sensor GPIO Pin:</label><input type='number' name='touch_pin' min='0' max='21' value='" + String(config.touch_pin) + "'>");
+  add("<p class='help-text mt-0'>TTP223 output pin. Default is GPIO 10; avoid pins already used by OLED, USB, or boot wiring.</p>");
 
   add("<label class='anim-label'>Active Animations:</label>");
   add("<p class='help-text mt-0' style='margin-bottom: 10px;'>If 'None' is unchecked, select which animations to cycle through.</p>");
@@ -757,6 +759,7 @@ void WebServerService::handleRoot() {
   add("    setVal('refresh_min', d.refresh_min);");
   add("    setCb('autoCycle', d.auto_cycle);");
   add("    setVal('screen_int', d.screen_int);");
+  add("    setVal('touch_pin', d.touch_pin);");
   add("    setRadio('time_format', d.time_format);");
   
   add("    setCb('autoDetect', d.auto_detect);");
@@ -990,6 +993,11 @@ void WebServerService::handleSave() {
   if (server.hasArg("aqi_type")) config.aqi_type = server.arg("aqi_type");
   if (server.hasArg("refresh_min")) config.refresh_interval_min = server.arg("refresh_min").toInt();
   if (server.hasArg("screen_int")) config.screen_interval_sec = server.arg("screen_int").toInt();
+  if (server.hasArg("touch_pin")) {
+    String touchPinArg = server.arg("touch_pin");
+    touchPinArg.trim();
+    if (touchPinArg.length() > 0) config.touch_pin = touchPinArg.toInt();
+  }
   if (server.hasArg("anim_mask")) config.anim_mask = server.arg("anim_mask").toInt();
   if (server.hasArg("crypto_id")) config.crypto_id = server.arg("crypto_id").toInt();
 
@@ -1091,6 +1099,7 @@ void WebServerService::handleSave() {
   }
 
   if (config.refresh_interval_min <= 0) config.refresh_interval_min = 1; 
+  if (config.touch_pin < 0 || config.touch_pin > 21) config.touch_pin = 10;
 
   if (saveCallback) {
     saveCallback();
@@ -1120,6 +1129,7 @@ void WebServerService::handleUpdate() {
   doc["refresh_min"] = config.refresh_interval_min;
   doc["auto_cycle"] = config.screen_auto_cycle ? 1 : 0;
   doc["screen_int"] = config.screen_interval_sec;
+  doc["touch_pin"] = config.touch_pin;
   doc["anim_mask"] = config.anim_mask;
   doc["time_format"] = config.time_format;
   

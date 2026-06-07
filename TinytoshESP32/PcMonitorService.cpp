@@ -79,6 +79,7 @@ void PcMonitorService::sendUpdateOverSerial(AppState &state) {
     doc["refresh_min"] = config.refresh_interval_min;
     doc["auto_cycle"] = config.screen_auto_cycle ? 1 : 0;
     doc["screen_int"] = config.screen_interval_sec;
+    doc["touch_pin"] = config.touch_pin;
     doc["anim_mask"] = config.anim_mask;
     doc["time_format"] = config.time_format;
 
@@ -220,7 +221,7 @@ void PcMonitorService::sendUpdateOverSerial(AppState &state) {
 }
 
 bool PcMonitorService::parseConfigJson(const char* jsonString, AppState &state) {
-    DynamicJsonDocument doc(2048);
+    DynamicJsonDocument doc(3072);
     DeserializationError error = deserializeJson(doc, jsonString);
     
     if (error) {
@@ -233,6 +234,7 @@ bool PcMonitorService::parseConfigJson(const char* jsonString, AppState &state) 
     if (doc.containsKey("refresh_min")) config.refresh_interval_min = doc["refresh_min"];
     if (doc.containsKey("auto_cycle")) config.screen_auto_cycle = doc["auto_cycle"] == 1;
     if (doc.containsKey("screen_int")) config.screen_interval_sec = doc["screen_int"];
+    if (doc.containsKey("touch_pin")) config.touch_pin = doc["touch_pin"];
     if (doc.containsKey("anim_mask")) config.anim_mask = doc["anim_mask"];
     if (doc.containsKey("time_format")) config.time_format = doc["time_format"].as<String>();
     
