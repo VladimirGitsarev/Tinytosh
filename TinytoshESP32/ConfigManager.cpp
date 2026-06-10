@@ -32,7 +32,7 @@ void ConfigManager::loadConfig(Config& config) {
   config.show_calendar = preferences.getBool("show_calendar", true);
   config.show_weather = preferences.getBool("show_weather", true);
   config.show_aqi = preferences.getBool("show_aqi", true);
-  config.show_stock = preferences.getBool("show_stock", true);
+  // show_stocks and stock_symbols are loaded below in the stock settings block
   config.show_crypto = preferences.getBool("show_crypto", true);
   config.show_currency = preferences.getBool("show_curr", true);
   config.show_pc = preferences.getBool("show_pc", true);
@@ -58,7 +58,14 @@ void ConfigManager::loadConfig(Config& config) {
   config.currency_base = preferences.getString("cur_base", "usd");
   config.currency_target = preferences.getString("cur_targ", "eur");
   config.currency_multiplier = preferences.getInt("cur_m", 1);
-  config.stock_symbol = preferences.getString("stock_sym", "GOOG");
+  const char* stockDefaults[5] = {"GOOG", "", "", "", ""};
+  for (int i = 0; i < 5; i++) {
+    String symKey = "stk_sym_" + String(i);
+    String showKey = "show_stk_" + String(i);
+    config.stock_symbols[i] = preferences.getString(symKey.c_str(), stockDefaults[i]);
+    config.show_stocks[i] = preferences.getBool(showKey.c_str(), i == 0);
+  }
+  config.finnhub_key = preferences.getString("finnhub_key", "");
   config.crypto_fn = preferences.getBool("crypto_fn", true);
   config.currency_fn = preferences.getBool("cur_fn", true);
   config.stock_fn = preferences.getBool("stock_fn", true);
@@ -107,7 +114,7 @@ void ConfigManager::saveConfig(const Config& config) {
   preferences.putBool("show_calendar", config.show_calendar);
   preferences.putBool("show_weather", config.show_weather);
   preferences.putBool("show_aqi", config.show_aqi);
-  preferences.putBool("show_stock", config.show_stock);
+  // show_stocks saved below in stock settings block
   preferences.putBool("show_crypto", config.show_crypto);
   preferences.putBool("show_curr", config.show_currency);
   preferences.putBool("show_pc", config.show_pc);
@@ -133,7 +140,13 @@ void ConfigManager::saveConfig(const Config& config) {
   preferences.putString("cur_base", config.currency_base);
   preferences.putString("cur_targ", config.currency_target);
   preferences.putInt("cur_m", config.currency_multiplier);
-  preferences.putString("stock_sym", config.stock_symbol);
+  for (int i = 0; i < 5; i++) {
+    String symKey = "stk_sym_" + String(i);
+    String showKey = "show_stk_" + String(i);
+    preferences.putString(symKey.c_str(), config.stock_symbols[i]);
+    preferences.putBool(showKey.c_str(), config.show_stocks[i]);
+  }
+  preferences.putString("finnhub_key", config.finnhub_key);
   preferences.putBool("crypto_fn", config.crypto_fn);
   preferences.putBool("cur_fn", config.currency_fn);
   preferences.putBool("stock_fn", config.stock_fn);

@@ -9,6 +9,10 @@ enum ScreenType {
   SCREEN_WEATHER,
   SCREEN_AIR_QUALITY,
   SCREEN_STOCK,
+  SCREEN_STOCK_2,
+  SCREEN_STOCK_3,
+  SCREEN_STOCK_4,
+  SCREEN_STOCK_5,
   SCREEN_CRYPTO,
   SCREEN_CURRENCY,
   SCREEN_PC_MONITOR,
@@ -22,7 +26,11 @@ inline constexpr const char* SCREEN_NAMES[] = {
   "Calendar",
   "Weather",
   "Air Quality",
-  "Stock Tracking",
+  "Stock Tracking 1",
+  "Stock Tracking 2",
+  "Stock Tracking 3",
+  "Stock Tracking 4",
+  "Stock Tracking 5",
   "Crypto Tracking",
   "Currency Exchange",
   "PC Monitor",
@@ -66,13 +74,13 @@ struct Config {
   // Screens Settings
   bool screen_auto_cycle = true;
   int screen_interval_sec = 15;
-  int screen_order[NUM_SCREENS] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
+  int screen_order[NUM_SCREENS] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13};
 
   bool show_time = true;
   bool show_calendar = true;
   bool show_weather = true;
   bool show_aqi = true;
-  bool show_stock = true;
+  bool show_stocks[5] = {true, false, false, false, false};
   bool show_crypto = true;
   bool show_currency = true;
   bool show_pc = true;
@@ -98,7 +106,8 @@ struct Config {
   String currency_base = "usd";
   String currency_target = "eur";
   int currency_multiplier = 1;
-  String stock_symbol = "GOOG";
+  String stock_symbols[5] = {"GOOG", "", "", "", ""};
+  String finnhub_key = "";
   bool crypto_fn = true;
   bool currency_fn = true;
   bool stock_fn = true;
@@ -430,7 +439,7 @@ struct AppState {
   AirQualityData aqi;
   CryptoData crypto;
   CurrencyData currency;
-  StockData stock;
+  StockData stocks[5];
   PcStats pc;
   PcMedia media;
   BambuData bambu;

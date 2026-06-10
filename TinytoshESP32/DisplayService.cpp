@@ -1032,7 +1032,11 @@ bool DisplayService::isScreenEnabled(const AppState& state, int screenIndex) {
         case SCREEN_CALENDAR:       return config.show_calendar;
         case SCREEN_WEATHER:        return config.show_weather;
         case SCREEN_AIR_QUALITY:    return config.show_aqi;
-        case SCREEN_STOCK:          return config.show_stock;
+        case SCREEN_STOCK:   return config.show_stocks[0] && config.stock_symbols[0].length() > 0;
+        case SCREEN_STOCK_2: return config.show_stocks[1] && config.stock_symbols[1].length() > 0;
+        case SCREEN_STOCK_3: return config.show_stocks[2] && config.stock_symbols[2].length() > 0;
+        case SCREEN_STOCK_4: return config.show_stocks[3] && config.stock_symbols[3].length() > 0;
+        case SCREEN_STOCK_5: return config.show_stocks[4] && config.stock_symbols[4].length() > 0;
         case SCREEN_CRYPTO:         return config.show_crypto;
         case SCREEN_CURRENCY:       return config.show_currency;
         case SCREEN_PC_MONITOR: {
@@ -1077,9 +1081,11 @@ void DisplayService::drawScreen(int screenIndex, const AppState& state, TimeServ
     case SCREEN_AIR_QUALITY:
       drawAQIScreen(state.config, state.aqi, timeService.getCurrentTimeShort(state.config.time_format));
       break;
-    case SCREEN_STOCK:
-      drawStockScreen(state.config, state.stock);
-      break;
+    case SCREEN_STOCK:   drawStockScreen(state.config, state.stocks[0]); break;
+    case SCREEN_STOCK_2: drawStockScreen(state.config, state.stocks[1]); break;
+    case SCREEN_STOCK_3: drawStockScreen(state.config, state.stocks[2]); break;
+    case SCREEN_STOCK_4: drawStockScreen(state.config, state.stocks[3]); break;
+    case SCREEN_STOCK_5: drawStockScreen(state.config, state.stocks[4]); break;
     case SCREEN_CRYPTO:
       drawCryptoScreen(state.config, state.crypto);
       break;

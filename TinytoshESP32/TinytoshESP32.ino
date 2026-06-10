@@ -89,7 +89,7 @@ void switchToNextScreen() {
     if (checkIndex >= NUM_SCREENS) checkIndex = 0;
 
     int candidateId = appState.config.screen_order[checkIndex];
-    
+
     if (displayService.isScreenEnabled(appState, candidateId)) {
       nextScreenCandidate = candidateId;
       foundVisible = true;
@@ -230,9 +230,11 @@ void updateAllData() {
   }
 
   // 6. Fetch Stocks (Independent)
-  if (appState.config.show_stock) {
-    displayService.showOLEDStatus({"\n", "\n", "Updating Stocks...", "\n", "Stock:", appState.config.stock_symbol}, true);
-    stockService.fetchStock(appState.config.stock_symbol, appState.stock);
+  for (int i = 0; i < 5; i++) {
+    if (appState.config.show_stocks[i] && appState.config.stock_symbols[i].length() > 0) {
+      displayService.showOLEDStatus({"\n", "\n", "Updating Stocks...", "\n", "Stock:", appState.config.stock_symbols[i]}, true);
+      stockService.fetchStock(appState.config.stock_symbols[i], appState.config.finnhub_key, appState.stocks[i]);
+    }
   }
 
   // 7. Fetch Crypto (Independent)
@@ -380,7 +382,10 @@ void loop() {
     if (appState.config.show_aqi) airQualityService.fetchAirQuality(appState.config, appState.aqi);
     if (appState.config.show_crypto) cryptoService.fetchPrice(appState.config.crypto_id, appState.crypto);
     if (appState.config.show_currency) currencyService.fetchRate(appState.config.currency_base, appState.config.currency_target, appState.currency);
-    if (appState.config.show_stock) stockService.fetchStock(appState.config.stock_symbol, appState.stock);
+    for (int i = 0; i < 5; i++) {
+      if (appState.config.show_stocks[i] && appState.config.stock_symbols[i].length() > 0)
+        stockService.fetchStock(appState.config.stock_symbols[i], appState.config.finnhub_key, appState.stocks[i]);
+    }
     if (appState.config.show_calendar && appState.config.calendar_show_holidays && !appState.calendar.updated) calendarService.fetchHolidays(appState.config.country_code, appState.calendar);
     
     lastDataUpdate = millis();

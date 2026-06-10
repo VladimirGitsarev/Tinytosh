@@ -85,16 +85,15 @@ void WebServerService::handleRoot() {
   AirQualityData& aqi = state->aqi;
   CryptoData& crypto = state->crypto;
   CurrencyData& currency = state->currency;
-  StockData& stock = state->stock;
   PcStats& pc = state->pc;
   PcMedia& media = state->media;
-  
+
   bool weatherValid = !isnan(weather.temp);
   bool aqiValid = !isnan(aqi.pm25) && !isnan(aqi.pm10) && !isnan(aqi.no2);
   bool pcValid = pc.cpu_percent > 0.1; 
   bool cryptoValid = !isnan(crypto.price_usd) && crypto.price_usd > 0;
   bool currencyValid = currency.updated;
-  bool stockValid = stock.updated;
+  bool stockValid = state->stocks[0].updated;
 
   add("<html><head><title>Tinytosh | Web Panel</title>");
   add("<meta name='viewport' content='width=device-width, initial-scale=1'><meta charset='UTF-8'>");
@@ -276,7 +275,11 @@ void WebServerService::handleRoot() {
       case SCREEN_AIR_QUALITY: targetId = "showAQI"; break;
       case SCREEN_CRYPTO: targetId = "showCrypto"; break;
       case SCREEN_CURRENCY: targetId = "showCurrency"; break;
-      case SCREEN_STOCK: targetId = "showStock"; break;
+      case SCREEN_STOCK:   targetId = "showStock0"; break;
+      case SCREEN_STOCK_2: targetId = "showStock1"; break;
+      case SCREEN_STOCK_3: targetId = "showStock2"; break;
+      case SCREEN_STOCK_4: targetId = "showStock3"; break;
+      case SCREEN_STOCK_5: targetId = "showStock4"; break;
       case SCREEN_PC_MONITOR: targetId = "showPc"; break;
       case SCREEN_PC_MEDIA: targetId = "showMedia"; break;
       case SCREEN_BAMBU: targetId = "showBambu"; break;
@@ -384,27 +387,48 @@ void WebServerService::handleRoot() {
           }
 
           case SCREEN_STOCK: {
+              StockData& s0 = state->stocks[0];
               add("<div class='panel' id='panel-" + String(screenId) + "'>");
-              add("<label class='checkbox-label mt-0'><input type='checkbox' id='showStock' name='show_stock' value='1' " + String(config.show_stock ? "checked" : "") + "> Stock Tracking Screen</label>");
-              add("<div id='stockContent' class='collapsible'>");
-              
+              add("<label class='checkbox-label mt-0'><input type='checkbox' id='showStock0' name='show_stock_0' value='1' " + String(config.show_stocks[0] ? "checked" : "") + "> Stock 1 Screen</label>");
+              add("<div id='stockContent0' class='collapsible'>");
+
               if (!stockValid) {
                   add("<div id='stock-no-data' class='no-data-tile'>📈 Stock data will be available after sync</div><div id='stock-grid' class='hidden'>");
               } else {
                   add("<div id='stock-no-data' class='no-data-tile hidden'>📈 Stock data will be available after sync</div><div id='stock-grid'>");
               }
-              
               add("<div class='dashboard-grid'>");
-              add("<div class='tile'><div class='tile-icon'>📊</div><div class='tile-value' id='stock-price'>$" + String(stock.price, 2) + "</div><div class='tile-label' id='stock-sym'>" + stock.symbol + " Price</div></div>");
-              add("<div class='tile'><div class='tile-icon' id='stock-trend-icon'>" + String(stock.percent_change >= 0 ? "📈" : "📉") + "</div><div class='tile-value' id='stock-change'>" + String(stock.percent_change, 2) + "%</div><div class='tile-label'>Daily Change</div></div>");
+              add("<div class='tile'><div class='tile-icon'>📊</div><div class='tile-value' id='stock-price'>$" + String(s0.price, 2) + "</div><div class='tile-label' id='stock-sym'>" + s0.symbol + " Price</div></div>");
+              add("<div class='tile'><div class='tile-icon' id='stock-trend-icon'>" + String(s0.percent_change >= 0 ? "📈" : "📉") + "</div><div class='tile-value' id='stock-change'>" + String(s0.percent_change, 2) + "%</div><div class='tile-label'>Daily Change</div></div>");
               add("</div><div class='update-footer' id='stock-upd'>Last Update: " + weather.update_time + "</div></div>");
 
-              add("<label>Track Stock/ETF:</label><select name='stock_symbol'>");
+              add("<label>Track Stock/ETF:</label><select name='stock_symbol_0'>");
               for(auto s : topStocks) {
-                  add("<option value='" + String(s.ticker) + "' " + (String(config.stock_symbol) == String(s.ticker) ? "selected" : "") + ">" + String(s.name) + " - " + String(s.ticker) + "</option>");
+                  add("<option value='" + String(s.ticker) + "' " + (config.stock_symbols[0] == String(s.ticker) ? "selected" : "") + ">" + String(s.name) + " - " + String(s.ticker) + "</option>");
               }
               add("</select>");
+              add("<label>Finnhub API Key:</label><input type='text' name='finnhub_key' value='" + config.finnhub_key + "' placeholder='Get a free key at finnhub.io'>");
               add("<label class='checkbox-label'><input type='checkbox' name='stock_fn' value='1' " + String(config.stock_fn ? "checked" : "") + "> Display Full Company Name</label>");
+              add("</div></div>");
+              break;
+          }
+
+          case SCREEN_STOCK_2:
+          case SCREEN_STOCK_3:
+          case SCREEN_STOCK_4:
+          case SCREEN_STOCK_5: {
+              int slot = screenId - SCREEN_STOCK;  // 1..4
+              String cbId = "showStock" + String(slot);
+              String contId = "stockContent" + String(slot);
+              add("<div class='panel' id='panel-" + String(screenId) + "'>");
+              add("<label class='checkbox-label mt-0'><input type='checkbox' id='" + cbId + "' name='show_stock_" + String(slot) + "' value='1' " + String(config.show_stocks[slot] ? "checked" : "") + "> Stock " + String(slot + 1) + " Screen</label>");
+              add("<div id='" + contId + "' class='collapsible'>");
+              add("<label>Track Stock/ETF:</label><select name='stock_symbol_" + String(slot) + "'>");
+              add("<option value=''>-- Disabled --</option>");
+              for(auto s : topStocks) {
+                  add("<option value='" + String(s.ticker) + "' " + (config.stock_symbols[slot] == String(s.ticker) ? "selected" : "") + ">" + String(s.name) + " - " + String(s.ticker) + "</option>");
+              }
+              add("</select>");
               add("</div></div>");
               break;
           }
@@ -570,7 +594,7 @@ void WebServerService::handleRoot() {
   add("<script>");
   add("let formDirty = false;");
   add("function updateVisibility(){");
-  add("  var pairs = [['autoDetect','manualFields',true], ['nightMode','nightFields',false], ['showTime', 'timeContent',false], ['showCalendar', 'calendarContent',false], ['showWeather','weatherContent',false], ['showPc','pcContent',false], ['showCrypto','cryptoContent',false], ['showCurrency','currencyContent',false], ['showStock','stockContent',false], ['showAQI','aqiContent',false], ['showMedia','mediaContent',false], ['showBambu','bambuContent',false]];");  
+  add("  var pairs = [['autoDetect','manualFields',true], ['nightMode','nightFields',false], ['showTime','timeContent',false], ['showCalendar','calendarContent',false], ['showWeather','weatherContent',false], ['showPc','pcContent',false], ['showCrypto','cryptoContent',false], ['showCurrency','currencyContent',false], ['showStock0','stockContent0',false], ['showStock1','stockContent1',false], ['showStock2','stockContent2',false], ['showStock3','stockContent3',false], ['showStock4','stockContent4',false], ['showAQI','aqiContent',false], ['showMedia','mediaContent',false], ['showBambu','bambuContent',false]];");  
   add("  pairs.forEach(p => {");
   add("    var ch = document.getElementById(p[0]); if(!ch) return;");
   add("    var target = document.getElementById(p[1]);");
@@ -592,7 +616,7 @@ void WebServerService::handleRoot() {
   add("document.getElementById('nightActionSelect').addEventListener('change', updateNightAction);");
   add("updateNightAction();");
   
-  add("['autoDetect', 'nightMode', 'showTime', 'showCalendar', 'showWeather', 'showPc', 'showCrypto', 'showCurrency', 'showStock', 'showAQI', 'showMedia', 'showBambu', 'autoCycle'].forEach(id => { var el=document.getElementById(id); if(el) el.addEventListener('change', updateVisibility); });");
+  add("['autoDetect', 'nightMode', 'showTime', 'showCalendar', 'showWeather', 'showPc', 'showCrypto', 'showCurrency', 'showStock0', 'showStock1', 'showStock2', 'showStock3', 'showStock4', 'showAQI', 'showMedia', 'showBambu', 'autoCycle'].forEach(id => { var el=document.getElementById(id); if(el) el.addEventListener('change', updateVisibility); });");
   add("updateVisibility();");
 
   add("const countryGreetings = {");
@@ -690,7 +714,7 @@ void WebServerService::handleRoot() {
   add("  reorderPhysicalPanels(orderInput.value);");
   add("}");
 
-  add("const panelCheckboxes = ['showTime', 'showCalendar', 'showWeather', 'showAQI', 'showCrypto', 'showCurrency', 'showStock', 'showPc', 'showMedia', 'showBambu'];");
+  add("const panelCheckboxes = ['showTime', 'showCalendar', 'showWeather', 'showAQI', 'showCrypto', 'showCurrency', 'showStock0', 'showStock1', 'showStock2', 'showStock3', 'showStock4', 'showPc', 'showMedia', 'showBambu'];");
   add("panelCheckboxes.forEach(id => { const el = document.getElementById(id); if (el) el.addEventListener('change', syncScreenOrder); });");
 
   add("function getDragAfterEl(y) {");
@@ -791,9 +815,7 @@ void WebServerService::handleRoot() {
 
   add("    setCb('showPc', d.show_pc);");
 
-  add("    setCb('showStock', d.show_stock);");
-  add("    setVal('stock_symbol', d.stock_symbol);");
-  
+  add("    for (var _i=0;_i<5;_i++) { setCb('showStock'+_i, d['show_stock_'+_i]); setVal('stock_symbol_'+_i, d['stock_symbol_'+_i]); }");
   add("    setCb('stock_fn', d.stock_fn, true);");
   add("    setCb('showCrypto', d.show_crypto);");
   add("    setVal('crypto_id', d.crypto_id);");
@@ -884,7 +906,7 @@ void WebServerService::handleRoot() {
   add("    hide('stock-no-data', true); hide('stock-grid', false);");
   add("    set('stock-change', d.stock_change + '%');");
   add("    set('stock-trend-icon', parseFloat(d.stock_change) >= 0 ? '📈' : '📉');");
-  add("    set('stock-sym', d.stock_symbol + ' Price');"); 
+  add("    set('stock-sym', d.stock_symbol_0 + ' Price');"); 
   add("    set('stock-upd', 'Last Update: ' + d.update_time);");
   add("  } else { hide('stock-no-data', false); hide('stock-grid', true); }");
 
@@ -929,7 +951,6 @@ void WebServerService::handleSave() {
   AirQualityData& aqi = state->aqi;
   CryptoData& crypto = state->crypto;
   CurrencyData& currency = state->currency;
-  StockData& stock = state->stock;
   PcStats& pc = state->pc;
   PcMedia& media = state->media;
 
@@ -945,7 +966,7 @@ void WebServerService::handleSave() {
   config.show_crypto = server.hasArg("show_crypto");
   config.show_pc = server.hasArg("show_pc");
   config.show_currency = server.hasArg("show_currency");
-  config.show_stock = server.hasArg("show_stock");
+  for (int i = 0; i < 5; i++) config.show_stocks[i] = server.hasArg("show_stock_" + String(i));
   config.show_media = server.hasArg("show_media");
   config.show_bambu = server.hasArg("show_bambu");
 
@@ -982,7 +1003,7 @@ void WebServerService::handleSave() {
 
   if (config.show_crypto) config.crypto_fn = server.hasArg("crypto_fn");
   if (config.show_currency) config.currency_fn = server.hasArg("currency_fn");
-  if (config.show_stock) config.stock_fn = server.hasArg("stock_fn");
+  if (config.show_stocks[0]) config.stock_fn = server.hasArg("stock_fn");
 
   // 2. Persistent Settings: Only update if the arg is present 
   if (server.hasArg("time_format")) config.time_format = server.arg("time_format");
@@ -1011,8 +1032,12 @@ void WebServerService::handleSave() {
   }
 
   // Stock Settings
-  if (server.hasArg("stock_symbol")) {
-      config.stock_symbol = server.arg("stock_symbol");
+  for (int i = 0; i < 5; i++) {
+      String symArg = "stock_symbol_" + String(i);
+      if (server.hasArg(symArg)) config.stock_symbols[i] = server.arg(symArg);
+  }
+  if (server.hasArg("finnhub_key")) {
+      config.finnhub_key = server.arg("finnhub_key");
   }
 
   if (server.hasArg("bambu_ip")) {
@@ -1079,10 +1104,12 @@ void WebServerService::handleSave() {
     currency.updated = false;
   }
 
-  if (!config.show_stock) {
-    stock.price = NAN;
-    stock.percent_change = NAN;
-    stock.updated = false;
+  for (int i = 0; i < 5; i++) {
+    if (!config.show_stocks[i]) {
+      state->stocks[i].price = NAN;
+      state->stocks[i].percent_change = NAN;
+      state->stocks[i].updated = false;
+    }
   }
 
   if (!config.show_media) {
@@ -1107,7 +1134,6 @@ void WebServerService::handleUpdate() {
   AirQualityData& aqi = state->aqi;
   CryptoData& crypto = state->crypto;
   CurrencyData& currency = state->currency;
-  StockData& stock = state->stock;
   PcStats& pc = state->pc;
   PcMedia& media = state->media;
   BambuData bambu = state->bambu;
@@ -1161,8 +1187,10 @@ void WebServerService::handleUpdate() {
   doc["media_status"] = state->media.status;
   doc["media_name"] = state->media.name;
   
-  doc["show_stock"] = config.show_stock ? 1 : 0;
-  doc["stock_symbol"] = config.stock_symbol;
+  for (int i = 0; i < 5; i++) {
+    doc["show_stock_" + String(i)] = config.show_stocks[i] ? 1 : 0;
+    doc["stock_symbol_" + String(i)] = config.stock_symbols[i];
+  }
   doc["stock_fn"] = config.stock_fn ? 1 : 0;
   
   doc["show_crypto"] = config.show_crypto ? 1 : 0;
@@ -1232,10 +1260,10 @@ void WebServerService::handleUpdate() {
     doc["currency_date"] = currency.date;
   }
   
-  if (stock.updated) {
-    doc["stock_symbol"] = stock.symbol;
-    doc["stock_price"] = String(stock.price, 2);
-    doc["stock_change"] = String(stock.percent_change, 2);
+  if (state->stocks[0].updated) {
+    doc["stock_symbol"] = state->stocks[0].symbol;
+    doc["stock_price"] = String(state->stocks[0].price, 2);
+    doc["stock_change"] = String(state->stocks[0].percent_change, 2);
   }
 
   if (pc.cpu_percent > 0.1) {

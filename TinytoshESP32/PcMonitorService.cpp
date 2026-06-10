@@ -108,8 +108,10 @@ void PcMonitorService::sendUpdateOverSerial(AppState &state) {
     doc["show_aqi"] = config.show_aqi ? 1 : 0;
     doc["aqi_type"] = config.aqi_type;
     doc["show_pc"] = config.show_pc ? 1 : 0;
-    doc["show_stock"] = config.show_stock ? 1 : 0;
-    doc["stock_symbol"] = config.stock_symbol;
+    for (int i = 0; i < 5; i++) {
+      doc["show_stock_" + String(i)] = config.show_stocks[i] ? 1 : 0;
+      doc["stock_symbol_" + String(i)] = config.stock_symbols[i];
+    }
     doc["stock_fn"] = config.stock_fn ? 1 : 0;
     doc["show_crypto"] = config.show_crypto ? 1 : 0;
     doc["crypto_id"] = config.crypto_id;
@@ -139,7 +141,6 @@ void PcMonitorService::sendUpdateOverSerial(AppState &state) {
     AirQualityData& aqi = state.aqi;
     CryptoData& crypto = state.crypto;
     CurrencyData& currency = state.currency;
-    StockData& stock = state.stock;
     PcStats& pc = state.pc;
     PcMedia& media = state.media;
     BambuData& bambu = state.bambu;
@@ -175,10 +176,10 @@ void PcMonitorService::sendUpdateOverSerial(AppState &state) {
         doc["currency_target_text"] = String(displayRate, decimals) + " " + currency.target;
     }
 
-    if (stock.updated) {
-        doc["stock_symbol"] = stock.symbol;
-        doc["stock_price"] = String(stock.price, 2);
-        doc["stock_change"] = String(stock.percent_change, 2);
+    if (state.stocks[0].updated) {
+        doc["stock_symbol"] = state.stocks[0].symbol;
+        doc["stock_price"] = String(state.stocks[0].price, 2);
+        doc["stock_change"] = String(state.stocks[0].percent_change, 2);
     }
 
     if (pc.cpu_percent > 0.1) {
@@ -274,8 +275,12 @@ bool PcMonitorService::parseConfigJson(const char* jsonString, AppState &state) 
     if (doc.containsKey("aqi_type")) config.aqi_type = doc["aqi_type"].as<String>();
     
     if (doc.containsKey("show_pc")) config.show_pc = doc["show_pc"] == 1;
-    if (doc.containsKey("show_stock")) config.show_stock = doc["show_stock"] == 1;
-    if (doc.containsKey("stock_symbol")) config.stock_symbol = doc["stock_symbol"].as<String>();
+    for (int i = 0; i < 5; i++) {
+      String sk = "show_stock_" + String(i);
+      String symk = "stock_symbol_" + String(i);
+      if (doc.containsKey(sk)) config.show_stocks[i] = doc[sk] == 1;
+      if (doc.containsKey(symk)) config.stock_symbols[i] = doc[symk].as<String>();
+    }
     if (doc.containsKey("stock_fn")) config.stock_fn = doc["stock_fn"] == 1;
     
     if (doc.containsKey("show_crypto")) config.show_crypto = doc["show_crypto"] == 1;
