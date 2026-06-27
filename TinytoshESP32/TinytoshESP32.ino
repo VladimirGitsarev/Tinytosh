@@ -18,6 +18,7 @@
 #include "StockService.h"
 #include "PcMonitorService.h"
 #include "BambuService.h"
+#include "FocusService.h"
 
 // Global Constants
 const char* AP_SSID = "Tinytosh";
@@ -61,6 +62,7 @@ CurrencyService currencyService;
 StockService stockService;
 PcMonitorService pcMonitorService;
 BambuService bambuService;
+FocusService focusService;
 
 unsigned long lastScreenSwitch = 0;
 int currentScreen = 0;
@@ -210,9 +212,11 @@ void configureHardware() {
   
   button.setup(appState.config.touch_pin, INPUT, false);
   button.attachClick(handleSingleClick);
+  button.attachDoubleClick(handleFocusDoubleClick);
+  button.attachMultiClick(handleFocusMultiClick);
   button.attachLongPressStart(handleLongPress);
   button.setDebounceTicks(50); 
-  button.setClickTicks(100);
+  button.setClickTicks(300); // Enough time for double/triple presses to register
   button.setPressTicks(750);
   button.reset();
   
@@ -240,6 +244,24 @@ void handleSingleClick() {
     switchToNextScreen();
   }
   
+  lastScreenSwitch = millis();
+  lastInteractionTime = millis();
+  lastScreenUpdate = 0;
+}
+
+void handleFocusDoubleClick() {
+  if (!focusService.onDoublePress(currentScreen, appState.config, appState.focus)) return;
+  configManager.saveConfig(appState.config);
+
+  lastScreenSwitch = millis();
+  lastInteractionTime = millis();
+  lastScreenUpdate = 0;
+}
+
+void handleFocusMultiClick() {
+  if (button.getNumberClicks() < 3) return;
+  if (!focusService.onTriplePress(currentScreen, appState.focus)) return;
+
   lastScreenSwitch = millis();
   lastInteractionTime = millis();
   lastScreenUpdate = 0;
@@ -489,6 +511,15 @@ void loop() {
       lastScreenUpdate = 0; 
       lastInteractionTime = millis() - NIGHT_WAKE_DURATION_MS;
     }
+  }
+
+  // 1b. Focus Mode: detect a Running session's countdown reaching zero.
+  // tick() resets focus back to Idle on completion, which also re-opens screen switching.
+  if (focusService.tick(appState.focus, appState.config)) {
+    Serial.println("✅ Focus Session Complete!");
+    displayService.playFocusCompleteAnimation(appState.config.focus_flash);
+    lastScreenUpdate = 0;
+    lastScreenSwitch = millis();
   }
 
   // 2. Scheduled Data Refresh (Non-Blocking via FreeRTOS Task)

@@ -296,6 +296,7 @@ void WebServerService::handleRoot() {
       case SCREEN_PC_MONITOR: targetId = "showPc"; break;
       case SCREEN_PC_MEDIA: targetId = "showMedia"; break;
       case SCREEN_BAMBU: targetId = "showBambu"; break;
+      case SCREEN_FOCUS: targetId = "showFocus"; break;
     }
     
     add("<li class='sortable-item' data-id='" + String(screenId) + "' data-target='" + targetId + "' draggable='true'>");
@@ -552,6 +553,24 @@ void WebServerService::handleRoot() {
               add("</div></div>");
               break;
           }
+
+          case SCREEN_FOCUS: {
+              add("<div class='panel' id='panel-" + String(screenId) + "'>");
+              add("<label class='checkbox-label mt-0'><input type='checkbox' id='showFocus' name='show_focus' value='1' " + String(config.show_focus ? "checked" : "") + "> Focus Mode Screen</label>");
+              add("<div id='focusContent' class='collapsible'>");
+
+              add("<p class='help-text mt-0'>On the device: triple-press starts/pauses a session, double-press cycles through the durations below, in order. Screen switching is locked while a session is running, and leaving mid-pause resets it.</p>");
+
+              add("<label class='mt-0'>Session Durations (Minutes):</label>");
+              add("<div id='focus-duration-list-container'></div>");
+              add("<button type='button' class='btn-blue' onclick='addFocusDurationRow()'>+ Add Duration</button>");
+
+              add("<label class='checkbox-label'><input type='checkbox' name='focus_flash' value='1' " + String(config.focus_flash ? "checked" : "") + "> Flash Screen When Timer Ends</label>");
+              add("<p class='help-text mt-0'>Inverts the display a few times to grab your attention when a session finishes. If off, it just shows a brief completion message instead.</p>");
+
+              add("</div></div>");
+              break;
+          }
       }
   }
 
@@ -562,7 +581,7 @@ void WebServerService::handleRoot() {
   add("let formDirty = false;");
   
   add("function updateVisibility(){");
-  add("  var pairs = [['autoDetect','manualFields',true], ['nightMode','nightFields',false], ['showTime', 'timeContent',false], ['showCalendar', 'calendarContent',false], ['showWeather','weatherContent',false], ['showDaylight','daylightContent',false], ['showPc','pcContent',false], ['showCrypto','cryptoContent',false], ['showCurrency','currencyContent',false], ['showStock','stockContent',false], ['showAQI','aqiContent',false], ['showMedia','mediaContent',false], ['showBambu','bambuContent',false]];");  
+  add("  var pairs = [['autoDetect','manualFields',true], ['nightMode','nightFields',false], ['showTime', 'timeContent',false], ['showCalendar', 'calendarContent',false], ['showWeather','weatherContent',false], ['showDaylight','daylightContent',false], ['showPc','pcContent',false], ['showCrypto','cryptoContent',false], ['showCurrency','currencyContent',false], ['showStock','stockContent',false], ['showAQI','aqiContent',false], ['showMedia','mediaContent',false], ['showBambu','bambuContent',false], ['showFocus','focusContent',false]];");  
   add("  pairs.forEach(p => {");
   add("    var ch = document.getElementById(p[0]); if(!ch) return;");
   add("    var target = document.getElementById(p[1]);");
@@ -614,7 +633,10 @@ void WebServerService::handleRoot() {
   }
   add("div.innerHTML = `<div class='input-wrapper'><label class='mt-0'>Base:</label><select name='currency_bases[]'>${cOpts}</select></div><div class='input-wrapper'><label class='mt-0'>Target:</label><select name='currency_targets[]'>${cOpts}</select></div><div class='input-wrapper'><label class='mt-0'>Mult:</label><select name='currency_multipliers[]'><option value='1'>1</option><option value='10'>10</option><option value='100'>100</option><option value='1000'>1000</option></select></div><button type='button' class='btn-remove' onclick=\"removeRow(this, 'currency-list-container')\">-</button>`; container.appendChild(div); if (bVal) div.querySelector(\"select[name='currency_bases[]']\").value = bVal; if (tVal) div.querySelector(\"select[name='currency_targets[]']\").value = tVal; if (mVal) div.querySelector(\"select[name='currency_multipliers[]']\").value = mVal; formDirty = true; updateRowControls('currency-list-container', 5); };");
 
-  add("['autoDetect', 'nightMode', 'showTime', 'showCalendar', 'showWeather', 'showDaylight', 'showPc', 'showCrypto', 'showCurrency', 'showStock', 'showAQI', 'showMedia', 'showBambu', 'autoCycle'].forEach(id => { var el=document.getElementById(id); if(el) el.addEventListener('change', updateVisibility); });");
+  add("window.addFocusDurationRow = function(val = null) { const container = document.getElementById('focus-duration-list-container'); if (!container || container.children.length >= 5) return; const div = document.createElement('div'); div.className = 'multi-row'; ");
+  add("div.innerHTML = `<div class='input-wrapper'><label class='mt-0'>Minutes:</label><input type='number' name='focus_durations[]' min='1' max='999' value='${val !== null ? val : 30}'></div><button type='button' class='btn-remove' onclick=\"removeRow(this, 'focus-duration-list-container')\">-</button>`; container.appendChild(div); formDirty = true; updateRowControls('focus-duration-list-container', 5); };");
+
+  add("['autoDetect', 'nightMode', 'showTime', 'showCalendar', 'showWeather', 'showDaylight', 'showPc', 'showCrypto', 'showCurrency', 'showStock', 'showAQI', 'showMedia', 'showBambu', 'showFocus', 'autoCycle'].forEach(id => { var el=document.getElementById(id); if(el) el.addEventListener('change', updateVisibility); });");
   add("updateVisibility();");
 
   add("const countryGreetings = {");
@@ -708,7 +730,7 @@ void WebServerService::handleRoot() {
   add("  reorderPhysicalPanels(orderInput.value);");
   add("}");
 
-  add("const panelCheckboxes = ['showTime', 'showCalendar', 'showWeather', 'showAQI', 'showDaylight', 'showCrypto', 'showCurrency', 'showStock', 'showPc', 'showMedia', 'showBambu'];");
+  add("const panelCheckboxes = ['showTime', 'showCalendar', 'showWeather', 'showAQI', 'showDaylight', 'showCrypto', 'showCurrency', 'showStock', 'showPc', 'showMedia', 'showBambu', 'showFocus'];");
   add("panelCheckboxes.forEach(id => { const el = document.getElementById(id); if (el) el.addEventListener('change', syncScreenOrder); });");
 
   add("function getDragAfterEl(y) {");
@@ -770,6 +792,7 @@ void WebServerService::handleRoot() {
   add("  jsonObj['currency_bases'] = Array.from(e.target.querySelectorAll('select[name=\"currency_bases[]\"]')).map(s => s.value);");
   add("  jsonObj['currency_targets'] = Array.from(e.target.querySelectorAll('select[name=\"currency_targets[]\"]')).map(s => s.value);");
   add("  jsonObj['currency_multipliers'] = Array.from(e.target.querySelectorAll('select[name=\"currency_multipliers[]\"]')).map(s => Number(s.value));");
+  add("  jsonObj['focus_durations'] = Array.from(e.target.querySelectorAll('input[name=\"focus_durations[]\"]')).map(s => Number(s.value));");
   add("  jsonObj['anim_mask'] = mask;");
   add("  jsonObj['screen_order'] = document.getElementById('screenOrderInput').value;");
 
@@ -875,6 +898,9 @@ void WebServerService::handleRoot() {
   add("    setVal('bambu_ip', d.bambu_ip);");
   add("    setVal('bambu_sn', d.bambu_sn);");
   add("    setVal('bambu_code', d.bambu_code);");
+
+  add("    setCb('showFocus', d.show_focus); setCb('focus_flash', d.focus_flash, true);");
+  add("    const fdCont = document.getElementById('focus-duration-list-container'); if (fdCont) { fdCont.innerHTML = ''; (d.focus_durations && d.focus_durations.length > 0 ? d.focus_durations : [30]).forEach(m => window.addFocusDurationRow(m)); }");
 
   add("    setCb('hide_empty_pc', d.hide_empty_pc, true);");
   add("    setCb('hide_empty_media', d.hide_empty_media, true);");

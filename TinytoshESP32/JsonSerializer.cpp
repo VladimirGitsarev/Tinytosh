@@ -82,6 +82,11 @@ void JsonSerializer::populateConfigDoc(const Config& config, DynamicJsonDocument
     doc["bambu_sn"] = config.bambu_sn;
     doc["bambu_code"] = config.bambu_code;
 
+    doc["show_focus"] = config.show_focus ? 1 : 0;
+    JsonArray fdArr = doc.createNestedArray("focus_durations");
+    for(int i=0; i<config.focus_duration_count; i++) fdArr.add(config.focus_durations[i]);
+    doc["focus_flash"] = config.focus_flash ? 1 : 0;
+
     doc["hide_empty_pc"] = config.hide_empty_pc ? 1 : 0;
     doc["hide_empty_media"] = config.hide_empty_media ? 1 : 0;
     doc["hide_empty_bambu"] = config.hide_empty_bambu ? 1 : 0;
@@ -316,6 +321,21 @@ bool JsonSerializer::parseConfig(const char* jsonString, AppState& state) {
     if (doc.containsKey("bambu_ip")) config.bambu_ip = doc["bambu_ip"].as<String>();
     if (doc.containsKey("bambu_sn")) config.bambu_sn = doc["bambu_sn"].as<String>();
     if (doc.containsKey("bambu_code")) config.bambu_code = doc["bambu_code"].as<String>();
+
+    if (doc.containsKey("show_focus")) config.show_focus = doc["show_focus"] == 1;
+    if (doc.containsKey("focus_durations")) {
+        JsonArray arr = doc["focus_durations"].as<JsonArray>();
+        config.focus_duration_count = 0;
+        for (JsonVariant v : arr) {
+            int mins = v.as<int>();
+            if (mins > 0 && config.focus_duration_count < MAX_MULTI_ENTRIES) {
+                config.focus_durations[config.focus_duration_count++] = mins;
+            }
+        }
+        if (config.focus_duration_count == 0) { config.focus_durations[0] = 30; config.focus_duration_count = 1; }
+        if (config.focus_duration_index >= config.focus_duration_count) config.focus_duration_index = 0;
+    }
+    if (doc.containsKey("focus_flash")) config.focus_flash = doc["focus_flash"] == 1;
     
     if (doc.containsKey("hide_empty_pc")) config.hide_empty_pc = doc["hide_empty_pc"] == 1;
     if (doc.containsKey("hide_empty_media")) config.hide_empty_media = doc["hide_empty_media"] == 1;
@@ -342,6 +362,7 @@ bool JsonSerializer::parseConfig(const char* jsonString, AppState& state) {
     if (!config.show_aqi) { state.aqi.aqi = NAN; state.aqi.pm25 = NAN; state.aqi.pm10 = NAN; state.aqi.no2 = NAN; }
     if (!config.show_daylight) { state.daylight.sunrise_mins = -1; state.daylight.sunset_mins = -1; state.daylight.noon_mins = -1; state.daylight.length_mins = -1; state.daylight.last_fetch_yday = -1; }
     if (!config.show_pc) { state.pc.cpu_percent = 0; state.pc.net_down_kb = 0; state.pc.mem_percent = 0; state.pc.disk_percent = 0; }
+    if (!config.show_focus) { state.focus.state = FOCUS_STATE_IDLE; state.focus.elapsed_ms = 0; state.focus.segment_start_ms = 0; }
     
     // Array Wipes
     if (!config.show_crypto) { 
