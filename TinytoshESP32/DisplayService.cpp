@@ -1,6 +1,7 @@
 #include "DisplayService.h"
 #include "DaylightService.h"
 #include "WeatherService.h"
+#include "FocusService.h"
 #include "images.h"
 #include <Arduino.h>
 #include <Fonts/Picopixel.h>
@@ -1092,6 +1093,127 @@ void DisplayService::drawBambuScreen(const BambuData& data) {
     display.print(timeStr);
 }
 
+void DisplayService::drawFocusScreen(const Config& config, const FocusData& focus) {
+    display.clearDisplay();
+    display.setTextColor(SSD1306_WHITE);
+    display.setTextWrap(false);
+    display.setFont();
+
+    int16_t x1, y1;
+    uint16_t w, h;
+
+    // 1. Compute remaining time for the selected/active session
+    unsigned long totalMs = (unsigned long)FocusService::getActiveDurationMinutes(config) * 60000UL;
+    unsigned long elapsedMs = focus.elapsed_ms;
+    if (focus.state == FOCUS_STATE_RUNNING) {
+        elapsedMs += millis() - focus.segment_start_ms;
+    }
+    if (elapsedMs > totalMs) elapsedMs = totalMs;
+    unsigned long remainingMs = totalMs - elapsedMs;
+
+    int totalSecs = remainingMs / 1000;
+    int mm = totalSecs / 60;
+    int ss = totalSecs % 60;
+    char timeBuf[6];
+    snprintf(timeBuf, sizeof(timeBuf), "%02d:%02d", mm, ss);
+
+    // 2. Header: Title (left) + State (right)
+    display.setTextSize(1);
+    display.setCursor(2, 2);
+    display.print("FOCUS MODE");
+
+    const char* stateStr;
+    switch (focus.state) {
+        case FOCUS_STATE_RUNNING: stateStr = "RUNNING"; break;
+        case FOCUS_STATE_PAUSED:  stateStr = "PAUSED"; break;
+        default:                  stateStr = "READY"; break;
+    }
+    display.getTextBounds(stateStr, 0, 0, &x1, &y1, &w, &h);
+    display.setCursor(display.width() - w - 2, 2);
+    display.print(stateStr);
+
+    display.drawFastHLine(0, 12, display.width(), SSD1306_WHITE);
+
+    // 3. Big Countdown
+    display.setTextSize(3);
+    display.getTextBounds(timeBuf, 0, 0, &x1, &y1, &w, &h);
+    display.setCursor((display.width() - w) / 2, 18);
+    display.print(timeBuf);
+
+    // 4. Contextual Hint
+    display.setTextSize(1);
+    const char* hint;
+    switch (focus.state) {
+        case FOCUS_STATE_RUNNING: hint = "Locked: 3x = Pause"; break;
+        case FOCUS_STATE_PAUSED:  hint = "Leave Resets Timer"; break;
+        default:                  hint = "2x: Time  3x: Start"; break;
+    }
+    display.getTextBounds(hint, 0, 0, &x1, &y1, &w, &h);
+    display.setCursor((display.width() - w) / 2, 46);
+    display.print(hint);
+
+    // 5. Progress Bar
+    int percent = (totalMs > 0) ? (int)((elapsedMs * 100UL) / totalMs) : 0;
+    if (percent > 100) percent = 100;
+
+    display.drawRect(2, 56, 124, 6, 1);
+    int fillW = (int)((percent / 100.0) * 120);
+    if (fillW > 0) display.fillRect(4, 58, fillW, 2, 1);
+}
+
+void DisplayService::playFocusCompleteAnimation(bool flash) {
+    display.clearDisplay();
+    display.setTextColor(SSD1306_WHITE);
+    display.setTextWrap(false);
+    display.setFont();
+
+    int16_t x1, y1;
+    uint16_t w, h;
+
+    // Header: same layout as drawFocusScreen, but state is fixed to "DONE"
+    display.setTextSize(1);
+    display.setCursor(2, 2);
+    display.print("FOCUS MODE");
+
+    const char* doneStr = "DONE";
+    display.getTextBounds(doneStr, 0, 0, &x1, &y1, &w, &h);
+    display.setCursor(display.width() - w - 2, 2);
+    display.print(doneStr);
+
+    display.drawFastHLine(0, 12, display.width(), SSD1306_WHITE);
+
+    // Big "00:00"
+    display.setTextSize(3);
+    display.getTextBounds("00:00", 0, 0, &x1, &y1, &w, &h);
+    display.setCursor((display.width() - w) / 2, 18);
+    display.print("00:00");
+
+    // Hint
+    display.setTextSize(1);
+    const char* hint = "Session Complete!";
+    display.getTextBounds(hint, 0, 0, &x1, &y1, &w, &h);
+    display.setCursor((display.width() - w) / 2, 46);
+    display.print(hint);
+
+    // Full progress bar
+    display.drawRect(2, 56, 124, 6, 1);
+    display.fillRect(4, 58, 120, 2, 1);
+
+    display.display();
+    if (flash) {
+        const int FLASH_COUNT = 15;
+        const int FLASH_INTERVAL_MS = 250;
+        for (int i = 0; i < FLASH_COUNT; i++) {
+            display.invertDisplay(true);
+            delay(FLASH_INTERVAL_MS);
+            display.invertDisplay(false);
+            delay(FLASH_INTERVAL_MS);
+        }
+    } else {
+        delay(1500);
+    }
+}
+
 void DisplayService::drawInfoScreen(const unsigned char* image, String text) {
     display.clearDisplay();
 
@@ -1163,6 +1285,7 @@ bool DisplayService::isScreenEnabled(const AppState& state, int screenIndex) {
             }
             return true;
         }
+        case SCREEN_FOCUS:          return config.show_focus;
         default: return false;
     }
 }
@@ -1180,6 +1303,7 @@ void DisplayService::drawScreen(int screenIndex, const AppState& state, int subI
     case SCREEN_PC_MONITOR: drawPcScreen(state.pc); break;
     case SCREEN_PC_MEDIA: drawMediaScreen(state.media); break;
     case SCREEN_BAMBU: drawBambuScreen(state.bambu); break;
+    case SCREEN_FOCUS: drawFocusScreen(state.config, state.focus); break;
   }
 }
 

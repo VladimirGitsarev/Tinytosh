@@ -17,6 +17,7 @@ enum ScreenType {
   SCREEN_PC_MONITOR,
   SCREEN_PC_MEDIA,
   SCREEN_BAMBU,
+  SCREEN_FOCUS,
   NUM_SCREENS
 };
 
@@ -31,7 +32,8 @@ inline constexpr const char* SCREEN_NAMES[] = {
   "Currency Exchange",
   "PC Monitor",
   "PC Media",
-  "Printer Info"
+  "Printer Info",
+  "Focus Mode"
 };
 
 enum AnimType {
@@ -42,6 +44,19 @@ enum AnimType {
   ANIM_CURTAIN,
   ANIM_BLINDS,
   ANIM_RANDOM
+};
+
+enum FocusSessionState {
+  FOCUS_STATE_IDLE,
+  FOCUS_STATE_RUNNING,
+  FOCUS_STATE_PAUSED
+};
+
+// Runtime state for the Focus Mode timer
+struct FocusData {
+  FocusSessionState state = FOCUS_STATE_IDLE;
+  unsigned long elapsed_ms = 0;       // Time accumulated across completed running segments.
+  unsigned long segment_start_ms = 0; // millis() when the current running segment began.
 };
 
 struct Holiday {
@@ -81,7 +96,7 @@ struct Config {
   // Screens Settings
   bool screen_auto_cycle = true;
   int screen_interval_sec = 15;
-  int screen_order[NUM_SCREENS] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+  int screen_order[NUM_SCREENS] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
 
   bool show_time = true;
   bool show_calendar = true;
@@ -134,6 +149,13 @@ struct Config {
   String bambu_ip = "";
   String bambu_sn = "";
   String bambu_code = "";
+
+  // Focus Mode Settings
+  bool show_focus = true;
+  int focus_durations[MAX_MULTI_ENTRIES] = {30, 0, 0, 0, 0};  // Minutes per custom slot (up to 5)
+  int focus_duration_count = 1;                               // How many slots are actually filled in
+  int focus_duration_index = 0;                               // Which slot is active
+  bool focus_flash = true;                                    // Flash display when a session completes
 
   // Animation Settings
   uint16_t anim_mask = 62;
@@ -470,5 +492,6 @@ struct AppState {
   PcStats pc;
   PcMedia media;
   BambuData bambu;
+  FocusData focus;
 };
 #endif
