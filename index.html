@@ -30,6 +30,7 @@
                         <li>🌤️ <a href="#screen-weather"><strong>Weather Station:</strong></a> Live Temperature, Humidity, and Forecasts (via Open-Meteo).</li>
                         <li>🍃 <a href="#screen-aqi"><strong>Air Quality:</strong></a> Monitor local AQI levels (US & EU Standards).</li>
                         <li>☀️ <a href="#screen-daylight"><strong>Daylight Info:</strong></a> Tracks sunrise, sunset, solar noon, and day length.</li>
+                        <li>🌑 <a href="#screen-moon"><strong>Moon Info:</strong></a> Tracks the current lunar phase, illumination, and moonrise/moonset times.</li>
                         <li>📊 <a href="#screen-stock"><strong>Stock Tracker:</strong></a> Track market data for up to 5 global assets and ETFs at once.</li>
                         <li>📈 <a href="#screen-crypto"><strong>Crypto Tracker:</strong></a> Track up to 5 top global cryptos with price and trend indicators.</li>
                         <li>💱 <a href="#screen-currency"><strong>Currency Tracker:</strong></a> Track exchange rates for up to 5 fiat currency pairs with custom multipliers.</li>
@@ -652,6 +653,39 @@
                                     <div class="assembly-item">
                                         <div class="assembly-img-wrapper">
                                             <img src="img/real_daylight.jpg" alt="Daylight Real Photo" class="real-photo">
+                                        </div>
+                                        <div class="assembly-caption">Real Photo</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </details>
+                    </div>
+
+                    <div class="feature-item" id="screen-moon">
+                        <div class="feature-header">🌑 Moon Info</div>
+                        <div class="feature-section-title">Function</div>
+                        <p>Tracks the moon's position and appearance, providing precise times for moonrise and moonset, illumination percentage, and the current lunar phase.</p>
+                        <div class="feature-section-title">Settings</div>
+                        <ul>
+                            <li><strong>Minimalistic Mode:</strong> Hides the rise/set times and illumination percentage to cleanly centralize a much larger moon graphic.</li>
+                        </ul>
+                        <div class="feature-section-title">Layout</div>
+                        <p>Instead of static bitmaps, this screen features a mathematically rendered moon that dynamically simulates the exact shadow terminator line based on real-time illumination data.</p>
+                        <span class="api-tag">Source: aa.usno.navy.mil</span>
+
+                        <details open>
+                            <summary>📸 Screen Preview</summary>
+                            <div class="assembly-container">
+                                <div class="assembly-grid">
+                                    <div class="assembly-item">
+                                        <div class="assembly-img-wrapper">
+                                            <img src="img/render_moon.png" alt="Moon Layout Render">
+                                        </div>
+                                        <div class="assembly-caption">Layout Render</div>
+                                    </div>
+                                    <div class="assembly-item">
+                                        <div class="assembly-img-wrapper">
+                                            <img src="img/real_moon.jpg" alt="Moon Real Photo" class="real-photo">
                                         </div>
                                         <div class="assembly-caption">Real Photo</div>
                                     </div>

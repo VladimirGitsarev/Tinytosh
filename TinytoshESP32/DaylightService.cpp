@@ -5,12 +5,12 @@
 DaylightService::DaylightService() {}
 
 bool DaylightService::fetchDaylight(const Config& config, DaylightData& data) {
-  Serial.println("DaylightService: Fetching daylight data from Sunrise-Sunset..."); 
   HTTPClient http;
-  
   String url = String(DAYLIGHT_API_BASE) + "?lat=" + String(config.latitude, 4) + "&lng=" + String(config.longitude, 4) + "&tzid=" + config.timezone;
   
-  http.setReuse(false); 
+  Serial.println("DaylightService: Fetching daylight data from Sunrise-Sunset -> " + url);
+  
+  http.setReuse(false);
   http.begin(url);
   http.setConnectTimeout(5000); 
   http.setTimeout(5000);

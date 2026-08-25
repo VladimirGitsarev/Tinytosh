@@ -624,6 +624,80 @@ void DisplayService::drawDaylightScreen(const Config& config, const DaylightData
     display.print(timeLeftStr);
 }
 
+void DisplayService::drawMoonScreen(const Config& config, const MoonData& data) {
+    if (data.fracillum == -1) {
+        drawInfoScreen(nullptr, "No Moon Data");
+        return;
+    }
+
+    display.clearDisplay();
+    display.setTextColor(SSD1306_WHITE);
+    display.setTextWrap(false);
+    display.setTextSize(1);
+    display.setFont();
+
+    int16_t x1, y1; uint16_t w, h;
+    bool isMinimal = config.moon_minimal;
+
+    // 1. Phase Name
+    String phaseStr = data.curphase;
+    phaseStr.toUpperCase();
+    display.getTextBounds(phaseStr.c_str(), 0, 0, &x1, &y1, &w, &h);
+    display.setCursor((128 - w) / 2, 55);
+    display.print(phaseStr);
+
+    int cx = 64;
+    int cy = 31;
+    int r = 17;
+
+    if (!isMinimal) {
+        // 2. Illumination
+        String illumStr = String(data.fracillum) + "%";
+        display.getTextBounds(illumStr.c_str(), 0, 0, &x1, &y1, &w, &h);
+        display.setCursor((128 - w) / 2, 2);
+        display.print(illumStr);
+
+        // 3. Moonrise
+        String riseStr = (data.rise_mins != -1) ? TimeService::formatMinsFromMidnight(data.rise_mins, config.time_format) : "--:--";
+        display.setCursor(6, 29);
+        display.print(riseStr);
+        display.drawBitmap(17, 21, icon_up, 7, 4, 1);
+
+        // 4. Moonset
+        String setStr = (data.set_mins != -1) ? TimeService::formatMinsFromMidnight(data.set_mins, config.time_format) : "--:--";
+        display.setCursor(92, 29);
+        display.print(setStr);
+        display.drawBitmap(103, 21, icon_down, 7, 4, 1);
+    } else {
+        cy = 27; 
+        r = 22;  
+    }
+
+    // 5. Moon
+    float f = data.fracillum / 100.0;
+
+    bool isWaxing = (data.curphase.indexOf("Wax") >= 0 || data.curphase.indexOf("First") >= 0 || data.curphase.indexOf("New") >= 0);
+    
+    display.fillCircle(cx, cy, r, SSD1306_WHITE);
+
+    if (isWaxing) {
+        display.fillRect(cx - r, cy - r, r, 2 * r + 1, SSD1306_BLACK);
+    } else {
+        display.fillRect(cx, cy - r, r + 1, 2 * r + 1, SSD1306_BLACK);
+    }
+
+    int ew = round(r * fabsf(1.0f - 2.0f * f));
+
+    int ellipseColor = (f <= 0.5) ? SSD1306_BLACK : SSD1306_WHITE;
+
+    for (int y = -r; y <= r; y++) {
+        int dx = (ew * sqrt(r * r - y * y)) / r;
+        display.drawFastHLine(cx - dx, cy + y, dx * 2 + 1, ellipseColor);
+    }
+
+    display.drawCircle(cx, cy, r, SSD1306_WHITE);
+}
+
 void DisplayService::drawCryptoScreen(const Config& config, const CryptoData& data) {
     display.clearDisplay();
 
@@ -1136,6 +1210,7 @@ bool DisplayService::isScreenEnabled(const AppState& state, int screenIndex) {
         case SCREEN_WEATHER:        return config.show_weather;
         case SCREEN_AIR_QUALITY:    return config.show_aqi;
         case SCREEN_DAYLIGHT:       return config.show_daylight;
+        case SCREEN_MOON:           return config.show_moon;
         case SCREEN_STOCK:          return config.show_stock;
         case SCREEN_CRYPTO:         return config.show_crypto;
         case SCREEN_CURRENCY:       return config.show_currency;
@@ -1174,6 +1249,7 @@ void DisplayService::drawScreen(int screenIndex, const AppState& state, int subI
     case SCREEN_WEATHER: drawWeatherScreen(state.config, state.weather, TimeService::getCurrentTimeShort(state.config.time_format)); break;
     case SCREEN_AIR_QUALITY: drawAQIScreen(state.config, state.aqi, TimeService::getCurrentTimeShort(state.config.time_format)); break;
     case SCREEN_DAYLIGHT: drawDaylightScreen(state.config, state.daylight); break;
+    case SCREEN_MOON: drawMoonScreen(state.config, state.moon); break;
     case SCREEN_STOCK: drawStockScreen(state.config, state.stocks[subIndex]); break;
     case SCREEN_CRYPTO: drawCryptoScreen(state.config, state.cryptos[subIndex]); break;
     case SCREEN_CURRENCY: drawCurrencyScreen(state.config, state.currencies[subIndex], state.config.currency_multipliers[subIndex]); break;

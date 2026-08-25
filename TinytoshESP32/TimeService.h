@@ -16,7 +16,7 @@ public:
     static String getFullDate();
     static String formatMinsFromMidnight(int mins, String format, bool show_ampm = true);
     static String formatDurationMins(int mins);
-    static int parseTimeToMinsFromMidnight(String apiTime);
+    static int parseTimeToMinsFromMidnight(String apiTime, String format = "12");
     static int parseDurationToMins(String apiDuration);
     static String lookupPosixTimezone(const String& ianaTimezone);
 

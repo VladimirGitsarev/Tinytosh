@@ -11,6 +11,7 @@ enum ScreenType {
   SCREEN_WEATHER,
   SCREEN_AIR_QUALITY,
   SCREEN_DAYLIGHT,
+  SCREEN_MOON,
   SCREEN_STOCK,
   SCREEN_CRYPTO,
   SCREEN_CURRENCY,
@@ -26,6 +27,7 @@ inline constexpr const char* SCREEN_NAMES[] = {
   "Weather",
   "Air Quality",
   "Daylight Info",
+  "Moon Info",
   "Stock Tracking",
   "Crypto Tracking",
   "Currency Exchange",
@@ -67,7 +69,8 @@ struct Config {
   String country = "";
   String country_code = "";
   String city = "";
-  String timezone = ""; 
+  String timezone = "";
+  
   String time_format = "24";
   bool date_display = false;
   unsigned long refresh_interval_min = 15;
@@ -81,13 +84,14 @@ struct Config {
   // Screens Settings
   bool screen_auto_cycle = true;
   int screen_interval_sec = 15;
-  int screen_order[NUM_SCREENS] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+  int screen_order[NUM_SCREENS] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
 
   bool show_time = true;
   bool show_calendar = true;
   bool show_weather = true;
   bool show_aqi = true;
   bool show_daylight = true;
+  bool show_moon = true;
   bool show_stock = true;
   bool show_crypto = true;
   bool show_currency = true;
@@ -111,8 +115,11 @@ struct Config {
   bool weather_hide_bar = false;
   bool aqi_hide_bar = false;
 
-  // Daylight settings
+  // Daylight Settings
   bool daylight_minimal = false;
+
+  // Moon Settings
+  bool moon_minimal = false;
 
   // Crypto, Currency & Stocks Settings
   String stock_symbols[MAX_MULTI_ENTRIES] = {"AAPL", "", "", "", ""};
@@ -143,7 +150,7 @@ struct Config {
   String night_start = "23:00";
   String night_end = "06:00";
   String night_dim_start = "22:00";
-  int night_action = 1; // 0: None, 1: Dim, 2: Off, 3: Dim + Off
+  int night_action = 1; 
 };
 
 struct CalendarData {
@@ -175,6 +182,14 @@ struct DaylightData {
   int sunset_mins = -1;
   int noon_mins = -1;
   int length_mins = -1;
+  int last_fetch_yday = -1;
+};
+
+struct MoonData {
+  String curphase = "N/A";
+  int fracillum = -1; 
+  int rise_mins = -1;
+  int set_mins = -1;
   int last_fetch_yday = -1;
 };
 
@@ -464,6 +479,7 @@ struct AppState {
   WeatherData weather;
   AirQualityData aqi;
   DaylightData daylight;
+  MoonData moon;
   CryptoData cryptos[MAX_MULTI_ENTRIES];
   CurrencyData currencies[MAX_MULTI_ENTRIES];
   StockData stocks[MAX_MULTI_ENTRIES];

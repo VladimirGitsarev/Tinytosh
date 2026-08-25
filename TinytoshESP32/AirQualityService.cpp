@@ -6,14 +6,13 @@
 bool AirQualityService::fetchAirQuality(const Config& config, AirQualityData &data) {
   Serial.println("AirQualityService: Fetching Air Quality data from Open-Meteo..."); 
   HTTPClient http;
-
   String typeParam = (config.aqi_type == "EU") ? "european_aqi" : "us_aqi";
-  
-  String url = String(AIR_QUALITY_API_URL) + "?latitude=" + String(config.latitude, 4) + 
-               "&longitude=" + String(config.longitude, 4) + 
-               "&current=pm2_5,pm10,nitrogen_dioxide," + typeParam;
-  
-  Serial.println("AirQualityService: Requesting Air Quality data from: " + url); 
+  String url = String(AIR_QUALITY_API_URL) + "?latitude=" + String(config.latitude, 4) +
+                "&longitude=" + String(config.longitude, 4) +
+                "&current=pm2_5,pm10,nitrogen_dioxide," + typeParam;
+                
+  Serial.println("AirQualityService: Fetching air quality data from Open-Meteo -> " + url);
+
   http.setReuse(false); 
   http.begin(url);
   http.setConnectTimeout(5000); 

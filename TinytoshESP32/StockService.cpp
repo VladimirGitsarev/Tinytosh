@@ -15,7 +15,7 @@ bool StockService::fetchStock(const String& symbol, StockData &data) {
     
     for (int i = 0; i < 2; i++) {
         String url = String(STOCK_API_URLS[i]) + safeSymbol;
-        Serial.printf("StockService: Attempt %d - URL: %s\n", i + 1, url.c_str()); 
+        Serial.println("StockService: Fetching stock data from Yahoo Finance (Attempt " + String(i + 1) + ") -> " + url);
 
         HTTPClient http;
         http.setReuse(false); 

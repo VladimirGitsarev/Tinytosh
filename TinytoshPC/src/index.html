@@ -199,12 +199,13 @@
               <li class="sortable-item" data-id="2" data-target="showWeather"><div class="order-ctrl"><span class="move-btn move-up">▲</span><span class="move-btn move-down">▼</span></div>Weather</li>
               <li class="sortable-item" data-id="3" data-target="showAQI"><div class="order-ctrl"><span class="move-btn move-up">▲</span><span class="move-btn move-down">▼</span></div>Air Quality</li>
               <li class="sortable-item" data-id="4" data-target="showDaylight"><div class="order-ctrl"><span class="move-btn move-up">▲</span><span class="move-btn move-down">▼</span></div>Daylight Info</li>
-              <li class="sortable-item" data-id="5" data-target="showStock"><div class="order-ctrl"><span class="move-btn move-up">▲</span><span class="move-btn move-down">▼</span></div>Stock Tracking</li>
-              <li class="sortable-item" data-id="6" data-target="showCrypto"><div class="order-ctrl"><span class="move-btn move-up">▲</span><span class="move-btn move-down">▼</span></div>Crypto Tracking</li>
-              <li class="sortable-item" data-id="7" data-target="showCurrency"><div class="order-ctrl"><span class="move-btn move-up">▲</span><span class="move-btn move-down">▼</span></div>Currency Exchange</li>
-              <li class="sortable-item" data-id="8" data-target="showPc"><div class="order-ctrl"><span class="move-btn move-up">▲</span><span class="move-btn move-down">▼</span></div>PC Monitor</li>
-              <li class="sortable-item" data-id="9" data-target="showMedia"><div class="order-ctrl"><span class="move-btn move-up">▲</span><span class="move-btn move-down">▼</span></div>PC Media</li>
-              <li class="sortable-item" data-id="10" data-target="showBambu"><div class="order-ctrl"><span class="move-btn move-up">▲</span><span class="move-btn move-down">▼</span></div>Printer Info</li>
+              <li class="sortable-item" data-id="5" data-target="showMoon"><div class="order-ctrl"><span class="move-btn move-up">▲</span><span class="move-btn move-down">▼</span></div>Moon Info</li>
+              <li class="sortable-item" data-id="6" data-target="showStock"><div class="order-ctrl"><span class="move-btn move-up">▲</span><span class="move-btn move-down">▼</span></div>Stock Tracking</li>
+              <li class="sortable-item" data-id="7" data-target="showCrypto"><div class="order-ctrl"><span class="move-btn move-up">▲</span><span class="move-btn move-down">▼</span></div>Crypto Tracking</li>
+              <li class="sortable-item" data-id="8" data-target="showCurrency"><div class="order-ctrl"><span class="move-btn move-up">▲</span><span class="move-btn move-down">▼</span></div>Currency Exchange</li>
+              <li class="sortable-item" data-id="9" data-target="showPc"><div class="order-ctrl"><span class="move-btn move-up">▲</span><span class="move-btn move-down">▼</span></div>PC Monitor</li>
+              <li class="sortable-item" data-id="10" data-target="showMedia"><div class="order-ctrl"><span class="move-btn move-up">▲</span><span class="move-btn move-down">▼</span></div>PC Media</li>
+              <li class="sortable-item" data-id="11" data-target="showBambu"><div class="order-ctrl"><span class="move-btn move-up">▲</span><span class="move-btn move-down">▼</span></div>Printer Info</li>
             </ul>
             <input type="hidden" name="screen_order" id="screenOrderInput">
           </div>
@@ -301,6 +302,22 @@
             </div>
 
             <div class="panel" id="panel-5">
+              <label class="checkbox-label mt-0"><input type="checkbox" id="showMoon" name="show_moon"> Moon Screen</label>
+              <div id="moonContent" class="collapsible">
+                <div id="moon-no-data" class="no-data-tile">🌑 Moon data will be available after sync</div>
+                <div id="moon-grid" class="hidden">
+                    <div class="dashboard-grid">
+                      <div class="tile"><div class="tile-icon">🌙</div><div class="tile-value" id="val-moon-phase" style="font-size:1.1rem; line-height:1.2;">--</div><div class="tile-label">Phase</div></div>
+                      <div class="tile"><div class="tile-icon">✨</div><div class="tile-value" id="val-moon-illum">--%</div><div class="tile-label">Illumination</div></div>
+                      <div class="tile"><div class="tile-icon">🌔</div><div class="tile-value" id="val-moon-rise">--:--</div><div class="tile-label">Moonrise</div></div>
+                      <div class="tile"><div class="tile-icon">🌘</div><div class="tile-value" id="val-moon-set">--:--</div><div class="tile-label">Moonset</div></div>
+                    </div>
+                </div>
+                <label class="checkbox-label"><input type="checkbox" name="moon_min"> Minimalistic Mode (Hide stats & timeline)</label>
+              </div>
+            </div>
+
+            <div class="panel" id="panel-6">
               <label class="checkbox-label mt-0"><input type="checkbox" id="showStock" name="show_stock"> Stock Tracking Screen</label>
               <div id="stockContent" class="collapsible">
                 <div id="stock-no-data" class="no-data-tile">📈 Stock data will be available after sync</div>
@@ -317,7 +334,7 @@
               </div>
             </div>
 
-            <div class="panel" id="panel-6">
+            <div class="panel" id="panel-7">
               <label class="checkbox-label mt-0"><input type="checkbox" id="showCrypto" name="show_crypto"> Crypto Tracking Screen</label>
               <div id="cryptoContent" class="collapsible">
                 <div id="crypto-no-data" class="no-data-tile">💰 Crypto data will be available after sync</div>
@@ -334,7 +351,7 @@
               </div>
             </div>
 
-            <div class="panel" id="panel-7">
+            <div class="panel" id="panel-8">
               <label class="checkbox-label mt-0"><input type="checkbox" id="showCurrency" name="show_currency"> Currency Exchange Screen</label>
               <div id="currencyContent" class="collapsible">
                 <div id="currency-no-data" class="no-data-tile">💱 Currency data will be available after sync</div>
@@ -351,7 +368,7 @@
               </div>
             </div>
 
-            <div class="panel" id="panel-8">
+            <div class="panel" id="panel-9">
               <label class="checkbox-label mt-0"><input type="checkbox" id="showPc" name="show_pc"> PC Monitoring Screen</label>
               <div id="pcContent" class="collapsible">
                 <div id="pc-no-data" class="no-data-tile">🖥️ PC data will be available after sync</div>
@@ -368,7 +385,7 @@
               </div>
             </div>
 
-            <div class="panel" id="panel-9">
+            <div class="panel" id="panel-10">
               <label class="checkbox-label mt-0"><input type="checkbox" id="showMedia" name="show_media"> PC Media Screen</label>
               <div id="mediaContent" class="collapsible">
                 <div id="media-no-data" class="no-data-tile">🎵 Media data will be available after sync and/or when media is played</div>
@@ -385,7 +402,7 @@
               </div>
             </div>
 
-            <div class="panel" id="panel-10">
+            <div class="panel" id="panel-11">
               <label class="checkbox-label mt-0"><input type="checkbox" id="showBambu" name="show_bambu"> Bambu 3D Printer Screen</label>
               <div id="bambuContent" class="collapsible">
                 <div id="bambu-no-data" class="no-data-tile">🖨️ Printer data will be available after connection is established</div>

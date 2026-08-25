@@ -6,11 +6,12 @@ TimeService::TimeService() {}
 
 bool TimeService::fetchLocationData(Config& config) {
   if (!config.auto_detect) {
-    Serial.println("TimeService: Auto-detect is off. Skipping location API."); 
-    return true; 
+    Serial.println("TimeService: Auto-detect is off. Skipping location API.");
+    return true;
   }
-  
-  Serial.println("TimeService: Fetching location from ip-api.com..."); 
+
+  Serial.println("TimeService: Fetching location from ip-api.com -> " + String(LOCATION_API_URL));
+
   HTTPClient http;
   http.begin(LOCATION_API_URL);
   http.setTimeout(10000); 
@@ -161,27 +162,34 @@ String TimeService::formatDurationMins(int mins) {
   return String(buf);
 }
 
-int TimeService::parseTimeToMinsFromMidnight(String apiTime) {
-  if (apiTime.length() < 8) return -1; 
-
-  int spaceIdx = apiTime.indexOf(' ');
-  if (spaceIdx == -1) return -1;
-
-  String timePart = apiTime.substring(0, spaceIdx);
-  String ampm = apiTime.substring(spaceIdx + 1);
-  ampm.toUpperCase();
-
-  int firstColon = timePart.indexOf(':');
-  int secondColon = timePart.indexOf(':', firstColon + 1);
-  if (firstColon == -1 || secondColon == -1) return -1;
-
-  int hour = timePart.substring(0, firstColon).toInt();
-  int minute = timePart.substring(firstColon + 1, secondColon).toInt();
-
-  if (ampm == "PM" && hour < 12) hour += 12;
-  if (ampm == "AM" && hour == 12) hour = 0;
-
-  return hour * 60 + minute;
+int TimeService::parseTimeToMinsFromMidnight(String apiTime, String format) {
+  if (format == "24") {
+    if (apiTime.length() < 5) return -1;
+    int hour = apiTime.substring(0, 2).toInt();
+    int minute = apiTime.substring(3, 5).toInt();
+    return hour * 60 + minute;
+  } else if (format == "12") {
+    if (apiTime.length() < 8) return -1; 
+    int spaceIdx = apiTime.indexOf(' ');
+    if (spaceIdx == -1) return -1;
+    String timePart = apiTime.substring(0, spaceIdx);
+    String ampm = apiTime.substring(spaceIdx + 1);
+    ampm.toUpperCase();
+    
+    int firstColon = timePart.indexOf(':');
+    int secondColon = timePart.indexOf(':', firstColon + 1);
+    if (firstColon == -1 || secondColon == -1) return -1;
+    
+    int hour = timePart.substring(0, firstColon).toInt();
+    int minute = timePart.substring(firstColon + 1, secondColon).toInt();
+    
+    if (ampm == "PM" && hour < 12) hour += 12;
+    if (ampm == "AM" && hour == 12) hour = 0;
+    
+    return hour * 60 + minute;
+  }
+  
+  return -1;
 }
 
 int TimeService::parseDurationToMins(String apiDuration) {

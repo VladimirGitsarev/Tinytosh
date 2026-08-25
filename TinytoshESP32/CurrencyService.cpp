@@ -15,7 +15,7 @@ bool CurrencyService::fetchRate(const String& base, const String& target, Curren
 
     for (int i = 0; i < 2; i++) {
         String url = String(CURRENCY_API_URLS[i]) + safeBase + ".min.json";
-        Serial.printf("CurrencyService: Attempt %d - URL: %s\n", i + 1, url.c_str()); 
+        Serial.println("CurrencyService: Fetching currency from API (Attempt " + String(i + 1) + ") -> " + url);
 
         HTTPClient http;
         http.setReuse(false); 

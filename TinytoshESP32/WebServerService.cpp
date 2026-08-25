@@ -53,12 +53,14 @@ void WebServerService::handleRoot() {
   WeatherData& weather = state->weather;
   AirQualityData& aqi = state->aqi;
   DaylightData& daylight = state->daylight;
+  MoonData& moon = state->moon;
   PcStats& pc = state->pc;
   PcMedia& media = state->media;
   
   bool weatherValid = !isnan(weather.temp);
   bool aqiValid = !isnan(aqi.pm25) && !isnan(aqi.pm10) && !isnan(aqi.no2);
   bool daylightValid = daylight.sunrise_mins != -1;
+  bool moonValid = (moon.curphase != "N/A");
   bool pcValid = pc.cpu_percent > 0.1;
 
   add("<html><head><title>Tinytosh | Web Panel</title>");
@@ -290,6 +292,7 @@ void WebServerService::handleRoot() {
       case SCREEN_WEATHER: targetId = "showWeather"; break;
       case SCREEN_AIR_QUALITY: targetId = "showAQI"; break;
       case SCREEN_DAYLIGHT: targetId = "showDaylight"; break;
+      case SCREEN_MOON: targetId = "showMoon"; break;
       case SCREEN_CRYPTO: targetId = "showCrypto"; break;
       case SCREEN_CURRENCY: targetId = "showCurrency"; break;
       case SCREEN_STOCK: targetId = "showStock"; break;
@@ -416,11 +419,32 @@ void WebServerService::handleRoot() {
               add("<div class='tile'><div class='tile-icon'>🌇</div><div class='tile-value' id='val-sunset'>" + TimeService::formatMinsFromMidnight(daylight.sunset_mins, config.time_format) + "</div><div class='tile-label'>Sunset</div></div>");
               add("<div class='tile'><div class='tile-icon'>☀️</div><div class='tile-value' id='val-noon'>" + TimeService::formatMinsFromMidnight(daylight.noon_mins, config.time_format) + "</div><div class='tile-label'>Solar Noon</div></div>");
               add("<div class='tile'><div class='tile-icon'>⏱️</div><div class='tile-value' id='val-length'>" + TimeService::formatDurationMins(daylight.length_mins) + "</div><div class='tile-label'>Day Length</div></div>");
-              add("</div><div class='update-footer' id='daylight-upd'>Last Update: " + weather.update_time + "</div></div>");
+              add("</div></div>");
               
               add("<label class='checkbox-label'><input type='checkbox' name='daylight_min' value='1' " + String(config.daylight_minimal ? "checked" : "") + "> Minimalistic Mode (Hide timeline)</label>");
               add("</div></div>");
               break;
+          }
+
+          case SCREEN_MOON: {
+            add("<div class='panel' id='panel-" + String(screenId) + "'>");
+            add("<label class='checkbox-label mt-0'><input type='checkbox' id='showMoon' name='show_moon' value='1' " + String(config.show_moon ? "checked" : "") + "> Moon Screen</label>");
+            add("<div id='moonContent' class='collapsible'>");
+            if (!moonValid) {
+              add("<div id='moon-no-data' class='no-data-tile'>  Moon data will be available after sync</div><div id='moon-grid' class='hidden'>");
+            } else {
+              add("<div id='moon-no-data' class='no-data-tile hidden'>  Moon data will be available after sync</div><div id='moon-grid'>");
+            }
+            
+            add("<div class='dashboard-grid'>");
+            add("<div class='tile'><div class='tile-icon'>🌙</div><div class='tile-value' id='val-moon-phase' style='font-size:1.1rem; line-height:1.2;'>" + moon.curphase + "</div><div class='tile-label'>Phase</div></div>");
+            add("<div class='tile'><div class='tile-icon'>✨</div><div class='tile-value' id='val-moon-illum'>" + ((moon.fracillum != -1) ? String(moon.fracillum) + "%" : String("--%")) + "</div><div class='tile-label'>Illumination</div></div>");
+            add("<div class='tile'><div class='tile-icon'>🌔</div><div class='tile-value' id='val-moon-rise'>" + TimeService::formatMinsFromMidnight(moon.rise_mins, config.time_format) + "</div><div class='tile-label'>Moonrise</div></div>");
+            add("<div class='tile'><div class='tile-icon'>🌘</div><div class='tile-value' id='val-moon-set'>" + TimeService::formatMinsFromMidnight(moon.set_mins, config.time_format) + "</div><div class='tile-label'>Moonset</div></div>");
+            add("</div></div>");
+            add("<label class='checkbox-label'><input type='checkbox' name='moon_min' value='1' " + String(config.moon_minimal ? "checked" : "") + "> Minimalistic Mode (Moon phase only)</label>");
+            add("</div></div>");
+            break;
           }
 
           case SCREEN_STOCK: {
@@ -562,7 +586,7 @@ void WebServerService::handleRoot() {
   add("let formDirty = false;");
   
   add("function updateVisibility(){");
-  add("  var pairs = [['autoDetect','manualFields',true], ['nightMode','nightFields',false], ['showTime', 'timeContent',false], ['showCalendar', 'calendarContent',false], ['showWeather','weatherContent',false], ['showDaylight','daylightContent',false], ['showPc','pcContent',false], ['showCrypto','cryptoContent',false], ['showCurrency','currencyContent',false], ['showStock','stockContent',false], ['showAQI','aqiContent',false], ['showMedia','mediaContent',false], ['showBambu','bambuContent',false]];");  
+  add("  var pairs = [['autoDetect','manualFields',true], ['nightMode','nightFields',false], ['showTime', 'timeContent',false], ['showCalendar', 'calendarContent',false], ['showWeather','weatherContent',false], ['showDaylight','daylightContent',false], ['showMoon','moonContent',false], ['showPc','pcContent',false], ['showCrypto','cryptoContent',false], ['showCurrency','currencyContent',false], ['showStock','stockContent',false], ['showAQI','aqiContent',false], ['showMedia','mediaContent',false], ['showBambu','bambuContent',false]];");  
   add("  pairs.forEach(p => {");
   add("    var ch = document.getElementById(p[0]); if(!ch) return;");
   add("    var target = document.getElementById(p[1]);");
@@ -614,7 +638,7 @@ void WebServerService::handleRoot() {
   }
   add("div.innerHTML = `<div class='input-wrapper'><label class='mt-0'>Base:</label><select name='currency_bases[]'>${cOpts}</select></div><div class='input-wrapper'><label class='mt-0'>Target:</label><select name='currency_targets[]'>${cOpts}</select></div><div class='input-wrapper'><label class='mt-0'>Mult:</label><select name='currency_multipliers[]'><option value='1'>1</option><option value='10'>10</option><option value='100'>100</option><option value='1000'>1000</option></select></div><button type='button' class='btn-remove' onclick=\"removeRow(this, 'currency-list-container')\">-</button>`; container.appendChild(div); if (bVal) div.querySelector(\"select[name='currency_bases[]']\").value = bVal; if (tVal) div.querySelector(\"select[name='currency_targets[]']\").value = tVal; if (mVal) div.querySelector(\"select[name='currency_multipliers[]']\").value = mVal; formDirty = true; updateRowControls('currency-list-container', 5); };");
 
-  add("['autoDetect', 'nightMode', 'showTime', 'showCalendar', 'showWeather', 'showDaylight', 'showPc', 'showCrypto', 'showCurrency', 'showStock', 'showAQI', 'showMedia', 'showBambu', 'autoCycle'].forEach(id => { var el=document.getElementById(id); if(el) el.addEventListener('change', updateVisibility); });");
+  add("['autoDetect', 'nightMode', 'showTime', 'showCalendar', 'showWeather', 'showDaylight', 'showMoon', 'showPc', 'showCrypto', 'showCurrency', 'showStock', 'showAQI', 'showMedia', 'showBambu', 'autoCycle'].forEach(id => { var el=document.getElementById(id); if(el) el.addEventListener('change', updateVisibility); });");
   add("updateVisibility();");
 
   add("const countryGreetings = {");
@@ -708,7 +732,7 @@ void WebServerService::handleRoot() {
   add("  reorderPhysicalPanels(orderInput.value);");
   add("}");
 
-  add("const panelCheckboxes = ['showTime', 'showCalendar', 'showWeather', 'showAQI', 'showDaylight', 'showCrypto', 'showCurrency', 'showStock', 'showPc', 'showMedia', 'showBambu'];");
+  add("const panelCheckboxes = ['showTime', 'showCalendar', 'showWeather', 'showAQI', 'showDaylight', 'showMoon', 'showCrypto', 'showCurrency', 'showStock', 'showPc', 'showMedia', 'showBambu'];");
   add("panelCheckboxes.forEach(id => { const el = document.getElementById(id); if (el) el.addEventListener('change', syncScreenOrder); });");
 
   add("function getDragAfterEl(y) {");
@@ -860,6 +884,10 @@ void WebServerService::handleRoot() {
   add("    setCb('showDaylight', d.show_daylight);");
   add("    setCb('daylight_min', d.daylight_min, true);");
 
+  add("    setCb('showMoon', d.show_moon);");
+
+  add("    setCb('moon_min', d.moon_min, true);");
+
   add("    setCb('showPc', d.show_pc);");
 
   add("    setCb('showStock', d.show_stock); setCb('stock_fn', d.stock_fn, true);");
@@ -934,8 +962,15 @@ void WebServerService::handleRoot() {
   add("    set('val-sunset', d.sunset);");
   add("    set('val-noon', d.solar_noon);");
   add("    set('val-length', d.day_length);");
-  add("    set('daylight-upd', 'Last Update: ' + d.update_time);");
   add("  } else { hide('daylight-no-data', false); hide('daylight-grid', true); }");
+
+  add("  if (d.moon_phase !== undefined) {");
+  add("    hide('moon-no-data', true); hide('moon-grid', false);");
+  add("    set('val-moon-phase', d.moon_phase);");
+  add("    set('val-moon-illum', d.moon_illum + '%');");
+  add("    set('val-moon-rise', d.moon_rise);");
+  add("    set('val-moon-set', d.moon_set);");
+  add("  } else { hide('moon-no-data', false); hide('moon-grid', true); }");
 
   add("  if (d.stock_data && d.stock_data.length > 0) {");
   add("    hide('stock-no-data', true); hide('stock-grid', false); let p='', c='';");

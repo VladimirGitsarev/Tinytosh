@@ -17,8 +17,8 @@ void CalendarService::fetchHolidays(const String& countryCode, CalendarData& dat
     int currentYear = timeinfo.tm_year + 1900;
 
     String url = String(API_BASE_URL) + String(currentYear) + "/" + countryCode;
-    Serial.println("CalendarService: Fetching holidays from " + url);
-
+    Serial.println("CalendarService: Fetching holidays from Nager.Date -> " + url);
+    
     WiFiClientSecure client;
     client.setInsecure(); 
     

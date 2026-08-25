@@ -29,6 +29,7 @@
 * 🌤️ **Weather Station:** Live Temperature, Humidity, and Forecasts (via Open-Meteo).
 * 🍃 **Air Quality:** Monitor local AQI levels (US & EU Standards).
 * ☀️ **Daylight Info:** Tracks sunrise, sunset, solar noon, and day length.
+* 🌑 **Moon Info:** Tracks the current lunar phase, illumination percentage, and precise moonrise/moonset times with dynamically rendered graphics.
 * 📊 **Stock Tracker:** Track market data for **up to 5** global assets, ETFs, and Mega-Cap Tech at once with daily trend indicators.
 * 📈 **Crypto Tracker:** Watch **up to 5** of your favorite coins (from top 75 global cryptos) with price and trend indicators.
 * 💱 **Currency Tracker:** Track exchange rates for **up to 5** fiat currency pairs with custom scaling multipliers.
@@ -178,6 +179,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 * Fiat Currency data provided by [fawazahmed0/currency-api](https://github.com/fawazahmed0/exchange-api).
 * Public Holidays data provided by [Nager.Date](https://date.nager.at/).
 * Daylight data provided by [Sunrise-Sunset](https://sunrise-sunset.org/).
+* Moon Phase data provided by [US Naval Observatory](https://aa.usno.navy.mil/).
 
 ---
 
@@ -185,6 +187,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 | Version | Date | Key Changes |
 | :--- | :--- | :--- |
+| **v1.1.1** | *Aug 2026* | 🌑 Added **Moon Info** screen with dynamically rendered moon phases, illumination %, and rise/set times. |
 | **v1.1.0** | *Jun 2026* | 🌟 The Architecture & UI/UX Update (Major Release): ☀️ Added **Daylight Info** screen to track solar positioning. 🎨 Introduced **OLED Theme Engine** for procedural 4-color UI generation on Web and PC. 🔌 Added custom hardware pin assignment in Web Panel. 📈 Expanded Stocks, Crypto, and Currency trackers to support up to 5 rotating items. ⚙️ **Firmware Overhaul:** Unified JSON configuration architecture for instant 2-way sync, plus completely rebuilt background data fetching for stutter-free UX. 🖥️ **PC App Upgrade:** New port connection engine, integrated live USB device logs terminal, and fixed other issues. |
 | **v1.0.7** | *May 2026* | 📅 Added **Calendar & Holidays** screen (monthly grid, national public holidays, minimalist layout toggle). 🌍 Overhauled manual location entry with precise country/timezone selection. |
 | **v1.0.6** | *May 2026* | 🖨️ Added **Bambu 3D Printer** screen (auto-discovery, MQTT telemetry, smart Idle/Active layouts). 🌙 Enhanced **Night Mode** with "Dim then Turn Off" scheduling. |

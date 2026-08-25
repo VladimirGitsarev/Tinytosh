@@ -584,7 +584,7 @@ async function toggleConnection() {
             btn.disabled = true;
             select.disabled = true;
 
-            await invoke("toggle_connection", { portName: port, connect: true });
+            await invoke("toggle_connection", { portName: port });
         } catch (error) {
             setUiStatus(error, COLOR_ERROR);
             btn.innerText = "Connect";
@@ -593,7 +593,7 @@ async function toggleConnection() {
         }
     } else {
         try {
-            await invoke("toggle_connection", { portName: "", connect: false });
+            await invoke("toggle_connection", { portName: "" });
             isConnected = false;
             btn.innerText = "Connect"; 
             btn.className = "btn-secondary";
@@ -621,7 +621,7 @@ function updateVisibility() {
       ['autoDetect','manualFields',true], ['nightMode','nightFields',false], 
       ['showTime', 'timeContent',false], ['showCalendar', 'calendarContent',false],
       ['showWeather','weatherContent',false], ['showAQI','aqiContent',false],
-      ['showDaylight', 'daylightContent', false],
+      ['showDaylight', 'daylightContent', false], ['showMoon', 'moonContent', false],
       ['showStock','stockContent',false], ['showCrypto','cryptoContent',false], 
       ['showCurrency','currencyContent',false], ['showPc','pcContent',false], 
       ['showMedia', 'mediaContent', false], ['showBambu', 'bambuContent', false]
@@ -811,6 +811,9 @@ async function fetchDeviceData() {
             setCb('showDaylight', d.show_daylight);
             setCb('daylight_min', d.daylight_min, true);
 
+            setCb('showMoon', d.show_moon);
+            setCb('moon_min', d.moon_min, true)
+
             setCb('showPc', d.show_pc);
 
             setCb('showStock', d.show_stock);
@@ -928,6 +931,19 @@ async function fetchDeviceData() {
         } else {
             let nd = document.getElementById('daylight-no-data'); if(nd) nd.style.display = 'block';
             let gr = document.getElementById('daylight-grid'); if(gr) gr.classList.add('hidden');
+        }
+
+        if (d.moon_phase !== undefined) {
+            let nd = document.getElementById('moon-no-data'); if(nd) nd.style.display = 'none';
+            let gr = document.getElementById('moon-grid'); if(gr) gr.classList.remove('hidden');
+
+            set('val-moon-phase', d.moon_phase);
+            set('val-moon-illum', d.moon_illum + '%');
+            set('val-moon-rise', d.moon_rise);
+            set('val-moon-set', d.moon_set);
+        } else {
+            let nd = document.getElementById('moon-no-data'); if(nd) nd.style.display = 'block';
+            let gr = document.getElementById('moon-grid'); if(gr) gr.classList.add('hidden');
         }
 
         if (d.stock_data && d.stock_data.length > 0) {
@@ -1122,7 +1138,7 @@ window.addEventListener("DOMContentLoaded", () => {
     setInterval(fetchDeviceData, HARDWARE_SYNC_INTERVAL_MS); 
     setTimeout(fetchDeviceData, INITIAL_SYNC_DELAY_MS); 
 
-    ['autoDetect', 'nightMode', 'showTime', 'showCalendar', 'showWeather', 'showDaylight', 'showPc', 'showCrypto', 'showCurrency', 'showStock', 'showAQI', 'showMedia', 'showBambu', 'autoCycle'].forEach(id => { 
+    ['autoDetect', 'nightMode', 'showTime', 'showCalendar', 'showWeather', 'showDaylight', 'showMoon', 'showPc', 'showCrypto', 'showCurrency', 'showStock', 'showAQI', 'showMedia', 'showBambu', 'autoCycle'].forEach(id => { 
         var el = document.getElementById(id); 
         if(el) el.addEventListener('change', () => { updateVisibility(); syncScreenOrder(true); }); 
     });

@@ -30,15 +30,14 @@ bool WeatherService::isWeatherValid(const WeatherData& data) {
 }
 
 bool WeatherService::fetchWeather(const Config& config, WeatherData& data, const String& updateTime) {
-  Serial.println("WeatherService: Fetching weather data from Open-Meteo..."); 
   HTTPClient http;
-  
-  String url = String(WEATHER_API_BASE) + "?latitude=" + String(config.latitude, 4) + 
-               "&longitude=" + String(config.longitude, 4) + 
-               "&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,apparent_temperature,is_day";
-  
-  Serial.println("WeatherService: Requesting weather data from: " + url); 
-  http.setReuse(false); 
+  String url = String(WEATHER_API_BASE) + "?latitude=" + String(config.latitude, 4) +
+                "&longitude=" + String(config.longitude, 4) +
+                "&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,apparent_temperature,is_day";
+                
+  Serial.println("WeatherService: Fetching weather data from Open-Meteo -> " + url);
+
+  http.setReuse(false);
   http.begin(url);
   http.setConnectTimeout(5000); 
   http.setTimeout(5000);

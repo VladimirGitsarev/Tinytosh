@@ -53,6 +53,9 @@ void JsonSerializer::populateConfigDoc(const Config& config, DynamicJsonDocument
 
     doc["show_daylight"] = config.show_daylight ? 1 : 0;
     doc["daylight_min"] = config.daylight_minimal ? 1 : 0;
+
+    doc["show_moon"] = config.show_moon ? 1 : 0;
+    doc["moon_min"] = config.moon_minimal ? 1 : 0;
     
     doc["show_pc"] = config.show_pc ? 1 : 0;
     doc["show_media"] = config.show_media ? 1 : 0;
@@ -135,6 +138,13 @@ String JsonSerializer::buildAppStateJson(const AppState& state) {
         doc["sunset"] = TimeService::formatMinsFromMidnight(state.daylight.sunset_mins, state.config.time_format);
         doc["solar_noon"] = TimeService::formatMinsFromMidnight(state.daylight.noon_mins, state.config.time_format);
         doc["day_length"] = TimeService::formatDurationMins(state.daylight.length_mins);
+    }
+
+    if (state.moon.curphase != "N/A") {
+        doc["moon_rise"] = state.moon.rise_mins != -1 ? TimeService::formatMinsFromMidnight(state.moon.rise_mins, state.config.time_format) : "--:--";
+        doc["moon_set"] = state.moon.set_mins != -1 ? TimeService::formatMinsFromMidnight(state.moon.set_mins, state.config.time_format) : "--:--";
+        doc["moon_phase"] = state.moon.curphase;
+        doc["moon_illum"] = state.moon.fracillum;
     }
 
     JsonArray stockData = doc.createNestedArray("stock_data");
@@ -271,6 +281,10 @@ bool JsonSerializer::parseConfig(const char* jsonString, AppState& state) {
     
     if (doc.containsKey("show_daylight")) config.show_daylight = doc["show_daylight"] == 1;
     if (doc.containsKey("daylight_min")) config.daylight_minimal = doc["daylight_min"] == 1;
+
+    if (doc.containsKey("show_moon")) config.show_moon = doc["show_moon"] == 1;
+
+    if (doc.containsKey("moon_min")) config.moon_minimal = doc["moon_min"] == 1;
     
     if (doc.containsKey("show_pc")) config.show_pc = doc["show_pc"] == 1;
     
@@ -341,6 +355,7 @@ bool JsonSerializer::parseConfig(const char* jsonString, AppState& state) {
     if (!config.show_weather) { state.weather.temp = NAN; state.weather.humidity = NAN; state.weather.apparent_temperature = NAN; state.weather.wind_speed = NAN; }
     if (!config.show_aqi) { state.aqi.aqi = NAN; state.aqi.pm25 = NAN; state.aqi.pm10 = NAN; state.aqi.no2 = NAN; }
     if (!config.show_daylight) { state.daylight.sunrise_mins = -1; state.daylight.sunset_mins = -1; state.daylight.noon_mins = -1; state.daylight.length_mins = -1; state.daylight.last_fetch_yday = -1; }
+    if (!config.show_moon) { state.moon.rise_mins = -1; state.moon.set_mins = -1; state.moon.curphase = "N/A"; state.moon.fracillum = -1; state.moon.last_fetch_yday = -1; }
     if (!config.show_pc) { state.pc.cpu_percent = 0; state.pc.net_down_kb = 0; state.pc.mem_percent = 0; state.pc.disk_percent = 0; }
     
     // Array Wipes

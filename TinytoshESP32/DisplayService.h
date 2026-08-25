@@ -19,6 +19,7 @@ public:
     void drawWeatherScreen(const Config& config, const WeatherData& data, const String& currentTime);
     void drawAQIScreen(const Config& config, const AirQualityData& data, const String& currentTime);
     void drawDaylightScreen(const Config& config, const DaylightData& data);
+    void drawMoonScreen(const Config& config, const MoonData& data);
     void drawCryptoScreen(const Config& config, const CryptoData& data);
     void drawCurrencyScreen(const Config& config, const CurrencyData& data, int multiplier);
     void drawStockScreen(const Config& config, const StockData& data);
