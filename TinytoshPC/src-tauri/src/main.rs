@@ -155,11 +155,11 @@ fn toggle_logging(state: tauri::State<AppState>, enable: bool) {
 }
 
 #[tauri::command]
-async fn toggle_connection(state: tauri::State<'_, AppState>, port_name: String, connect: bool) -> Result<String, String> {
+async fn toggle_connection(state: tauri::State<'_, AppState>, port_name: String) -> Result<String, String> {
     let mut manual_guard = state.manual_disconnect.lock().unwrap();
     let mut user_port_guard = state.user_selected_port.lock().unwrap();
 
-    if !connect {
+    if port_name.is_empty() {
         *manual_guard = true;
         *user_port_guard = String::new();
         *state.active_port_name.lock().unwrap() = String::new();

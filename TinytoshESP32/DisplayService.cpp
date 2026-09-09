@@ -1,6 +1,7 @@
 #include "DisplayService.h"
 #include "DaylightService.h"
 #include "WeatherService.h"
+#include "PopulationService.h"
 #include "images.h"
 #include <Arduino.h>
 #include <Fonts/Picopixel.h>
@@ -524,7 +525,7 @@ void DisplayService::drawAQIScreen(const Config& config, const AirQualityData& d
 
 void DisplayService::drawDaylightScreen(const Config& config, const DaylightData& data) {
     if (data.sunrise_mins == -1) {
-        drawInfoScreen(nullptr, "No Daylight Data"); 
+        drawInfoScreen(icon_error, "No Daylight Data"); 
         return; 
     }
 
@@ -626,7 +627,7 @@ void DisplayService::drawDaylightScreen(const Config& config, const DaylightData
 
 void DisplayService::drawMoonScreen(const Config& config, const MoonData& data) {
     if (data.fracillum == -1) {
-        drawInfoScreen(nullptr, "No Moon Data");
+        drawInfoScreen(icon_error, "No Moon Data");
         return;
     }
 
@@ -698,7 +699,146 @@ void DisplayService::drawMoonScreen(const Config& config, const MoonData& data) 
     display.drawCircle(cx, cy, r, SSD1306_WHITE);
 }
 
+void DisplayService::drawPopulationScreen(const Config& config, const PopulationData& data) {
+    if (data.world_pop_base == -1 && data.country_pop_base == -1) {
+        drawInfoScreen(icon_error, "No Populace Data");
+        return;
+    }
+
+    display.clearDisplay();
+    display.setTextColor(SSD1306_WHITE);
+    display.setTextWrap(false);
+    display.setTextSize(1);
+    display.setFont();
+    
+    int16_t x1, y1; uint16_t w, h;
+    bool showW = config.pop_show_world && data.world_year > 0;
+    bool showC = config.pop_show_country && data.country_year > 0;
+
+    auto formatPop = [](long long num) -> String {
+        String str = String(num);
+        int p = str.length() - 3;
+        while (p > 0) { str = str.substring(0, p) + "," + str.substring(p); p -= 3; }
+        return str;
+    };
+    
+    if (showW && showC) {
+        long long liveW = PopulationService::getLivePopulation(data.world_pop_base, data.world_growth, data.world_year);
+        long long liveC = PopulationService::getLivePopulation(data.country_pop_base, data.country_growth, data.country_year);
+                
+        // 1. World Icon & Label
+        display.drawBitmap(8, 4, icon_world, 16, 16, 1);
+        display.getTextBounds("World", 0, 0, &x1, &y1, &w, &h);
+        display.setCursor(16 - (w / 2), 21); 
+        display.print("World");
+
+        // 2. Country Icon & Label
+        String cCode = config.country_code; 
+        cCode.toUpperCase();
+        if(cCode.length() > 2) cCode = cCode.substring(0, 2);
+        
+        display.drawBitmap(9, 36, icon_location, 13, 16, 1);
+        display.getTextBounds(cCode.c_str(), 0, 0, &x1, &y1, &w, &h);
+        display.setCursor(16 - (w / 2), 53); 
+        display.print(cCode);
+        
+        // 3. World Population
+        String popWStr = formatPop(liveW);
+        display.getTextBounds(popWStr.c_str(), 0, 0, &x1, &y1, &w, &h);
+        
+        int w_world_pop = w;
+        int world_pop_x = 126 - w_world_pop;          
+        int world_icon_x = world_pop_x - 12;         
+        int center_ref = world_icon_x + (12 + w_world_pop) / 2; 
+
+        display.drawBitmap(world_icon_x, 6, icon_people, 8, 8, 1);
+        display.setCursor(world_pop_x, 7); 
+        display.print(popWStr);
+
+        // 4. World Growth 
+        String grWStr = (data.world_growth > 0 ? "+" : "") + String(data.world_growth, 2) + "%";
+        display.getTextBounds(grWStr.c_str(), 0, 0, &x1, &y1, &w, &h);
+        int gr_w_icon_x = center_ref - (12 + w) / 2;
+        display.drawBitmap(gr_w_icon_x, 18, (data.world_growth >= 0 ? icon_up_arrow : icon_down_arrow), 8, 8, 1);
+        display.setCursor(gr_w_icon_x + 12, 19); 
+        display.print(grWStr);
+
+        // 5. Country Population
+        String popCStr = formatPop(liveC);
+        display.getTextBounds(popCStr.c_str(), 0, 0, &x1, &y1, &w, &h);
+        int ctr_pop_icon_x = center_ref - (12 + w) / 2;
+        display.drawBitmap(ctr_pop_icon_x, 38, icon_people, 8, 8, 1);
+        display.setCursor(ctr_pop_icon_x + 12, 39); 
+        display.print(popCStr);
+
+        // 6. Country Growth
+        String grCStr = (data.country_growth > 0 ? "+" : "") + String(data.country_growth, 2) + "%";
+        display.getTextBounds(grCStr.c_str(), 0, 0, &x1, &y1, &w, &h);
+        int gr_c_icon_x = center_ref - (12 + w) / 2;
+        display.drawBitmap(gr_c_icon_x, 50, (data.country_growth >= 0 ? icon_up_arrow : icon_down_arrow), 8, 8, 1);
+        display.setCursor(gr_c_icon_x + 12, 51); 
+        display.print(grCStr);
+
+    } else if (showW || showC) {
+        long long base = showW ? data.world_pop_base : data.country_pop_base;
+        double growth = showW ? data.world_growth : data.country_growth;
+        int year = showW ? data.world_year : data.country_year;
+        
+        long long liveP = PopulationService::getLivePopulation(base, growth, year);
+        String title = showW ? "World" : config.country; 
+
+        // 1. Title Setup & Truncation
+        display.getTextBounds(title.c_str(), 0, 0, &x1, &y1, &w, &h);
+        if (w > 128) {
+            String trunc;
+            for (int i = title.length(); i > 0; i--) {
+                trunc = title.substring(0, i) + "...";
+                display.getTextBounds(trunc.c_str(), 0, 0, &x1, &y1, &w, &h);
+                if (w <= 128) {
+                    title = trunc;
+                    break;
+                }
+            }
+        }
+
+        // 2. Main Icon & Centered Title
+        const unsigned char* mainIcon = showW ? icon_world : icon_location;
+        int iconW = showW ? 16 : 13;
+        
+        display.drawBitmap((128 - iconW) / 2, 6, mainIcon, iconW, 16, 1);
+        
+        display.getTextBounds(title.c_str(), 0, 0, &x1, &y1, &w, &h);
+        display.setCursor((128 - w) / 2, 23); 
+        display.print(title);
+
+        // 3. Population Count
+        String popStr = formatPop(liveP);
+        display.getTextBounds(popStr.c_str(), 0, 0, &x1, &y1, &w, &h);
+        int popBlockW = 12 + w; 
+        int popIconX = (128 - popBlockW) / 2;
+        
+        display.drawBitmap(popIconX, 36, icon_people, 8, 8, 1);
+        display.setCursor(popIconX + 12, 37); 
+        display.print(popStr);
+
+        // 4. Growth Percentage
+        String grStr = (growth > 0 ? "+" : "") + String(growth, 2) + "%";
+        display.getTextBounds(grStr.c_str(), 0, 0, &x1, &y1, &w, &h);
+        int grBlockW = 12 + w;
+        int grIconX = (128 - grBlockW) / 2;
+        
+        display.drawBitmap(grIconX, 50, (growth >= 0 ? icon_up_arrow : icon_down_arrow), 8, 8, 1);
+        display.setCursor(grIconX + 12, 51); 
+        display.print(grStr);
+    }
+}
+
 void DisplayService::drawCryptoScreen(const Config& config, const CryptoData& data) {
+    if (!data.updated) {
+        drawInfoScreen(icon_error, "No Crypto Data");
+        return;
+    }
+
     display.clearDisplay();
 
     display.setTextColor(SSD1306_WHITE);
@@ -739,6 +879,11 @@ void DisplayService::drawCryptoScreen(const Config& config, const CryptoData& da
 }
 
 void DisplayService::drawCurrencyScreen(const Config& config, const CurrencyData& data, int multiplier) {
+    if (!data.updated) {
+        drawInfoScreen(icon_error, "No Currency Data");
+        return;
+    }
+
     display.clearDisplay();
 
     display.setTextColor(SSD1306_WHITE);
@@ -795,6 +940,11 @@ void DisplayService::drawCurrencyScreen(const Config& config, const CurrencyData
 }
 
 void DisplayService::drawStockScreen(const Config& config, const StockData& data) {
+    if (!data.updated) {
+        drawInfoScreen(icon_error, "No Stock Data");
+        return;
+    }
+
     display.clearDisplay();
 
     display.setTextColor(SSD1306_WHITE);
@@ -838,7 +988,7 @@ void DisplayService::drawPcScreen(const PcStats& pcStats) {
     bool isInvalid = (isnan(pcStats.cpu_percent) || pcStats.cpu_percent == 0) && (isnan(pcStats.mem_percent) || pcStats.mem_percent == 0); 
 
     if (isInvalid) {
-        drawInfoScreen(icon_monitor); 
+        drawInfoScreen(icon_monitor, "No PC"); 
         return; 
     }
 
@@ -1211,6 +1361,7 @@ bool DisplayService::isScreenEnabled(const AppState& state, int screenIndex) {
         case SCREEN_AIR_QUALITY:    return config.show_aqi;
         case SCREEN_DAYLIGHT:       return config.show_daylight;
         case SCREEN_MOON:           return config.show_moon;
+        case SCREEN_POPULATION:     return config.show_population;
         case SCREEN_STOCK:          return config.show_stock;
         case SCREEN_CRYPTO:         return config.show_crypto;
         case SCREEN_CURRENCY:       return config.show_currency;
@@ -1250,6 +1401,7 @@ void DisplayService::drawScreen(int screenIndex, const AppState& state, int subI
     case SCREEN_AIR_QUALITY: drawAQIScreen(state.config, state.aqi, TimeService::getCurrentTimeShort(state.config.time_format)); break;
     case SCREEN_DAYLIGHT: drawDaylightScreen(state.config, state.daylight); break;
     case SCREEN_MOON: drawMoonScreen(state.config, state.moon); break;
+    case SCREEN_POPULATION: drawPopulationScreen(state.config, state.population); break;
     case SCREEN_STOCK: drawStockScreen(state.config, state.stocks[subIndex]); break;
     case SCREEN_CRYPTO: drawCryptoScreen(state.config, state.cryptos[subIndex]); break;
     case SCREEN_CURRENCY: drawCurrencyScreen(state.config, state.currencies[subIndex], state.config.currency_multipliers[subIndex]); break;

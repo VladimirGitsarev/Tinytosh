@@ -8,8 +8,6 @@ bool StockService::fetchStock(const String& symbol, StockData &data) {
     safeSymbol.toUpperCase();
     safeSymbol.trim();
 
-    Serial.printf("StockService: Requesting Stock Data for '%s'\n", safeSymbol.c_str()); 
-
     WiFiClientSecure client;
     client.setInsecure(); 
     

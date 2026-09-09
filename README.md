@@ -30,6 +30,7 @@
 * 🍃 **Air Quality:** Monitor local AQI levels (US & EU Standards).
 * ☀️ **Daylight Info:** Tracks sunrise, sunset, solar noon, and day length.
 * 🌑 **Moon Info:** Tracks the current lunar phase, illumination percentage, and precise moonrise/moonset times with dynamically rendered graphics.
+* 🌍 **Population Info:** Live dashboard displaying a second-by-second calculated world and country population ticker with annual growth rates.
 * 📊 **Stock Tracker:** Track market data for **up to 5** global assets, ETFs, and Mega-Cap Tech at once with daily trend indicators.
 * 📈 **Crypto Tracker:** Watch **up to 5** of your favorite coins (from top 75 global cryptos) with price and trend indicators.
 * 💱 **Currency Tracker:** Track exchange rates for **up to 5** fiat currency pairs with custom scaling multipliers.
@@ -91,12 +92,13 @@ build_flags =
     -D ARDUINO_USB_MODE=1
     -D ARDUINO_USB_CDC_ON_BOOT=1
 lib_deps =
-    [https://github.com/tzapu/WiFiManager.git](https://github.com/tzapu/WiFiManager.git)
+    https://github.com/tzapu/WiFiManager.git
     bblanchon/ArduinoJson @ ^6.21.0
     adafruit/Adafruit SSD1306 @ ^2.5.7
     adafruit/Adafruit GFX Library @ ^1.11.5
     adafruit/Adafruit BusIO @ ^1.14.1
     mathertel/OneButton @ ^2.5.0
+    knolleary/PubSubClient @ ^2.8
 ```
 
 **Option B: Arduino IDE** If you prefer the Arduino IDE, you must install the external libraries manually via the Library Manager (`Sketch` -> `Include Library` -> `Manage Libraries...`).:
@@ -180,6 +182,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 * Public Holidays data provided by [Nager.Date](https://date.nager.at/).
 * Daylight data provided by [Sunrise-Sunset](https://sunrise-sunset.org/).
 * Moon Phase data provided by [US Naval Observatory](https://aa.usno.navy.mil/).
+* Population data provided by [The World Bank](https://data.worldbank.org/).
 
 ---
 
@@ -187,6 +190,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 | Version | Date | Key Changes |
 | :--- | :--- | :--- |
+| **v1.1.2** | *Sep 2026* | 🌍 Added **Population Info** screen featuring a live calculated, second-by-second world and country population ticker. |
 | **v1.1.1** | *Aug 2026* | 🌑 Added **Moon Info** screen with dynamically rendered moon phases, illumination %, and rise/set times. |
 | **v1.1.0** | *Jun 2026* | 🌟 The Architecture & UI/UX Update (Major Release): ☀️ Added **Daylight Info** screen to track solar positioning. 🎨 Introduced **OLED Theme Engine** for procedural 4-color UI generation on Web and PC. 🔌 Added custom hardware pin assignment in Web Panel. 📈 Expanded Stocks, Crypto, and Currency trackers to support up to 5 rotating items. ⚙️ **Firmware Overhaul:** Unified JSON configuration architecture for instant 2-way sync, plus completely rebuilt background data fetching for stutter-free UX. 🖥️ **PC App Upgrade:** New port connection engine, integrated live USB device logs terminal, and fixed other issues. |
 | **v1.0.7** | *May 2026* | 📅 Added **Calendar & Holidays** screen (monthly grid, national public holidays, minimalist layout toggle). 🌍 Overhauled manual location entry with precise country/timezone selection. |

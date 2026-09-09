@@ -12,6 +12,7 @@ enum ScreenType {
   SCREEN_AIR_QUALITY,
   SCREEN_DAYLIGHT,
   SCREEN_MOON,
+  SCREEN_POPULATION,
   SCREEN_STOCK,
   SCREEN_CRYPTO,
   SCREEN_CURRENCY,
@@ -28,6 +29,7 @@ inline constexpr const char* SCREEN_NAMES[] = {
   "Air Quality",
   "Daylight Info",
   "Moon Info",
+  "Population Info",
   "Stock Tracking",
   "Crypto Tracking",
   "Currency Exchange",
@@ -84,7 +86,7 @@ struct Config {
   // Screens Settings
   bool screen_auto_cycle = true;
   int screen_interval_sec = 15;
-  int screen_order[NUM_SCREENS] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
+  int screen_order[NUM_SCREENS] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12};
 
   bool show_time = true;
   bool show_calendar = true;
@@ -92,6 +94,7 @@ struct Config {
   bool show_aqi = true;
   bool show_daylight = true;
   bool show_moon = true;
+  bool show_population = true;
   bool show_stock = true;
   bool show_crypto = true;
   bool show_currency = true;
@@ -120,6 +123,10 @@ struct Config {
 
   // Moon Settings
   bool moon_minimal = false;
+
+  // Population Settings
+  bool pop_show_world = true;
+  bool pop_show_country = true;
 
   // Crypto, Currency & Stocks Settings
   String stock_symbols[MAX_MULTI_ENTRIES] = {"AAPL", "", "", "", ""};
@@ -190,6 +197,18 @@ struct MoonData {
   int fracillum = -1; 
   int rise_mins = -1;
   int set_mins = -1;
+  int last_fetch_yday = -1;
+};
+
+struct PopulationData {
+  long long world_pop_base = -1;
+  double world_growth = 0.0;
+  int world_year = -1;
+  
+  long long country_pop_base = -1;
+  double country_growth = 0.0;
+  int country_year = -1;
+  
   int last_fetch_yday = -1;
 };
 
@@ -480,6 +499,7 @@ struct AppState {
   AirQualityData aqi;
   DaylightData daylight;
   MoonData moon;
+  PopulationData population;
   CryptoData cryptos[MAX_MULTI_ENTRIES];
   CurrencyData currencies[MAX_MULTI_ENTRIES];
   StockData stocks[MAX_MULTI_ENTRIES];

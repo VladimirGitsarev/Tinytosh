@@ -11,8 +11,6 @@ bool CurrencyService::fetchRate(const String& base, const String& target, Curren
     safeTarget.toLowerCase();
     safeTarget.trim();
 
-    Serial.printf("CurrencyService: Requesting '%s' to '%s'\n", safeBase.c_str(), safeTarget.c_str()); 
-
     for (int i = 0; i < 2; i++) {
         String url = String(CURRENCY_API_URLS[i]) + safeBase + ".min.json";
         Serial.println("CurrencyService: Fetching currency from API (Attempt " + String(i + 1) + ") -> " + url);

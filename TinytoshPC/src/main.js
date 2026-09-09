@@ -622,6 +622,7 @@ function updateVisibility() {
       ['showTime', 'timeContent',false], ['showCalendar', 'calendarContent',false],
       ['showWeather','weatherContent',false], ['showAQI','aqiContent',false],
       ['showDaylight', 'daylightContent', false], ['showMoon', 'moonContent', false],
+      ['showPopulation', 'popContent', false],
       ['showStock','stockContent',false], ['showCrypto','cryptoContent',false], 
       ['showCurrency','currencyContent',false], ['showPc','pcContent',false], 
       ['showMedia', 'mediaContent', false], ['showBambu', 'bambuContent', false]
@@ -637,6 +638,14 @@ function updateVisibility() {
   var ac = document.getElementById('autoCycle');
   var si = document.getElementById('screenIntInput');
   if(ac && si) si.disabled = !ac.checked;
+}
+
+function checkPopSafetyNet() {
+    const wld = document.getElementById('popWldChk');
+    const ctr = document.getElementById('popCtrChk');
+    if (wld && ctr && !wld.checked && !ctr.checked) wld.checked = true;
+    if (wld) document.querySelectorAll('.pop-wld-tile').forEach(el => el.classList.toggle('hidden', !wld.checked));
+    if (ctr) document.querySelectorAll('.pop-ctr-tile').forEach(el => el.classList.toggle('hidden', !ctr.checked));
 }
 
 function updateNightAction() {
@@ -812,7 +821,11 @@ async function fetchDeviceData() {
             setCb('daylight_min', d.daylight_min, true);
 
             setCb('showMoon', d.show_moon);
-            setCb('moon_min', d.moon_min, true)
+            setCb('moon_min', d.moon_min, true);
+
+            setCb('showPopulation', d.show_population);
+            setCb('popWldChk', d.pop_show_world);
+            setCb('popCtrChk', d.pop_show_country);
 
             setCb('showPc', d.show_pc);
 
@@ -945,6 +958,31 @@ async function fetchDeviceData() {
             let nd = document.getElementById('moon-no-data'); if(nd) nd.style.display = 'block';
             let gr = document.getElementById('moon-grid'); if(gr) gr.classList.add('hidden');
         }
+
+        if (d.pop_wld_live !== undefined || d.pop_ctr_live !== undefined) {
+            let nd = document.getElementById('pop-no-data'); if(nd) nd.style.display = 'none';
+            let gr = document.getElementById('pop-grid'); if(gr) gr.classList.remove('hidden');
+
+            const formatNum = (str) => { return str.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ','); };
+            
+            if (d.pop_wld_live !== undefined) {
+                set('val-pop-wld', formatNum(d.pop_wld_live));
+                set('val-pop-wld-gr', (parseFloat(d.pop_wld_gr) > 0 ? '+' : '') + d.pop_wld_gr + '%');
+                set('lbl-pop-wld', 'World Population');
+            }
+            if (d.pop_ctr_live !== undefined) {
+                set('val-pop-ctr', formatNum(d.pop_ctr_live));
+                set('val-pop-ctr-gr', (parseFloat(d.pop_ctr_gr) > 0 ? '+' : '') + d.pop_ctr_gr + '%');
+                
+                const cCode = d.country_code ? d.country_code.toUpperCase() : 'CTR';
+                set('lbl-pop-ctr', cCode + ' Population');
+                set('lbl-pop-ctr-gr', cCode + ' Growth');
+            }
+        } else {
+            let nd = document.getElementById('pop-no-data'); if(nd) nd.style.display = 'block';
+            let gr = document.getElementById('pop-grid'); if(gr) gr.classList.add('hidden');
+        }
+        checkPopSafetyNet(); 
 
         if (d.stock_data && d.stock_data.length > 0) {
             let nd = document.getElementById('stock-no-data'); if(nd) nd.style.display = 'none';
@@ -1138,7 +1176,7 @@ window.addEventListener("DOMContentLoaded", () => {
     setInterval(fetchDeviceData, HARDWARE_SYNC_INTERVAL_MS); 
     setTimeout(fetchDeviceData, INITIAL_SYNC_DELAY_MS); 
 
-    ['autoDetect', 'nightMode', 'showTime', 'showCalendar', 'showWeather', 'showDaylight', 'showMoon', 'showPc', 'showCrypto', 'showCurrency', 'showStock', 'showAQI', 'showMedia', 'showBambu', 'autoCycle'].forEach(id => { 
+    ['autoDetect', 'nightMode', 'showTime', 'showCalendar', 'showWeather', 'showDaylight', 'showMoon', 'showPopulation', 'showPc', 'showCrypto', 'showCurrency', 'showStock', 'showAQI', 'showMedia', 'showBambu', 'autoCycle'].forEach(id => { 
         var el = document.getElementById(id); 
         if(el) el.addEventListener('change', () => { updateVisibility(); syncScreenOrder(true); }); 
     });
@@ -1159,11 +1197,16 @@ window.addEventListener("DOMContentLoaded", () => {
     document.querySelectorAll('.anim-chk').forEach(cb => cb.addEventListener('change', checkSafetyNet));
     toggleNone();
 
+    const wldCb = document.getElementById('popWldChk');
+    const ctrCb = document.getElementById('popCtrChk');
+    if(wldCb) wldCb.addEventListener('change', checkPopSafetyNet);
+    if(ctrCb) ctrCb.addEventListener('change', checkPopSafetyNet);
+    checkPopSafetyNet();
+
     const nightActionSelect = document.getElementById('nightActionSelect');
     if (nightActionSelect) nightActionSelect.addEventListener('change', updateNightAction);
     
-        const list = document.getElementById('sortable-list');
-    
+    const list = document.getElementById('sortable-list');
     list.addEventListener('click', (e) => {
         if (!e.target.classList.contains('move-btn')) return;
 

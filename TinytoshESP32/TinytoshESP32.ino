@@ -12,6 +12,7 @@
 #include "AirQualityService.h"
 #include "DaylightService.h"
 #include "MoonService.h"
+#include "PopulationService.h"
 #include "DisplayService.h"
 #include "WebServerService.h"
 #include "CryptoService.h"
@@ -58,6 +59,7 @@ WeatherService weatherService;
 AirQualityService airQualityService;
 DaylightService daylightService;
 MoonService moonService;
+PopulationService populationService;
 CryptoService cryptoService;
 CurrencyService currencyService;
 StockService stockService;
@@ -314,13 +316,20 @@ void updateAllData() {
     daylightService.fetchDaylight(appState.config, appState.daylight);
   }
 
-  // 7 Fetch Moon (Depends on Lat/Lon)
+  // 7. Fetch Moon (Depends on Lat/Lon)
   if (appState.config.show_moon && appState.moon.last_fetch_yday != current_yday) {
     displayService.showOLEDStatus({"\n", "\n", "Updating Moon...", "\n", "Location:", appState.config.city}, true);
     moonService.fetchMoon(appState.config, appState.moon);
   }
 
-  // 8. Fetch Stocks (Independent)
+  // 8. Fetch Population (Depends on Country Code)
+  if (appState.config.show_population && appState.population.last_fetch_yday != current_yday) {
+    String popLoc = (appState.config.pop_show_world && appState.config.pop_show_country && appState.config.country_code != "") ? ("World + " + appState.config.country_code) : (appState.config.pop_show_world ? "World" : appState.config.country_code);
+    displayService.showOLEDStatus({"\n", "\n", "Updating Populace...", "\n", "Location:", popLoc}, true);
+    populationService.fetchPopulation(appState.config, appState.population);
+  }
+
+  // 9. Fetch Stocks (Independent)
   if (appState.config.show_stock) {
     for (int i = 0; i < appState.config.stock_count; i++) {
       displayService.showOLEDStatus({"\n", "\n", "Updating Stocks...", "\n", "Stock:", appState.config.stock_symbols[i]}, true);
@@ -328,7 +337,7 @@ void updateAllData() {
     }
   }
 
-  // 9. Fetch Crypto (Independent)
+  // 10. Fetch Crypto (Independent)
   if (appState.config.show_crypto) { 
     for (int i = 0; i < appState.config.crypto_count; i++) {
       displayService.showOLEDStatus({"\n", "\n", "Updating Crypto...", "\n", "Ticker ID:", String(appState.config.crypto_ids[i])}, true);
@@ -336,7 +345,7 @@ void updateAllData() {
     }
   }
 
-  // 10. Fetch Currency (Independent)
+  // 11. Fetch Currency (Independent)
   if (appState.config.show_currency) { 
     for (int i = 0; i < appState.config.currency_count; i++) {
       String baseUpper = String(appState.config.currency_bases[i]);
@@ -351,10 +360,10 @@ void updateAllData() {
 
   displayService.showOLEDStatus({"\n", "\n", "Data Updated", "\n", "\n", "Tinytosh is Ready", "\n", "\n", "Welcome!"}, true);
 
-  // 11. Save Everything
+  // 12. Save Everything
   configManager.saveConfig(appState.config);
 
-  // 12. Find the first enabled screen to show immediately
+  // 13. Find the first enabled screen to show immediately
   currentScreen = getFirstEnabledScreen();
   lastScreenSwitch = millis();
 }
@@ -385,6 +394,7 @@ void backgroundDataFetchTask(void* parameter) {
   if (appState.config.show_aqi) airQualityService.fetchAirQuality(appState.config, appState.aqi);
   if (appState.config.show_daylight && appState.daylight.last_fetch_yday != current_yday) daylightService.fetchDaylight(appState.config, appState.daylight);
   if (appState.config.show_moon && appState.moon.last_fetch_yday != current_yday) moonService.fetchMoon(appState.config, appState.moon);
+  if (appState.config.show_population && appState.population.last_fetch_yday != current_yday) populationService.fetchPopulation(appState.config, appState.population);
   if (appState.config.show_crypto) {
     for (int i = 0; i < appState.config.crypto_count; i++) cryptoService.fetchPrice(appState.config.crypto_ids[i], appState.cryptos[i]);
   }
