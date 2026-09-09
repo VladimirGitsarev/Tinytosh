@@ -54,6 +54,7 @@ void WebServerService::handleRoot() {
   AirQualityData& aqi = state->aqi;
   DaylightData& daylight = state->daylight;
   MoonData& moon = state->moon;
+  PopulationData& population = state->population;
   PcStats& pc = state->pc;
   PcMedia& media = state->media;
   
@@ -61,6 +62,7 @@ void WebServerService::handleRoot() {
   bool aqiValid = !isnan(aqi.pm25) && !isnan(aqi.pm10) && !isnan(aqi.no2);
   bool daylightValid = daylight.sunrise_mins != -1;
   bool moonValid = (moon.curphase != "N/A");
+  bool popValid = (population.world_pop_base != -1 || population.country_pop_base != -1);
   bool pcValid = pc.cpu_percent > 0.1;
 
   add("<html><head><title>Tinytosh | Web Panel</title>");
@@ -293,6 +295,7 @@ void WebServerService::handleRoot() {
       case SCREEN_AIR_QUALITY: targetId = "showAQI"; break;
       case SCREEN_DAYLIGHT: targetId = "showDaylight"; break;
       case SCREEN_MOON: targetId = "showMoon"; break;
+      case SCREEN_POPULATION: targetId = "showPopulation"; break;
       case SCREEN_CRYPTO: targetId = "showCrypto"; break;
       case SCREEN_CURRENCY: targetId = "showCurrency"; break;
       case SCREEN_STOCK: targetId = "showStock"; break;
@@ -447,6 +450,33 @@ void WebServerService::handleRoot() {
             break;
           }
 
+          case SCREEN_POPULATION: {
+            add("<div class='panel' id='panel-" + String(screenId) + "'>");
+            add("<label class='checkbox-label mt-0'><input type='checkbox' id='showPopulation' name='show_population' value='1' " + String(config.show_population ? "checked" : "") + "> Population Screen</label>");
+            add("<div id='popContent' class='collapsible'>");
+            
+            if (!popValid) {
+              add("<div id='pop-no-data' class='no-data-tile'>🌍 Population data will be available after sync</div><div id='pop-grid' class='hidden'>");
+            } else {
+              add("<div id='pop-no-data' class='no-data-tile hidden'>🌍 Population data will be available after sync</div><div id='pop-grid'>");
+            }
+            
+            add("<div class='dashboard-grid'>");
+            add("<div class='tile pop-wld-tile'><div class='tile-icon'>🌍</div><div class='tile-value' id='val-pop-wld' style='font-size:1.4rem'>--</div><div class='tile-label' id='lbl-pop-wld'>World Population</div></div>");
+            add("<div class='tile pop-wld-tile'><div class='tile-icon'>📈</div><div class='tile-value' id='val-pop-wld-gr' style='font-size:1.4rem'>--</div><div class='tile-label'>World Growth</div></div>");
+            
+            String ctrStr = config.country_code != "" ? config.country_code : "CTR";
+            ctrStr.toUpperCase();
+            add("<div class='tile pop-ctr-tile'><div class='tile-icon'>📍</div><div class='tile-value' id='val-pop-ctr' style='font-size:1.4rem'>--</div><div class='tile-label' id='lbl-pop-ctr'>" + ctrStr + " Population</div></div>");
+            add("<div class='tile pop-ctr-tile'><div class='tile-icon'>📈</div><div class='tile-value' id='val-pop-ctr-gr' style='font-size:1.4rem'>--</div><div class='tile-label'>" + ctrStr + " Growth</div></div>");
+            add("</div></div>");
+            
+            add("<label class='checkbox-label'><input type='checkbox' id='popWldChk' name='pop_show_world' value='1' " + String(config.pop_show_world ? "checked" : "") + "> Track World Population</label>");
+            add("<label class='checkbox-label'><input type='checkbox' id='popCtrChk' name='pop_show_country' value='1' " + String(config.pop_show_country ? "checked" : "") + "> Track Country Population</label>");
+            add("</div></div>");
+            break;
+          }
+
           case SCREEN_STOCK: {
               add("<div class='panel' id='panel-" + String(screenId) + "'>");
               add("<label class='checkbox-label mt-0'><input type='checkbox' id='showStock' name='show_stock' value='1' " + String(config.show_stock ? "checked" : "") + "> Stock Tracking Screen</label>");
@@ -586,7 +616,7 @@ void WebServerService::handleRoot() {
   add("let formDirty = false;");
   
   add("function updateVisibility(){");
-  add("  var pairs = [['autoDetect','manualFields',true], ['nightMode','nightFields',false], ['showTime', 'timeContent',false], ['showCalendar', 'calendarContent',false], ['showWeather','weatherContent',false], ['showDaylight','daylightContent',false], ['showMoon','moonContent',false], ['showPc','pcContent',false], ['showCrypto','cryptoContent',false], ['showCurrency','currencyContent',false], ['showStock','stockContent',false], ['showAQI','aqiContent',false], ['showMedia','mediaContent',false], ['showBambu','bambuContent',false]];");  
+  add("  var pairs = [['autoDetect','manualFields',true], ['nightMode','nightFields',false], ['showTime', 'timeContent',false], ['showCalendar', 'calendarContent',false], ['showWeather','weatherContent',false], ['showDaylight','daylightContent',false], ['showMoon','moonContent',false], ['showPopulation','popContent',false], ['showPc','pcContent',false], ['showCrypto','cryptoContent',false], ['showCurrency','currencyContent',false], ['showStock','stockContent',false], ['showAQI','aqiContent',false], ['showMedia','mediaContent',false], ['showBambu','bambuContent',false]];"); 
   add("  pairs.forEach(p => {");
   add("    var ch = document.getElementById(p[0]); if(!ch) return;");
   add("    var target = document.getElementById(p[1]);");
@@ -638,7 +668,7 @@ void WebServerService::handleRoot() {
   }
   add("div.innerHTML = `<div class='input-wrapper'><label class='mt-0'>Base:</label><select name='currency_bases[]'>${cOpts}</select></div><div class='input-wrapper'><label class='mt-0'>Target:</label><select name='currency_targets[]'>${cOpts}</select></div><div class='input-wrapper'><label class='mt-0'>Mult:</label><select name='currency_multipliers[]'><option value='1'>1</option><option value='10'>10</option><option value='100'>100</option><option value='1000'>1000</option></select></div><button type='button' class='btn-remove' onclick=\"removeRow(this, 'currency-list-container')\">-</button>`; container.appendChild(div); if (bVal) div.querySelector(\"select[name='currency_bases[]']\").value = bVal; if (tVal) div.querySelector(\"select[name='currency_targets[]']\").value = tVal; if (mVal) div.querySelector(\"select[name='currency_multipliers[]']\").value = mVal; formDirty = true; updateRowControls('currency-list-container', 5); };");
 
-  add("['autoDetect', 'nightMode', 'showTime', 'showCalendar', 'showWeather', 'showDaylight', 'showMoon', 'showPc', 'showCrypto', 'showCurrency', 'showStock', 'showAQI', 'showMedia', 'showBambu', 'autoCycle'].forEach(id => { var el=document.getElementById(id); if(el) el.addEventListener('change', updateVisibility); });");
+  add("['autoDetect', 'nightMode', 'showTime', 'showCalendar', 'showWeather', 'showDaylight', 'showMoon', 'showPopulation', 'showPc', 'showCrypto', 'showCurrency', 'showStock', 'showAQI', 'showMedia', 'showBambu', 'autoCycle'].forEach(id => { var el=document.getElementById(id); if(el) el.addEventListener('change', updateVisibility); });");
   add("updateVisibility();");
 
   add("const countryGreetings = {");
@@ -682,6 +712,19 @@ void WebServerService::handleRoot() {
   add("    cb.parentElement.style.opacity = noneBox.checked ? '0.5' : '1';");
   add("  });");
   add("}");
+
+  add("function checkPopSafetyNet() {");
+   add("  const wld = document.getElementById('popWldChk');");
+   add("  const ctr = document.getElementById('popCtrChk');");
+   add("  if (wld && ctr && !wld.checked && !ctr.checked) wld.checked = true;");
+   add("  if (wld) document.querySelectorAll('.pop-wld-tile').forEach(el => el.classList.toggle('hidden', !wld.checked));");
+   add("  if (ctr) document.querySelectorAll('.pop-ctr-tile').forEach(el => el.classList.toggle('hidden', !ctr.checked));");
+   add("}");
+   add("const wldCb = document.getElementById('popWldChk');");
+   add("const ctrCb = document.getElementById('popCtrChk');");
+   add("if(wldCb) wldCb.addEventListener('change', checkPopSafetyNet);");
+   add("if(ctrCb) ctrCb.addEventListener('change', checkPopSafetyNet);");
+   add("checkPopSafetyNet();");
 
   add("function checkSafetyNet() {");
   add("  if(!document.getElementById('animNone').checked) {");
@@ -732,7 +775,7 @@ void WebServerService::handleRoot() {
   add("  reorderPhysicalPanels(orderInput.value);");
   add("}");
 
-  add("const panelCheckboxes = ['showTime', 'showCalendar', 'showWeather', 'showAQI', 'showDaylight', 'showMoon', 'showCrypto', 'showCurrency', 'showStock', 'showPc', 'showMedia', 'showBambu'];");
+  add("const panelCheckboxes = ['showTime', 'showCalendar', 'showWeather', 'showAQI', 'showDaylight', 'showMoon', 'showPopulation', 'showCrypto', 'showCurrency', 'showStock', 'showPc', 'showMedia', 'showBambu'];");
   add("panelCheckboxes.forEach(id => { const el = document.getElementById(id); if (el) el.addEventListener('change', syncScreenOrder); });");
 
   add("function getDragAfterEl(y) {");
@@ -885,8 +928,11 @@ void WebServerService::handleRoot() {
   add("    setCb('daylight_min', d.daylight_min, true);");
 
   add("    setCb('showMoon', d.show_moon);");
-
   add("    setCb('moon_min', d.moon_min, true);");
+
+  add("    setCb('showPopulation', d.show_population);");
+  add("    setCb('pop_show_world', d.pop_show_world, true);");
+  add("    setCb('pop_show_country', d.pop_show_country, true);");
 
   add("    setCb('showPc', d.show_pc);");
 
@@ -971,6 +1017,23 @@ void WebServerService::handleRoot() {
   add("    set('val-moon-rise', d.moon_rise);");
   add("    set('val-moon-set', d.moon_set);");
   add("  } else { hide('moon-no-data', false); hide('moon-grid', true); }");
+
+  add("  if (d.pop_wld_live !== undefined || d.pop_ctr_live !== undefined) {");
+  add("    hide('pop-no-data', true); hide('pop-grid', false);");
+  add("    const formatNum = (str) => { return str.replace(/\\B(?=(\\d{3})+(?!\\d))/g, ','); };");
+  add("    if (d.pop_wld_live !== undefined) {");
+  add("      set('val-pop-wld', formatNum(d.pop_wld_live));");
+  add("      set('val-pop-wld-gr', (parseFloat(d.pop_wld_gr) > 0 ? '+' : '') + d.pop_wld_gr + '%');");
+  add("      set('lbl-pop-wld', 'World Population');");
+  add("    }");
+  add("    if (d.pop_ctr_live !== undefined) {");
+  add("      set('val-pop-ctr', formatNum(d.pop_ctr_live));");
+  add("      set('val-pop-ctr-gr', (parseFloat(d.pop_ctr_gr) > 0 ? '+' : '') + d.pop_ctr_gr + '%');");
+  add("      const cCode = d.country_code ? d.country_code.toUpperCase() : 'CTR';");
+  add("      set('lbl-pop-ctr', cCode + ' Population');");
+  add("      set('lbl-pop-ctr-gr', cCode + ' Growth');");
+  add("    }");
+  add("  } else { hide('pop-no-data', false); hide('pop-grid', true); }");
 
   add("  if (d.stock_data && d.stock_data.length > 0) {");
   add("    hide('stock-no-data', true); hide('stock-grid', false); let p='', c='';");

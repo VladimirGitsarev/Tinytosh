@@ -1,5 +1,6 @@
 #include "JsonSerializer.h"
 #include "TimeService.h"
+#include "PopulationService.h"
 
 void JsonSerializer::populateConfigDoc(const Config& config, DynamicJsonDocument& doc) {
     doc["device_id"] = config.device_id;
@@ -56,6 +57,10 @@ void JsonSerializer::populateConfigDoc(const Config& config, DynamicJsonDocument
 
     doc["show_moon"] = config.show_moon ? 1 : 0;
     doc["moon_min"] = config.moon_minimal ? 1 : 0;
+
+    doc["show_population"] = config.show_population ? 1 : 0;
+    doc["pop_show_world"] = config.pop_show_world ? 1 : 0;
+    doc["pop_show_country"] = config.pop_show_country ? 1 : 0;
     
     doc["show_pc"] = config.show_pc ? 1 : 0;
     doc["show_media"] = config.show_media ? 1 : 0;
@@ -145,6 +150,16 @@ String JsonSerializer::buildAppStateJson(const AppState& state) {
         doc["moon_set"] = state.moon.set_mins != -1 ? TimeService::formatMinsFromMidnight(state.moon.set_mins, state.config.time_format) : "--:--";
         doc["moon_phase"] = state.moon.curphase;
         doc["moon_illum"] = state.moon.fracillum;
+    }
+
+    if (state.config.pop_show_world && state.population.world_pop_base != -1) {
+        doc["pop_wld_live"] = String(PopulationService::getLivePopulation(state.population.world_pop_base, state.population.world_growth, state.population.world_year));
+        doc["pop_wld_gr"] = String(state.population.world_growth, 2);
+    }
+    
+    if (state.config.pop_show_country && state.population.country_pop_base != -1) {
+        doc["pop_ctr_live"] = String(PopulationService::getLivePopulation(state.population.country_pop_base, state.population.country_growth, state.population.country_year));
+        doc["pop_ctr_gr"] = String(state.population.country_growth, 2);
     }
 
     JsonArray stockData = doc.createNestedArray("stock_data");
@@ -283,8 +298,11 @@ bool JsonSerializer::parseConfig(const char* jsonString, AppState& state) {
     if (doc.containsKey("daylight_min")) config.daylight_minimal = doc["daylight_min"] == 1;
 
     if (doc.containsKey("show_moon")) config.show_moon = doc["show_moon"] == 1;
-
     if (doc.containsKey("moon_min")) config.moon_minimal = doc["moon_min"] == 1;
+
+    if (doc.containsKey("show_population")) config.show_population = doc["show_population"] == 1;
+    if (doc.containsKey("pop_show_world")) config.pop_show_world = doc["pop_show_world"] == 1;
+    if (doc.containsKey("pop_show_country")) config.pop_show_country = doc["pop_show_country"] == 1;
     
     if (doc.containsKey("show_pc")) config.show_pc = doc["show_pc"] == 1;
     
@@ -352,10 +370,16 @@ bool JsonSerializer::parseConfig(const char* jsonString, AppState& state) {
     state.calendar.last_fetch_year = -1;
     state.calendar.count = 0;
 
+    state.daylight.last_fetch_yday = -1;
+
+    state.moon.last_fetch_yday = -1;
+    state.population.last_fetch_yday = -1;
+
     if (!config.show_weather) { state.weather.temp = NAN; state.weather.humidity = NAN; state.weather.apparent_temperature = NAN; state.weather.wind_speed = NAN; }
     if (!config.show_aqi) { state.aqi.aqi = NAN; state.aqi.pm25 = NAN; state.aqi.pm10 = NAN; state.aqi.no2 = NAN; }
     if (!config.show_daylight) { state.daylight.sunrise_mins = -1; state.daylight.sunset_mins = -1; state.daylight.noon_mins = -1; state.daylight.length_mins = -1; state.daylight.last_fetch_yday = -1; }
     if (!config.show_moon) { state.moon.rise_mins = -1; state.moon.set_mins = -1; state.moon.curphase = "N/A"; state.moon.fracillum = -1; state.moon.last_fetch_yday = -1; }
+    if (!config.show_population) { state.population.world_pop_base = -1; state.population.country_pop_base = -1; state.population.last_fetch_yday = -1; }
     if (!config.show_pc) { state.pc.cpu_percent = 0; state.pc.net_down_kb = 0; state.pc.mem_percent = 0; state.pc.disk_percent = 0; }
     
     // Array Wipes

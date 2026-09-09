@@ -4,7 +4,6 @@
 #include <ArduinoJson.h>
 
 bool AirQualityService::fetchAirQuality(const Config& config, AirQualityData &data) {
-  Serial.println("AirQualityService: Fetching Air Quality data from Open-Meteo..."); 
   HTTPClient http;
   String typeParam = (config.aqi_type == "EU") ? "european_aqi" : "us_aqi";
   String url = String(AIR_QUALITY_API_URL) + "?latitude=" + String(config.latitude, 4) +
