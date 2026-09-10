@@ -351,10 +351,6 @@
                     <p>
                         Tinytosh is designed to be fully customizable, powerful, and incredibly smooth.
                     </p>
-                    <ul style="margin-top: 15px; margin-bottom: 20px;">
-                        <li><strong>⚡ Async RTOS:</strong> Employs background FreeRTOS tasks to fetch API data asynchronously. The display and animations stay buttery smooth without ever freezing to download data.</li>
-                        <li><strong>🎛️ Flexible Configuration:</strong> You aren't tied to the Web Panel. You can change every device setting instantly via the native desktop PC App.</li>
-                    </ul>
 
                     <div class="feature-section-title">Modular Dashboard & Drag & Drop</div>
                     <p class="desc">
@@ -454,7 +450,7 @@
                         <ul>
                             <li><strong>Switch Screens Automatically:</strong> If checked, screens rotate automatically. If unchecked, the screen stays static until you press the hardware button.</li>
                             <li><strong>Screen Cycle Interval:</strong> Time (in seconds) each screen stays visible before rotating.</li>
-                            <li><strong>Data Sync Interval:</strong> Frequency (in minutes) of data fetches for Weather, Air Quality, Crypto, Stocks, and Currencies.</li>
+                            <li><strong>Data Sync Interval:</strong> Frequency (in minutes) of data fetches for Weather, Air Quality, Crypto, Stocks, and Currencies. Need one screen to refresh faster (or slower) than the rest? Each of these screens also has its own optional <strong>Custom Sync Interval</strong> override, right in its settings section.</li>
                         </ul>
 
                         <div class="feature-section-title">🌙 Night Mode & Power Saving</div>
@@ -481,6 +477,7 @@
                         <p>If you installed the optional TTP223 touch sensor, you can control Tinytosh directly:</p>
                         <ul>
                             <li><strong>Single Tap:</strong> Instantly skips to the next active screen in your rotation. If the display was turned off by Night Mode, this temporarily wakes it up.</li>
+                            <li><strong>Double Tap:</strong> Jumps back to the previous active screen, so you can navigate your rotation in either direction.</li>
                             <li><strong>Long Press (Hold):</strong> Locks or unlocks the current screen. Disables the auto-cycle rotation so you can keep a specific screen visible as long as you want.</li>
                         </ul>
                     </div>
@@ -569,6 +566,7 @@
                         <ul>
                             <li><strong>Temperature Unit:</strong> Toggle between Celsius (°C) and Fahrenheit (°F).</li>
                             <li><strong>Round Values:</strong> Choose between rounded integers (22°) or precise decimals (21.8°).</li>
+                            <li><strong>Custom Sync Interval:</strong> Optionally set a refresh rate for this screen that's independent of the global Data Sync Interval.</li>
                         </ul>
                         <div class="feature-section-title">Layout</div>
                         <p>Top: City and Time. Center: Big Temperature and condition icon/desc. Bottom: Feels like, Humidity (%), and Wind Speed (km/h).</p>
@@ -604,6 +602,9 @@
                         <div class="info-box">
                             <strong>Standard Difference:</strong> US AQI (0-500) focuses on health risk thresholds. European AQI (0-100+) tracks specific pollutant concentrations (PM2.5, PM10, NO2).
                         </div>
+                        <ul>
+                            <li><strong>Custom Sync Interval:</strong> Optionally set a refresh rate for this screen that's independent of the global Data Sync Interval.</li>
+                        </ul>
                         <div class="feature-section-title">Layout</div>
                         <p>Top: City and Time. Center: AQI Value, Standard Type, and Status Icon. Bottom: Real-time PM2.5, PM10, and NO2 levels in µg/m³.</p>
                         <span class="api-tag">Source: air-quality-api.open-meteo.com</span>
@@ -739,6 +740,7 @@
                         <ul>
                             <li><strong>Asset Selection:</strong> Track <strong>up to 5</strong> stocks/ETFs at once. The screen will automatically paginate through them during its rotation cycle!</li>
                             <li><strong>Display Format:</strong> Toggle between showing the minimalist Ticker (e.g., AAPL) or the Full Company Name (e.g., Apple Inc.).</li>
+                            <li><strong>Custom Sync Interval:</strong> Optionally set a refresh rate for this screen that's independent of the global Data Sync Interval.</li>
                         </ul>
                         <div class="feature-section-title">Layout</div>
                         <p>Shows the stock ticker/name, current price in USD, a daily trend icon, and the percentage change since the previous close.</p>
@@ -773,6 +775,7 @@
                         <ul>
                             <li><strong>Coin Selection:</strong> Track <strong>up to 5</strong> coins at once. The screen will smoothly rotate through them.</li>
                             <li><strong>Display Format:</strong> Toggle between the clean, standard Ticker (e.g., BTC) or displaying the Full Coin Name (e.g., Bitcoin).</li>
+                            <li><strong>Custom Sync Interval:</strong> Optionally set a refresh rate for this screen that's independent of the global Data Sync Interval.</li>
                         </ul>
                         <div class="feature-section-title">Layout</div>
                         <p>Shows the coin ticker/name, current price in USD, a daily trend icon, and the 24h percentage change.</p>
@@ -808,6 +811,7 @@
                             <li><strong>Base & Target:</strong> Track <strong>up to 5</strong> currency pairs at once (e.g., USD to EUR).</li>
                             <li><strong>Multiplier Amount:</strong> Essential for viewing exchange rates with large differences. Instead of viewing the tiny fraction for 1 unit, you can track the rate for 10, 100, 1,000, or 10,000 units for better readability.</li>
                             <li><strong>Display Format:</strong> Toggle between the Base Currency Code (e.g., USD) or displaying the Full Currency Name (e.g., US Dollar).</li>
+                            <li><strong>Custom Sync Interval:</strong> Optionally set a refresh rate for this screen that's independent of the global Data Sync Interval.</li>
                         </ul>
                         <div class="feature-section-title">Layout</div>
                         <p>Top Left: Base Currency (Large). Bottom Left: Target Rate. Right Side: Multiplier context aligned to the edge (e.g., "1 USD =", "1000 ARS =").</p>
@@ -968,10 +972,13 @@
                     <div class="app-features" style="margin-bottom: 25px;">
                         <div class="feature-section-title" style="margin-top: 0;">Key Features</div>
                         <ul style="margin-top: 10px;">
-                            <li><strong>Native Monitoring:</strong> Reads system stats (CPU, RAM, Network) directly — no AIDA64, HWiNFO, or third-party bloatware required.</li>
+                            <li><strong>Native Hardware & Media Monitoring:</strong> Reads system stats (CPU, RAM, Network) directly and streams your active media playback (Track, Artist, Album) — no AIDA64, HWiNFO, or third-party bloatware required.</li>
                             <li><strong>Wireless Telemetry & Auto-Connect:</strong> Automatically discovers Tinytosh devices on your network (mDNS) and connects on startup to broadcast stats via USB or completely wirelessly!</li>
                             <li><strong>Smart Connection Fallback:</strong> Prioritizes USB for stability. Yank the cable? It instantly and silently falls back to Wi-Fi.</li>
+                            <li><strong>Live USB Device Logs Terminal:</strong> Streams real-time debug logs from the ESP32 over USB, so you can watch API fetches and system status right from your desktop.</li>
                             <li><strong>Hardware Pairing Lock:</strong> Tinytosh securely pairs to the active PC to ensure multiple computers don't fight over the display.</li>
+                            <li><strong>Smart Auto-Hide:</strong> Automatically hides the PC Monitor, PC Media, or Bambu Printer screens from the rotation whenever there's nothing to show — no PC connected, nothing playing, or the printer offline.</li>
+                            <li><strong>Unified Configuration Sync:</strong> Instant, stutter-free 2-way sync keeps your PC app and device settings always in step.</li>
                             <li><strong>Dynamic UI & Complete Control:</strong> The PC app dashboard mirrors your device! Configuration panels automatically reorder in real-time, letting you manage all settings directly from the desktop.</li>
                             <li><strong>Real-time Dashboard:</strong> See exactly what telemetry data is being sent to your device at a glance.</li>
                             <li><strong>Manual Control:</strong> Override port/IP selection and toggle data streaming instantly.</li>

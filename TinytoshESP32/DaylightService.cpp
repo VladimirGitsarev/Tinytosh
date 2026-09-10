@@ -1,6 +1,10 @@
 #include "DaylightService.h"
-#include "TimeService.h"
+
 #include <ArduinoJson.h>
+#include <HTTPClient.h>
+#include <time.h>
+
+#include "TimeService.h"
 
 DaylightService::DaylightService() {}
 

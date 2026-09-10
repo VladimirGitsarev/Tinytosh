@@ -1,6 +1,7 @@
 #include "JsonSerializer.h"
-#include "TimeService.h"
+
 #include "PopulationService.h"
+#include "TimeService.h"
 
 void JsonSerializer::populateConfigDoc(const Config& config, DynamicJsonDocument& doc) {
     doc["device_id"] = config.device_id;
@@ -47,10 +48,12 @@ void JsonSerializer::populateConfigDoc(const Config& config, DynamicJsonDocument
     doc["temp_unit"] = config.temp_unit;
     doc["round_temps"] = config.round_temps ? 1 : 0;
     doc["weather_hide_bar"] = config.weather_hide_bar ? 1 : 0;
-    
+    doc["custom_weather_int_min"] = config.custom_weather_int_min;
+
     doc["show_aqi"] = config.show_aqi ? 1 : 0;
     doc["aqi_type"] = config.aqi_type;
     doc["aqi_hide_bar"] = config.aqi_hide_bar ? 1 : 0;
+    doc["custom_aqi_int_min"] = config.custom_aqi_int_min;
 
     doc["show_daylight"] = config.show_daylight ? 1 : 0;
     doc["daylight_min"] = config.daylight_minimal ? 1 : 0;
@@ -68,16 +71,19 @@ void JsonSerializer::populateConfigDoc(const Config& config, DynamicJsonDocument
     // Arrays
     doc["show_stock"] = config.show_stock ? 1 : 0;
     doc["stock_fn"] = config.stock_fn ? 1 : 0;
+    doc["custom_stock_int_min"] = config.custom_stock_int_min;
     JsonArray stArr = doc.createNestedArray("stock_symbols");
     for(int i=0; i<config.stock_count; i++) stArr.add(config.stock_symbols[i]);
-    
+
     doc["show_crypto"] = config.show_crypto ? 1 : 0;
     doc["crypto_fn"] = config.crypto_fn ? 1 : 0;
+    doc["custom_crypto_int_min"] = config.custom_crypto_int_min;
     JsonArray crArr = doc.createNestedArray("crypto_ids");
     for(int i=0; i<config.crypto_count; i++) crArr.add(config.crypto_ids[i]);
 
     doc["show_currency"] = config.show_currency ? 1 : 0;
     doc["currency_fn"] = config.currency_fn ? 1 : 0;
+    doc["custom_currency_int_min"] = config.custom_currency_int_min;
     JsonArray cbArr = doc.createNestedArray("currency_bases");
     for(int i=0; i<config.currency_count; i++) cbArr.add(config.currency_bases[i]);
     JsonArray ctArr = doc.createNestedArray("currency_targets");
@@ -289,11 +295,13 @@ bool JsonSerializer::parseConfig(const char* jsonString, AppState& state) {
     if (doc.containsKey("temp_unit")) config.temp_unit = doc["temp_unit"].as<String>();
     if (doc.containsKey("round_temps")) config.round_temps = doc["round_temps"] == 1;
     if (doc.containsKey("weather_hide_bar")) config.weather_hide_bar = doc["weather_hide_bar"] == 1;
+    if (doc.containsKey("custom_weather_int_min")) config.custom_weather_int_min = doc["custom_weather_int_min"];
 
     if (doc.containsKey("show_aqi")) config.show_aqi = doc["show_aqi"] == 1;
     if (doc.containsKey("aqi_type")) config.aqi_type = doc["aqi_type"].as<String>();
     if (doc.containsKey("aqi_hide_bar")) config.aqi_hide_bar = doc["aqi_hide_bar"] == 1;
-    
+    if (doc.containsKey("custom_aqi_int_min")) config.custom_aqi_int_min = doc["custom_aqi_int_min"];
+
     if (doc.containsKey("show_daylight")) config.show_daylight = doc["show_daylight"] == 1;
     if (doc.containsKey("daylight_min")) config.daylight_minimal = doc["daylight_min"] == 1;
 
@@ -308,6 +316,7 @@ bool JsonSerializer::parseConfig(const char* jsonString, AppState& state) {
     
     if (doc.containsKey("show_stock")) config.show_stock = doc["show_stock"] == 1;
     if (doc.containsKey("stock_fn")) config.stock_fn = doc["stock_fn"] == 1;
+    if (doc.containsKey("custom_stock_int_min")) config.custom_stock_int_min = doc["custom_stock_int_min"];
     if (doc.containsKey("stock_symbols")) {
         JsonArray arr = doc["stock_symbols"].as<JsonArray>();
         config.stock_count = 0;
@@ -317,6 +326,7 @@ bool JsonSerializer::parseConfig(const char* jsonString, AppState& state) {
     
     if (doc.containsKey("show_crypto")) config.show_crypto = doc["show_crypto"] == 1;
     if (doc.containsKey("crypto_fn")) config.crypto_fn = doc["crypto_fn"] == 1;
+    if (doc.containsKey("custom_crypto_int_min")) config.custom_crypto_int_min = doc["custom_crypto_int_min"];
     if (doc.containsKey("crypto_ids")) {
         JsonArray arr = doc["crypto_ids"].as<JsonArray>();
         config.crypto_count = 0;
@@ -326,6 +336,7 @@ bool JsonSerializer::parseConfig(const char* jsonString, AppState& state) {
     
     if (doc.containsKey("show_currency")) config.show_currency = doc["show_currency"] == 1;
     if (doc.containsKey("currency_fn")) config.currency_fn = doc["currency_fn"] == 1;
+    if (doc.containsKey("custom_currency_int_min")) config.custom_currency_int_min = doc["custom_currency_int_min"];
     if (doc.containsKey("currency_bases")) {
         JsonArray arrB = doc["currency_bases"].as<JsonArray>();
         JsonArray arrT = doc["currency_targets"].as<JsonArray>();

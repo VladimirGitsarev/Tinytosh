@@ -1,11 +1,13 @@
 #include "DisplayService.h"
-#include "DaylightService.h"
-#include "WeatherService.h"
-#include "PopulationService.h"
-#include "images.h"
+
 #include <Arduino.h>
 #include <Fonts/Picopixel.h>
-#include <Fonts/Org_01.h>
+#include <time.h>
+
+#include "images.h"
+#include "PopulationService.h"
+#include "TimeService.h"
+#include "WeatherService.h"
 
 const unsigned char* DisplayService::getWeatherBitmap(int wmo_code, bool is_day) {
     if (wmo_code == 0) {
@@ -1409,6 +1411,129 @@ void DisplayService::drawScreen(int screenIndex, const AppState& state, int subI
     case SCREEN_PC_MEDIA: drawMediaScreen(state.media); break;
     case SCREEN_BAMBU: drawBambuScreen(state.bambu); break;
   }
+}
+
+void DisplayService::drawCurrentScreen(const AppState& state) {
+    drawScreen(currentScreen, state, currentSubScreen);
+}
+
+int DisplayService::getFirstEnabledScreen(const AppState& state) {
+    for (int i = 0; i < NUM_SCREENS; i++) {
+        int screenId = state.config.screen_order[i];
+        if (isScreenEnabled(state, screenId)) {
+            return screenId;
+        }
+    }
+    return state.config.screen_order[0];
+}
+
+void DisplayService::jumpToFirstEnabledScreen(const AppState& state) {
+    currentScreen = getFirstEnabledScreen(state);
+}
+
+bool DisplayService::isOnFirstEnabledScreen(const AppState& state) {
+    return currentScreen == getFirstEnabledScreen(state);
+}
+
+void DisplayService::switchToNextScreen(const AppState& state) {
+    const Config& config = state.config;
+
+    if (currentScreen == SCREEN_STOCK && currentSubScreen + 1 < config.stock_count) {
+        currentSubScreen++;
+        animateTransition(currentScreen, currentSubScreen - 1, currentScreen, currentSubScreen, state);
+        return;
+    }
+    if (currentScreen == SCREEN_CRYPTO && currentSubScreen + 1 < config.crypto_count) {
+        currentSubScreen++;
+        animateTransition(currentScreen, currentSubScreen - 1, currentScreen, currentSubScreen, state);
+        return;
+    }
+    if (currentScreen == SCREEN_CURRENCY && currentSubScreen + 1 < config.currency_count) {
+        currentSubScreen++;
+        animateTransition(currentScreen, currentSubScreen - 1, currentScreen, currentSubScreen, state);
+        return;
+    }
+
+    int oldScreen = currentScreen;
+    int oldSubScreen = currentSubScreen;
+    currentSubScreen = 0;
+
+    int currentIndex = 0;
+    for (int i = 0; i < NUM_SCREENS; i++) {
+        if (config.screen_order[i] == currentScreen) {
+            currentIndex = i; break;
+        }
+    }
+
+    int checkIndex = currentIndex;
+    int nextScreenCandidate = currentScreen;
+    do {
+        checkIndex++;
+        if (checkIndex >= NUM_SCREENS) checkIndex = 0;
+        int candidateId = config.screen_order[checkIndex];
+        if (isScreenEnabled(state, candidateId)) {
+            nextScreenCandidate = candidateId;
+            break;
+        }
+    } while (checkIndex != currentIndex);
+
+    if (oldScreen == nextScreenCandidate && oldSubScreen == 0) return;
+
+    animateTransition(oldScreen, oldSubScreen, nextScreenCandidate, 0, state);
+    currentScreen = nextScreenCandidate;
+}
+
+void DisplayService::switchToPreviousScreen(const AppState& state) {
+    const Config& config = state.config;
+
+    if (currentScreen == SCREEN_STOCK && currentSubScreen > 0) {
+        currentSubScreen--;
+        animateTransition(currentScreen, currentSubScreen + 1, currentScreen, currentSubScreen, state);
+        return;
+    }
+    if (currentScreen == SCREEN_CRYPTO && currentSubScreen > 0) {
+        currentSubScreen--;
+        animateTransition(currentScreen, currentSubScreen + 1, currentScreen, currentSubScreen, state);
+        return;
+    }
+    if (currentScreen == SCREEN_CURRENCY && currentSubScreen > 0) {
+        currentSubScreen--;
+        animateTransition(currentScreen, currentSubScreen + 1, currentScreen, currentSubScreen, state);
+        return;
+    }
+
+    int oldScreen = currentScreen;
+    int oldSubScreen = currentSubScreen;
+
+    int currentIndex = 0;
+    for (int i = 0; i < NUM_SCREENS; i++) {
+        if (config.screen_order[i] == currentScreen) {
+            currentIndex = i; break;
+        }
+    }
+
+    int checkIndex = currentIndex;
+    int prevScreenCandidate = currentScreen;
+    do {
+        checkIndex--;
+        if (checkIndex < 0) checkIndex = NUM_SCREENS - 1;
+        int candidateId = config.screen_order[checkIndex];
+        if (isScreenEnabled(state, candidateId)) {
+            prevScreenCandidate = candidateId;
+            break;
+        }
+    } while (checkIndex != currentIndex);
+
+    if (oldScreen == prevScreenCandidate && oldSubScreen == 0) return;
+
+    animateTransition(oldScreen, oldSubScreen, prevScreenCandidate, 0, state);
+    currentScreen = prevScreenCandidate;
+    currentSubScreen = 0;
+}
+
+void DisplayService::setContrast(bool dim) {
+    display.ssd1306_command(SSD1306_SETCONTRAST);
+    display.ssd1306_command(dim ? CONTRAST_DIM : CONTRAST_MAX);
 }
 
 int DisplayService::getNextAnimationEffect(uint16_t mask) {

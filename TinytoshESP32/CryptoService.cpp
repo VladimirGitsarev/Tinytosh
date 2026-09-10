@@ -1,6 +1,7 @@
 #include "CryptoService.h"
-#include <HTTPClient.h>
+
 #include <ArduinoJson.h>
+#include <HTTPClient.h>
 
 bool CryptoService::fetchPrice(int id, CryptoData &data) {
     HTTPClient http;

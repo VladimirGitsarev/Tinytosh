@@ -1,9 +1,9 @@
 #ifndef DAYLIGHT_SERVICE_H
 #define DAYLIGHT_SERVICE_H
 
-#include "structs.h"
 #include <Arduino.h>
-#include <HTTPClient.h>
+
+#include "structs.h"
 
 class DaylightService {
 public:

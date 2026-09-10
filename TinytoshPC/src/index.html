@@ -260,6 +260,12 @@
                 </div>
                 <label class="checkbox-label"><input type="checkbox" name="round_temps"> Round Temperature Values</label>
                 <label class="checkbox-label"><input type="checkbox" name="weather_hide_bar"> Hide Top Bar (Location & Time)</label>
+                <hr>
+                <label class="checkbox-label"><input type="checkbox" id="customWeatherSyncChk"> Custom Data Sync</label>
+                <div id="customWeatherSyncFields" class="collapsible">
+                  <label class="mt-0">Custom Data Sync Interval (Mins):</label>
+                  <input type="number" min="1" id="customWeatherSyncInt" name="custom_weather_int_min">
+                </div>
               </div>
             </div>
 
@@ -283,6 +289,12 @@
                 </div>
                 <p class='help-text mt-0'>EU: 0-100+ scale | US: 0-500 scale</p>
                 <label class="checkbox-label"><input type="checkbox" name="aqi_hide_bar"> Hide Top Bar (Location & Time)</label>
+                <hr>
+                <label class="checkbox-label"><input type="checkbox" id="customAqiSyncChk"> Custom Data Sync</label>
+                <div id="customAqiSyncFields" class="collapsible">
+                  <label class="mt-0">Custom Data Sync Interval (Mins):</label>
+                  <input type="number" min="1" id="customAqiSyncInt" name="custom_aqi_int_min">
+                </div>
               </div>
             </div>
 
@@ -349,6 +361,12 @@
                 <div id="stock-list-container"></div>
                 <button type="button" class="btn-blue" onclick="addStockRow()">+ Add Stock / ETF</button>
                 <label class="checkbox-label"><input type="checkbox" name="stock_fn"> Display Full Company Name</label>
+                <hr>
+                <label class="checkbox-label"><input type="checkbox" id="customStockSyncChk"> Custom Data Sync</label>
+                <div id="customStockSyncFields" class="collapsible">
+                  <label class="mt-0">Custom Data Sync Interval (Mins):</label>
+                  <input type="number" min="1" id="customStockSyncInt" name="custom_stock_int_min">
+                </div>
               </div>
             </div>
 
@@ -366,6 +384,12 @@
                 <div id="crypto-list-container"></div>
                 <button type="button" class="btn-blue" onclick="addCryptoRow()">+ Add Cryptocurrency</button>
                 <label class="checkbox-label"><input type="checkbox" name="crypto_fn"> Display Full Coin Name</label>
+                <hr>
+                <label class="checkbox-label"><input type="checkbox" id="customCryptoSyncChk"> Custom Data Sync</label>
+                <div id="customCryptoSyncFields" class="collapsible">
+                  <label class="mt-0">Custom Data Sync Interval (Mins):</label>
+                  <input type="number" min="1" id="customCryptoSyncInt" name="custom_crypto_int_min">
+                </div>
               </div>
             </div>
 
@@ -383,6 +407,12 @@
                 <div id="currency-list-container"></div>
                 <button type="button" class="btn-blue" onclick="addCurrencyRow()">+ Add Currency Pair</button>
                 <label class="checkbox-label"><input type="checkbox" name="currency_fn"> Display Full Currency Name</label>
+                <hr>
+                <label class="checkbox-label"><input type="checkbox" id="customCurrencySyncChk"> Custom Data Sync</label>
+                <div id="customCurrencySyncFields" class="collapsible">
+                  <label class="mt-0">Custom Data Sync Interval (Mins):</label>
+                  <input type="number" min="1" id="customCurrencySyncInt" name="custom_currency_int_min">
+                </div>
               </div>
             </div>
 

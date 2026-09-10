@@ -1,8 +1,9 @@
 #ifndef BAMBU_SERVICE_H
 #define BAMBU_SERVICE_H
 
-#include <WiFiClientSecure.h>
 #include <PubSubClient.h>
+#include <WiFiClientSecure.h>
+
 #include "structs.h"
 
 class BambuService {

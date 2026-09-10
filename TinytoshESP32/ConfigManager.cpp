@@ -1,6 +1,8 @@
 #include "ConfigManager.h"
-#include "JsonSerializer.h"
+
 #include <Arduino.h>
+
+#include "JsonSerializer.h"
 
 ConfigManager::ConfigManager(const char* ns) : PREF_NAMESPACE(ns) {}
 

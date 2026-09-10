@@ -39,16 +39,19 @@
 * 🖨️ **Bambu 3D Printer:** Local network telemetry for your Bambu Lab printer (progress, temperatures, fans, and print status) featuring smart layouts for IDLE and PRINTING modes.
 
 ### ✨ Key Features
-* **Modular Dashboard:** Enable/Disable screens on the fly via a Web Panel or PC App. 
+* **🧩 Modular Dashboard:** The heart of Tinytosh. Enable or disable any of the screens above to build exactly the device you want — a full 13-screen rotation, a dedicated crypto ticker, or anything in between. Toggle screens on/off instantly via the Web Panel or PC App, no reflashing required.
+* **🎛️ Per-Screen Configuration:** It's not just *which* screens you show — it's *how* they look. Every screen has its own dedicated settings (units, minimal vs. full layouts, hidden top bars, full names vs. compact tickers, and more), so each one behaves exactly the way you prefer.
 * **🎨 OLED Theme Engine:** Procedural design system. Pick 4 base colors, and the engine automatically calculates all hover states, UI borders, and muted text tones for both the Web Panel and PC app!
 * **🔌 Hardware Setup:** Customize your I2C and Touch pinout directly from the Web Panel without touching the code.
-* **Smart Location:** Auto-detect your location via IP or manually set your exact coordinates, country, and native timezone.
-* **Drag & Drop Reordering:** Fully customize your display sequence. Grab and drag screens to change their order. The configuration UI dynamically rearranges itself to match your custom layout perfectly.
-* **Touch Button Controls:** Supports an optional TTP223 touch sensor. Tap to instantly skip screens (or wake the display), and **Long Press** to lock/unlock auto-rotation to keep your favorite screen visible indefinitely.
-* **Smart Auto-Hide:** PC Monitor and PC Media screens can intelligently hide themselves and skip rotation when your PC is off, disconnected, or no media is playing.
-* **Night Mode & Power Saving:** Set a quiet schedule to minimize sleep distractions. Choose between *Dim Display*, *Turn Display Off*, or *Dim then Turn Off* (featuring an extra time picker for gradual dimming). Features "Smart Latching" (waits for the primary screen before sleeping), 10x slower background API fetching to save power, and a temporary 30-second wake feature via the physical button.
-* **Zero Config APIs:** Uses free public APIs. No API keys required.
-* **Privacy First:** No accounts, no cloud tracking. Everything runs locally on the ESP32.
+* **⚡ Instant Live Sync:** Change a setting on the Web Panel or PC App and watch it apply on the OLED right away — no reboots, no waiting, no manual refresh.
+* **📍 Smart Location:** Auto-detect your location via IP or manually set your exact coordinates, country, and native timezone.
+* **🔀 Drag & Drop Reordering:** Fully customize your display sequence. Grab and drag screens to change their order. The configuration UI dynamically rearranges itself to match your custom layout perfectly.
+* **👆 Touch Button Controls:** Supports an optional TTP223 touch sensor. **Single Tap** to advance to the next screen (or wake the display), **Double Tap** to jump back to the previous one, and **Long Press** to lock/unlock auto-rotation to keep your favorite screen visible indefinitely.
+* **👻 Smart Auto-Hide:** PC Monitor and PC Media screens can intelligently hide themselves and skip rotation when your PC is off, disconnected, or no media is playing.
+* **⏱️ Custom Data Sync Intervals:** Override the global refresh rate on a per-screen basis. Set Weather, Air Quality, Stocks, Crypto, or Currency to sync more (or less) often than the rest of your dashboard.
+* **🌙 Night Mode & Power Saving:** Set a quiet schedule to minimize sleep distractions. Choose between *Dim Display*, *Turn Display Off*, or *Dim then Turn Off* (featuring an extra time picker for gradual dimming). Features "Smart Latching" (waits for the primary screen before sleeping), 10x slower background API fetching to save power, and a temporary 30-second wake feature via the physical button.
+* **🆓 Zero Config APIs:** Uses free public APIs. No API keys required.
+* **🔒 Privacy First:** No accounts, no cloud tracking. Everything runs locally on the ESP32.
 
 ![Interface Demo](img/web_panel_demo.gif)
 
@@ -62,11 +65,13 @@ For developers, makers, and the curious, here is how the magic happens. The proj
 *Written in C++ using the Arduino Framework.*
 
 The firmware is designed to be **non-blocking** and **modular**.
+* **🧱 Service-Oriented Architecture:** Firmware logic is split into focused, single-responsibility services (`DisplayService`, `TimeService`, `DataSyncService`, `HardwareService`, `NightModeService`, and more) instead of one monolithic sketch — keeping the codebase easy to read, extend, and hack on.
 * **⚡ Async RTOS:** Employs background FreeRTOS tasks to fetch API data asynchronously. The display and animations stay buttery smooth at 60fps without ever freezing to download data.
-* **Universal Config Sync:** The device uses a unified JSON configuration payload, allowing it to instantly accept and apply settings over the local Web Server or via the PC Serial/USB connection.
-* **mDNS Support:** Easily access the device's Web Panel without memorizing IPs using its unique local domain (e.g., `http://tinytosh-ab12.local`).
-* **Hardware Pairing Lock:** Telemetry streams are protected. Tinytosh securely pairs to the active PC to ensure multiple computers on the same network don't fight over the display.
-* **Dynamic Rendering:** The `DisplayService` handles the OLED. It supports "partial screen buffering," allowing for complex transition effects (like dissolving pixels or sliding curtains) without needing a massive frame buffer.
+* **⏱️ Granular Data Scheduling:** A dedicated `DataSyncService` tracks fetch timing independently per screen, so Weather, AQI, Stocks, Crypto, and Currency can each sync on their own custom interval instead of a single global timer.
+* **🔄 Universal Config Sync:** The device uses a unified JSON configuration payload, allowing it to instantly accept and apply settings over the local Web Server or via the PC Serial/USB connection.
+* **🌐 mDNS Support:** Easily access the device's Web Panel without memorizing IPs using its unique local domain (e.g., `http://tinytosh-ab12.local`).
+* **🔐 Hardware Pairing Lock:** Telemetry streams are protected. Tinytosh securely pairs to the active PC to ensure multiple computers on the same network don't fight over the display.
+* **🖼️ Dynamic Rendering:** The `DisplayService` handles the OLED. It supports "partial screen buffering," allowing for complex transition effects (like dissolving pixels or sliding curtains) without needing a massive frame buffer.
 
 #### 🏗️ Build & Compile Guide
 
@@ -190,6 +195,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 | Version | Date | Key Changes |
 | :--- | :--- | :--- |
+| **v1.1.3** | *Sep 2026* | ⏱️ Added **Custom Data Sync Intervals** for Weather, AQI, Stocks, Crypto, and Currency — override the global refresh rate independently per screen. 👆👆 Added **Double-Click Navigation**: single tap moves to the next screen, double tap now jumps back to the previous one. ⚙️ Internal firmware refactor for cleaner, more maintainable code. |
 | **v1.1.2** | *Sep 2026* | 🌍 Added **Population Info** screen featuring a live calculated, second-by-second world and country population ticker. |
 | **v1.1.1** | *Aug 2026* | 🌑 Added **Moon Info** screen with dynamically rendered moon phases, illumination %, and rise/set times. |
 | **v1.1.0** | *Jun 2026* | 🌟 The Architecture & UI/UX Update (Major Release): ☀️ Added **Daylight Info** screen to track solar positioning. 🎨 Introduced **OLED Theme Engine** for procedural 4-color UI generation on Web and PC. 🔌 Added custom hardware pin assignment in Web Panel. 📈 Expanded Stocks, Crypto, and Currency trackers to support up to 5 rotating items. ⚙️ **Firmware Overhaul:** Unified JSON configuration architecture for instant 2-way sync, plus completely rebuilt background data fetching for stutter-free UX. 🖥️ **PC App Upgrade:** New port connection engine, integrated live USB device logs terminal, and fixed other issues. |

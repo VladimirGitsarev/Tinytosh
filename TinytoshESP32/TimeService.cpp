@@ -1,6 +1,10 @@
 #include "TimeService.h"
-#include "zones.h"
+
 #include <ArduinoJson.h>
+#include <HTTPClient.h>
+#include <time.h>
+
+#include "zones.h"
 
 TimeService::TimeService() {}
 
@@ -201,4 +205,37 @@ int TimeService::parseDurationToMins(String apiDuration) {
   int minute = apiDuration.substring(firstColon + 1, secondColon).toInt();
 
   return hour * 60 + minute;
+}
+
+bool TimeService::isTimeInWindow(int currentMins, const String& startStr, const String& endStr) {
+  int startH = startStr.substring(0, 2).toInt();
+  int startM = startStr.substring(3, 5).toInt();
+  int startMins = startH * 60 + startM;
+
+  int endH = endStr.substring(0, 2).toInt();
+  int endM = endStr.substring(3, 5).toInt();
+  int endMins = endH * 60 + endM;
+
+  if (startMins < endMins) return (currentMins >= startMins && currentMins < endMins);
+  else return (currentMins >= startMins || currentMins < endMins);
+}
+
+int TimeService::getActiveNightAction(const Config& config) {
+  if (!config.night_mode) return -1;
+
+  struct tm timeinfo;
+  if (!getLocalTime(&timeinfo)) return -1;
+  int currentMins = timeinfo.tm_hour * 60 + timeinfo.tm_min;
+
+  if (config.night_action == 3) {
+    if (isTimeInWindow(currentMins, config.night_start, config.night_end)) return 2;
+    if (isTimeInWindow(currentMins, config.night_dim_start, config.night_end)) return 1;
+    return -1;
+  }
+
+  if (isTimeInWindow(currentMins, config.night_start, config.night_end)) {
+    return config.night_action;
+  }
+
+  return -1;
 }

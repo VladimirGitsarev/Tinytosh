@@ -2,8 +2,7 @@
 #define POPULATION_SERVICE_H
 
 #include <Arduino.h>
-#include <HTTPClient.h>
-#include <time.h>
+
 #include "structs.h"
 
 class PopulationService {

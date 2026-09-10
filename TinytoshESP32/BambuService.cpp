@@ -1,8 +1,10 @@
 #include "BambuService.h"
-#include "ConfigManager.h"
+
 #include <ArduinoJson.h>
 #include <WiFi.h>
 #include <WiFiClient.h>
+
+#include "ConfigManager.h"
 
 BambuService* BambuService::instance = nullptr;
 

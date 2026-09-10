@@ -1,10 +1,11 @@
 #include "WebServerService.h"
-#include "DaylightService.h"
-#include "TimeService.h"
-#include "WeatherService.h"
-#include "JsonSerializer.h"
+
 #include <ArduinoJson.h>
 #include <ESPmDNS.h>
+
+#include "JsonSerializer.h"
+#include "TimeService.h"
+#include "WeatherService.h"
 #include "zones.h"
 
 WebServerService::WebServerService(int port, ConfigSaveCallback callback) : 
@@ -124,7 +125,7 @@ void WebServerService::handleRoot() {
   add(".sortable-list { list-style: none; padding: 0; margin: 15px 0 0; border: 1px solid var(--border-subtle); background: var(--surface-main); overflow: hidden; } .sortable-item { background: var(--surface-active); border-bottom: 1px solid var(--border-subtle); padding: 15px 20px; display: flex; align-items: center; gap: 15px; cursor: grab; color: var(--text-main); font-weight: 600; transition: background 0.2s; } .sortable-item:active { cursor: grabbing; } .sortable-item:last-child { border-bottom: none; } .sortable-item.disabled { opacity: 0.4; background: var(--surface-main); }");
   add(".order-ctrl { display: flex; flex-direction: column; margin-right: 15px; gap: 4px; } .move-btn { cursor: pointer; color: var(--text-muted); font-size: 0.7rem; padding: 4px 8px; border: 1px solid var(--border-subtle); border-radius: 4px; background: var(--surface-main); transition: all 0.2s; } .move-btn:hover { color: var(--text-on-primary); background: var(--primary-main); border-color: var(--primary-main); } .sortable-item.disabled .order-ctrl { display: none; }");
   add(".update-footer { text-align: center; font-size: 0.8rem; color: var(--text-muted); margin-top: 20px; font-family: var(--font-tech); }");
-  
+
   add(".multi-row { display: flex; gap: 10px; align-items: flex-end; margin-bottom: 12px; } .multi-row .input-wrapper { flex: 1; min-width: 0; } .multi-row .input-wrapper select { margin: 0; } .btn-remove { width: 45px !important; height: 45px !important; margin: 0 !important; padding: 0 !important; flex-shrink: 0; font-size: 1.5rem !important; display: flex; align-items: center; justify-content: center; background-color: var(--surface-active); color: var(--text-muted); border: 1px solid var(--border-subtle); box-shadow: none; font-family: var(--font-sans); font-weight: 400; } .btn-remove:hover { background-color: var(--primary-main); color: var(--text-on-primary); border-color: var(--primary-main); }");
   add("@media (max-width: 400px) { .dashboard-grid { grid-template-columns: 1fr; } #time-display { font-size: 3.5rem; } }");
   add("</style></head><body><div class='container'>");
@@ -375,6 +376,11 @@ void WebServerService::handleRoot() {
               
               add("<label class='checkbox-label'><input type='checkbox' name='round_temps' value='1' " + String(config.round_temps ? "checked" : "") + "> Round Temperature Values</label>");
               add("<label class='checkbox-label'><input type='checkbox' name='weather_hide_bar' value='1' " + String(config.weather_hide_bar ? "checked" : "") + "> Hide Top Bar (Location & Time)</label>");
+              add("<hr>");
+              add("<label class='checkbox-label' id='customWeatherSyncLbl'><input type='checkbox' id='customWeatherSyncChk' name='custom_weather_sync_ui' value='1' " + String(config.custom_weather_int_min > 0 ? "checked" : "") + "> Custom Data Sync</label>");
+              add("<div id='customWeatherSyncFields' class='collapsible" + String(config.custom_weather_int_min > 0 ? "" : " hidden") + "'>");
+              add("<label class='mt-0'>Custom Data Sync Interval (Mins):</label><input type='number' min='1' id='customWeatherSyncInt' name='custom_weather_int_min' value='" + String(config.custom_weather_int_min > 0 ? config.custom_weather_int_min : config.refresh_interval_min) + "'>");
+              add("</div>");
               add("</div></div>");
               break;
           }
@@ -402,6 +408,11 @@ void WebServerService::handleRoot() {
               add("<label class='radio-label'><input type='radio' name='aqi_type' value='EU' " + String(config.aqi_type == "EU" ? "checked" : "") + "> European Standard</label></div>");
               add("<p class='help-text mt-0'>EU: 0-100+ scale | US: 0-500 scale</p>");
               add("<label class='checkbox-label'><input type='checkbox' name='aqi_hide_bar' value='1' " + String(config.aqi_hide_bar ? "checked" : "") + "> Hide Top Bar (Location & Time)</label>");
+              add("<hr>");
+              add("<label class='checkbox-label' id='customAqiSyncLbl'><input type='checkbox' id='customAqiSyncChk' name='custom_aqi_sync_ui' value='1' " + String(config.custom_aqi_int_min > 0 ? "checked" : "") + "> Custom Data Sync</label>");
+              add("<div id='customAqiSyncFields' class='collapsible" + String(config.custom_aqi_int_min > 0 ? "" : " hidden") + "'>");
+              add("<label class='mt-0'>Custom Data Sync Interval (Mins):</label><input type='number' min='1' id='customAqiSyncInt' name='custom_aqi_int_min' value='" + String(config.custom_aqi_int_min > 0 ? config.custom_aqi_int_min : config.refresh_interval_min) + "'>");
+              add("</div>");
               add("</div></div>");
               break;
           }
@@ -491,6 +502,11 @@ void WebServerService::handleRoot() {
               add("<div id='stock-list-container'></div>");
               add("<button type='button' class='btn-blue' onclick='addStockRow()'>+ Add Stock / ETF</button>");
               add("<label class='checkbox-label'><input type='checkbox' name='stock_fn' value='1' " + String(config.stock_fn ? "checked" : "") + "> Display Full Company Name</label>");
+              add("<hr>");
+              add("<label class='checkbox-label' id='customStockSyncLbl'><input type='checkbox' id='customStockSyncChk' name='custom_stock_sync_ui' value='1' " + String(config.custom_stock_int_min > 0 ? "checked" : "") + "> Custom Data Sync</label>");
+              add("<div id='customStockSyncFields' class='collapsible" + String(config.custom_stock_int_min > 0 ? "" : " hidden") + "'>");
+              add("<label class='mt-0'>Custom Data Sync Interval (Mins):</label><input type='number' min='1' id='customStockSyncInt' name='custom_stock_int_min' value='" + String(config.custom_stock_int_min > 0 ? config.custom_stock_int_min : config.refresh_interval_min) + "'>");
+              add("</div>");
               add("</div></div>");
               break;
           }
@@ -509,6 +525,11 @@ void WebServerService::handleRoot() {
               add("<div id='crypto-list-container'></div>");
               add("<button type='button' class='btn-blue' onclick='addCryptoRow()'>+ Add Cryptocurrency</button>");
               add("<label class='checkbox-label'><input type='checkbox' name='crypto_fn' value='1' " + String(config.crypto_fn ? "checked" : "") + "> Display Full Coin Name</label>");
+              add("<hr>");
+              add("<label class='checkbox-label' id='customCryptoSyncLbl'><input type='checkbox' id='customCryptoSyncChk' name='custom_crypto_sync_ui' value='1' " + String(config.custom_crypto_int_min > 0 ? "checked" : "") + "> Custom Data Sync</label>");
+              add("<div id='customCryptoSyncFields' class='collapsible" + String(config.custom_crypto_int_min > 0 ? "" : " hidden") + "'>");
+              add("<label class='mt-0'>Custom Data Sync Interval (Mins):</label><input type='number' min='1' id='customCryptoSyncInt' name='custom_crypto_int_min' value='" + String(config.custom_crypto_int_min > 0 ? config.custom_crypto_int_min : config.refresh_interval_min) + "'>");
+              add("</div>");
               add("</div></div>");
               break;
           }
@@ -527,6 +548,11 @@ void WebServerService::handleRoot() {
               add("<div id='currency-list-container'></div>");
               add("<button type='button' class='btn-blue' onclick='addCurrencyRow()'>+ Add Currency Pair</button>");
               add("<label class='checkbox-label'><input type='checkbox' name='currency_fn' value='1' " + String(config.currency_fn ? "checked" : "") + "> Display Full Currency Name</label>");
+              add("<hr>");
+              add("<label class='checkbox-label' id='customCurrencySyncLbl'><input type='checkbox' id='customCurrencySyncChk' name='custom_currency_sync_ui' value='1' " + String(config.custom_currency_int_min > 0 ? "checked" : "") + "> Custom Data Sync</label>");
+              add("<div id='customCurrencySyncFields' class='collapsible" + String(config.custom_currency_int_min > 0 ? "" : " hidden") + "'>");
+              add("<label class='mt-0'>Custom Data Sync Interval (Mins):</label><input type='number' min='1' id='customCurrencySyncInt' name='custom_currency_int_min' value='" + String(config.custom_currency_int_min > 0 ? config.custom_currency_int_min : config.refresh_interval_min) + "'>");
+              add("</div>");
               add("</div></div>");
               break;
           }
@@ -614,9 +640,9 @@ void WebServerService::handleRoot() {
   
   add("<script>");
   add("let formDirty = false;");
-  
+
   add("function updateVisibility(){");
-  add("  var pairs = [['autoDetect','manualFields',true], ['nightMode','nightFields',false], ['showTime', 'timeContent',false], ['showCalendar', 'calendarContent',false], ['showWeather','weatherContent',false], ['showDaylight','daylightContent',false], ['showMoon','moonContent',false], ['showPopulation','popContent',false], ['showPc','pcContent',false], ['showCrypto','cryptoContent',false], ['showCurrency','currencyContent',false], ['showStock','stockContent',false], ['showAQI','aqiContent',false], ['showMedia','mediaContent',false], ['showBambu','bambuContent',false]];"); 
+  add("  var pairs = [['autoDetect','manualFields',true], ['nightMode','nightFields',false], ['showTime', 'timeContent',false], ['showCalendar', 'calendarContent',false], ['showWeather','weatherContent',false], ['showDaylight','daylightContent',false], ['showMoon','moonContent',false], ['showPopulation','popContent',false], ['showPc','pcContent',false], ['showCrypto','cryptoContent',false], ['showCurrency','currencyContent',false], ['showStock','stockContent',false], ['showAQI','aqiContent',false], ['showMedia','mediaContent',false], ['showBambu','bambuContent',false], ['customWeatherSyncChk','customWeatherSyncFields',false], ['customAqiSyncChk','customAqiSyncFields',false], ['customStockSyncChk','customStockSyncFields',false], ['customCryptoSyncChk','customCryptoSyncFields',false], ['customCurrencySyncChk','customCurrencySyncFields',false]];");
   add("  pairs.forEach(p => {");
   add("    var ch = document.getElementById(p[0]); if(!ch) return;");
   add("    var target = document.getElementById(p[1]);");
@@ -661,14 +687,14 @@ void WebServerService::handleRoot() {
   add("div.innerHTML = `<div class='input-wrapper'><label class='mt-0'>Track Crypto:</label><select name='crypto_ids[]'>${opts}</select></div><button type='button' class='btn-remove' onclick=\"removeRow(this, 'crypto-list-container')\">-</button>`; container.appendChild(div); if (val) div.querySelector('select').value = val; formDirty = true; updateRowControls('crypto-list-container', 5); };");
 
   add("window.addCurrencyRow = function(bVal = null, tVal = null, mVal = null) { const container = document.getElementById('currency-list-container'); if (!container || container.children.length >= 5) return; const div = document.createElement('div'); div.className = 'multi-row'; let cOpts = ''; ");
-  for(auto c : allCurrencies) { 
+  for(auto c : allCurrencies) {
     String codeStr = String(c.code);
     codeStr.toUpperCase();
-    add("cOpts += `<option value='" + String(c.code) + "'>" + codeStr + "</option>`;"); 
+    add("cOpts += `<option value='" + String(c.code) + "'>" + codeStr + "</option>`;");
   }
   add("div.innerHTML = `<div class='input-wrapper'><label class='mt-0'>Base:</label><select name='currency_bases[]'>${cOpts}</select></div><div class='input-wrapper'><label class='mt-0'>Target:</label><select name='currency_targets[]'>${cOpts}</select></div><div class='input-wrapper'><label class='mt-0'>Mult:</label><select name='currency_multipliers[]'><option value='1'>1</option><option value='10'>10</option><option value='100'>100</option><option value='1000'>1000</option></select></div><button type='button' class='btn-remove' onclick=\"removeRow(this, 'currency-list-container')\">-</button>`; container.appendChild(div); if (bVal) div.querySelector(\"select[name='currency_bases[]']\").value = bVal; if (tVal) div.querySelector(\"select[name='currency_targets[]']\").value = tVal; if (mVal) div.querySelector(\"select[name='currency_multipliers[]']\").value = mVal; formDirty = true; updateRowControls('currency-list-container', 5); };");
 
-  add("['autoDetect', 'nightMode', 'showTime', 'showCalendar', 'showWeather', 'showDaylight', 'showMoon', 'showPopulation', 'showPc', 'showCrypto', 'showCurrency', 'showStock', 'showAQI', 'showMedia', 'showBambu', 'autoCycle'].forEach(id => { var el=document.getElementById(id); if(el) el.addEventListener('change', updateVisibility); });");
+  add("['autoDetect', 'nightMode', 'showTime', 'showCalendar', 'showWeather', 'showDaylight', 'showMoon', 'showPopulation', 'showPc', 'showCrypto', 'showCurrency', 'showStock', 'showAQI', 'showMedia', 'showBambu', 'autoCycle', 'customWeatherSyncChk', 'customAqiSyncChk', 'customStockSyncChk', 'customCryptoSyncChk', 'customCurrencySyncChk'].forEach(id => { var el=document.getElementById(id); if(el) el.addEventListener('change', updateVisibility); });");
   add("updateVisibility();");
 
   add("const countryGreetings = {");
@@ -758,7 +784,7 @@ void WebServerService::handleRoot() {
   add("    else { item.classList.add('disabled'); item.removeAttribute('draggable'); disabled.push(item); }");
   add("  });");
   add("  list.innerHTML = '';");
-  add("  enabled.forEach(el => list.appendChild(el)); disabled.forEach(el => list.appendChild(el));"); 
+  add("  enabled.forEach(el => list.appendChild(el)); disabled.forEach(el => list.appendChild(el));");
   add("  updateOrderValue();");
   add("}");
 
@@ -837,8 +863,14 @@ void WebServerService::handleRoot() {
   add("  jsonObj['currency_bases'] = Array.from(e.target.querySelectorAll('select[name=\"currency_bases[]\"]')).map(s => s.value);");
   add("  jsonObj['currency_targets'] = Array.from(e.target.querySelectorAll('select[name=\"currency_targets[]\"]')).map(s => s.value);");
   add("  jsonObj['currency_multipliers'] = Array.from(e.target.querySelectorAll('select[name=\"currency_multipliers[]\"]')).map(s => Number(s.value));");
+  add("  const customSyncPairs = [['customWeatherSyncChk','customWeatherSyncInt','custom_weather_int_min'], ['customAqiSyncChk','customAqiSyncInt','custom_aqi_int_min'], ['customStockSyncChk','customStockSyncInt','custom_stock_int_min'], ['customCryptoSyncChk','customCryptoSyncInt','custom_crypto_int_min'], ['customCurrencySyncChk','customCurrencySyncInt','custom_currency_int_min']];");
+  add("  customSyncPairs.forEach(([chkId, intId, key]) => { const chk = document.getElementById(chkId); const intEl = document.getElementById(intId); jsonObj[key] = (chk && chk.checked && intEl) ? Number(intEl.value) : -1; });");
   add("  jsonObj['anim_mask'] = mask;");
   add("  jsonObj['screen_order'] = document.getElementById('screenOrderInput').value;");
+
+  add("  if (typeof jsonObj['city'] === 'string') {");
+  add("    jsonObj['city'] = jsonObj['city'].trim().toLowerCase().replace(/(^|[\\s'-])[a-z]/g, m => m.toUpperCase());");
+  add("  }");
 
   add("  const btn = document.querySelector('button[type=\"submit\"]');");
   add("  btn.innerText = '⏳ Saving...';");
@@ -919,10 +951,14 @@ void WebServerService::handleRoot() {
   add("    setRadio('temp_unit', d.temp_unit);");
   add("    setCb('round_temps', d.round_temps, true);");
   add("    setCb('weather_hide_bar', d.weather_hide_bar, true);");
+  add("    setCb('customWeatherSyncChk', d.custom_weather_int_min > 0 ? 1 : 0);");
+  add("    setVal('custom_weather_int_min', d.custom_weather_int_min > 0 ? d.custom_weather_int_min : d.refresh_min);");
 
   add("    setCb('showAQI', d.show_aqi);");
   add("    setRadio('aqi_type', d.aqi_type);");
   add("    setCb('aqi_hide_bar', d.aqi_hide_bar, true);");
+  add("    setCb('customAqiSyncChk', d.custom_aqi_int_min > 0 ? 1 : 0);");
+  add("    setVal('custom_aqi_int_min', d.custom_aqi_int_min > 0 ? d.custom_aqi_int_min : d.refresh_min);");
 
   add("    setCb('showDaylight', d.show_daylight);");
   add("    setCb('daylight_min', d.daylight_min, true);");
@@ -937,10 +973,16 @@ void WebServerService::handleRoot() {
   add("    setCb('showPc', d.show_pc);");
 
   add("    setCb('showStock', d.show_stock); setCb('stock_fn', d.stock_fn, true);");
+  add("    setCb('customStockSyncChk', d.custom_stock_int_min > 0 ? 1 : 0);");
+  add("    setVal('custom_stock_int_min', d.custom_stock_int_min > 0 ? d.custom_stock_int_min : d.refresh_min);");
   add("    const stCont = document.getElementById('stock-list-container'); if (stCont) { stCont.innerHTML = ''; (d.stock_symbols && d.stock_symbols.length > 0 ? d.stock_symbols : ['AAPL']).forEach(s => window.addStockRow(s)); }");
   add("    setCb('showCrypto', d.show_crypto); setCb('crypto_fn', d.crypto_fn, true);");
+  add("    setCb('customCryptoSyncChk', d.custom_crypto_int_min > 0 ? 1 : 0);");
+  add("    setVal('custom_crypto_int_min', d.custom_crypto_int_min > 0 ? d.custom_crypto_int_min : d.refresh_min);");
   add("    const crCont = document.getElementById('crypto-list-container'); if (crCont) { crCont.innerHTML = ''; (d.crypto_ids && d.crypto_ids.length > 0 ? d.crypto_ids : [90]).forEach(c => window.addCryptoRow(c)); }");
   add("    setCb('showCurrency', d.show_currency); setCb('currency_fn', d.currency_fn, true);");
+  add("    setCb('customCurrencySyncChk', d.custom_currency_int_min > 0 ? 1 : 0);");
+  add("    setVal('custom_currency_int_min', d.custom_currency_int_min > 0 ? d.custom_currency_int_min : d.refresh_min);");
   add("    const cuCont = document.getElementById('currency-list-container'); if (cuCont) { cuCont.innerHTML = ''; if (d.currency_bases && d.currency_bases.length > 0) { for(let i=0; i<d.currency_bases.length; i++) window.addCurrencyRow(d.currency_bases[i], d.currency_targets[i], d.currency_multipliers[i]); } else { window.addCurrencyRow('usd', 'eur', 1); } }");
 
   add("    setCb('showMedia', d.show_media);");
