@@ -1,5 +1,8 @@
 #include "PopulationService.h"
+
 #include <ArduinoJson.h>
+#include <HTTPClient.h>
+#include <time.h>
 
 PopulationService::PopulationService() {}
 

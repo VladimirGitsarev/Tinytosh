@@ -1,9 +1,9 @@
 #ifndef WEATHER_SERVICE_H
 #define WEATHER_SERVICE_H
 
-#include "structs.h"
 #include <Arduino.h>
-#include <HTTPClient.h>
+
+#include "structs.h"
 
 class WeatherService {
 public:

@@ -1,10 +1,10 @@
 #ifndef DISPLAY_SERVICE_H
 #define DISPLAY_SERVICE_H
 
-#include "structs.h"
 #include <Adafruit_SSD1306.h>
 #include <Wire.h>
-#include "TimeService.h"
+
+#include "structs.h"
 
 class DisplayService {
 public:
@@ -33,10 +33,25 @@ public:
     void animateTransition(int prevScreen, int prevSub, int nextScreen, int nextSub, const AppState& state);
 
     bool isScreenEnabled(const AppState& state, int screenIndex);
+    void drawCurrentScreen(const AppState& state);
+    void switchToNextScreen(const AppState& state);
+    void switchToPreviousScreen(const AppState& state);
+    void jumpToFirstEnabledScreen(const AppState& state);
+    bool isOnFirstEnabledScreen(const AppState& state);
 
-private:    
+    void setContrast(bool dim);
+
+private:
     uint8_t screenBufferOld[1024];
     uint8_t screenBufferNew[1024];
+
+    int currentScreen = 0;
+    int currentSubScreen = 0;
+
+    static const int CONTRAST_DIM = 1;
+    static const int CONTRAST_MAX = 255;
+
+    int getFirstEnabledScreen(const AppState& state);
 
     int getNextAnimationEffect(uint16_t mask);
     void animateHorizontal(int prev, int pSub, int next, int nSub, const AppState& state);

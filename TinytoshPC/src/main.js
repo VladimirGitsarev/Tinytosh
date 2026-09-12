@@ -618,14 +618,17 @@ async function initAutostart() {
 
 function updateVisibility() {
   var pairs = [
-      ['autoDetect','manualFields',true], ['nightMode','nightFields',false], 
+      ['autoDetect','manualFields',true], ['nightMode','nightFields',false],
       ['showTime', 'timeContent',false], ['showCalendar', 'calendarContent',false],
       ['showWeather','weatherContent',false], ['showAQI','aqiContent',false],
       ['showDaylight', 'daylightContent', false], ['showMoon', 'moonContent', false],
       ['showPopulation', 'popContent', false],
-      ['showStock','stockContent',false], ['showCrypto','cryptoContent',false], 
-      ['showCurrency','currencyContent',false], ['showPc','pcContent',false], 
-      ['showMedia', 'mediaContent', false], ['showBambu', 'bambuContent', false]
+      ['showStock','stockContent',false], ['showCrypto','cryptoContent',false],
+      ['showCurrency','currencyContent',false], ['showPc','pcContent',false],
+      ['showMedia', 'mediaContent', false], ['showBambu', 'bambuContent', false],
+      ['customWeatherSyncChk','customWeatherSyncFields',false], ['customAqiSyncChk','customAqiSyncFields',false],
+      ['customStockSyncChk','customStockSyncFields',false], ['customCryptoSyncChk','customCryptoSyncFields',false],
+      ['customCurrencySyncChk','customCurrencySyncFields',false]
   ];
   pairs.forEach(p => {
     var ch = document.getElementById(p[0]); if(!ch) return;
@@ -651,10 +654,10 @@ function checkPopSafetyNet() {
 function updateNightAction() {
     const action = document.getElementById('nightActionSelect').value;
     const dimCont = document.getElementById('dimStartContainer');
-    if (action === '3') { 
-        dimCont.style.display = 'block'; 
-    } else { 
-        dimCont.style.display = 'none'; 
+    if (action === '3') {
+        dimCont.style.display = 'block';
+    } else {
+        dimCont.style.display = 'none';
     }
 }
 
@@ -673,7 +676,7 @@ function syncScreenOrder(isUserInput = false) {
   const orderInput = document.getElementById('screenOrderInput');
   const items = [...list.querySelectorAll('.sortable-item')];
   let enabled = [], disabled = [];
-  
+
   items.forEach(item => {
     const targetId = item.getAttribute('data-target');
     const cb = document.getElementById(targetId);
@@ -683,11 +686,11 @@ function syncScreenOrder(isUserInput = false) {
       item.classList.add('disabled'); item.removeAttribute('draggable'); disabled.push(item);
     }
   });
-  
+
   list.innerHTML = '';
-  enabled.forEach(el => list.appendChild(el)); 
-  disabled.forEach(el => list.appendChild(el)); 
-  
+  enabled.forEach(el => list.appendChild(el));
+  disabled.forEach(el => list.appendChild(el));
+
   const currentOrder = [...list.querySelectorAll('.sortable-item')].map(item => item.getAttribute('data-id')).join(',');
   orderInput.value = currentOrder;
   
@@ -812,10 +815,14 @@ async function fetchDeviceData() {
             setRadio('temp_unit', d.temp_unit);
             setCb('round_temps', d.round_temps, true);
             setCb('weather_hide_bar', d.weather_hide_bar, true);
+            setCb('customWeatherSyncChk', d.custom_weather_int_min > 0 ? 1 : 0);
+            setVal('custom_weather_int_min', d.custom_weather_int_min > 0 ? d.custom_weather_int_min : d.refresh_min);
 
             setCb('showAQI', d.show_aqi);
             setRadio('aqi_type', d.aqi_type);
             setCb('aqi_hide_bar', d.aqi_hide_bar, true);
+            setCb('customAqiSyncChk', d.custom_aqi_int_min > 0 ? 1 : 0);
+            setVal('custom_aqi_int_min', d.custom_aqi_int_min > 0 ? d.custom_aqi_int_min : d.refresh_min);
 
             setCb('showDaylight', d.show_daylight);
             setCb('daylight_min', d.daylight_min, true);
@@ -831,16 +838,22 @@ async function fetchDeviceData() {
 
             setCb('showStock', d.show_stock);
             setCb('stock_fn', d.stock_fn, true);
+            setCb('customStockSyncChk', d.custom_stock_int_min > 0 ? 1 : 0);
+            setVal('custom_stock_int_min', d.custom_stock_int_min > 0 ? d.custom_stock_int_min : d.refresh_min);
             const stCont = document.getElementById("stock-list-container");
             if (stCont) { stCont.innerHTML = ""; (d.stock_symbols && d.stock_symbols.length > 0 ? d.stock_symbols : ["AAPL"]).forEach(s => window.addStockRow(s)); }
 
             setCb('showCrypto', d.show_crypto);
             setCb('crypto_fn', d.crypto_fn, true);
+            setCb('customCryptoSyncChk', d.custom_crypto_int_min > 0 ? 1 : 0);
+            setVal('custom_crypto_int_min', d.custom_crypto_int_min > 0 ? d.custom_crypto_int_min : d.refresh_min);
             const crCont = document.getElementById("crypto-list-container");
             if (crCont) { crCont.innerHTML = ""; (d.crypto_ids && d.crypto_ids.length > 0 ? d.crypto_ids : [90]).forEach(c => window.addCryptoRow(c)); }
 
             setCb('showCurrency', d.show_currency);
             setCb('currency_fn', d.currency_fn, true);
+            setCb('customCurrencySyncChk', d.custom_currency_int_min > 0 ? 1 : 0);
+            setVal('custom_currency_int_min', d.custom_currency_int_min > 0 ? d.custom_currency_int_min : d.refresh_min);
             const cuCont = document.getElementById("currency-list-container");
             if (cuCont) {
                 cuCont.innerHTML = "";
@@ -1176,7 +1189,7 @@ window.addEventListener("DOMContentLoaded", () => {
     setInterval(fetchDeviceData, HARDWARE_SYNC_INTERVAL_MS); 
     setTimeout(fetchDeviceData, INITIAL_SYNC_DELAY_MS); 
 
-    ['autoDetect', 'nightMode', 'showTime', 'showCalendar', 'showWeather', 'showDaylight', 'showMoon', 'showPopulation', 'showPc', 'showCrypto', 'showCurrency', 'showStock', 'showAQI', 'showMedia', 'showBambu', 'autoCycle'].forEach(id => { 
+    ['autoDetect', 'nightMode', 'showTime', 'showCalendar', 'showWeather', 'showDaylight', 'showMoon', 'showPopulation', 'showPc', 'showCrypto', 'showCurrency', 'showStock', 'showAQI', 'showMedia', 'showBambu', 'autoCycle', 'customWeatherSyncChk', 'customAqiSyncChk', 'customStockSyncChk', 'customCryptoSyncChk', 'customCurrencySyncChk'].forEach(id => {
         var el = document.getElementById(id); 
         if(el) el.addEventListener('change', () => { updateVisibility(); syncScreenOrder(true); }); 
     });
@@ -1264,6 +1277,19 @@ window.addEventListener("DOMContentLoaded", () => {
             jsonObj['currency_bases'] = Array.from(form.querySelectorAll('select[name="currency_bases[]"]')).map(s => s.value);
             jsonObj['currency_targets'] = Array.from(form.querySelectorAll('select[name="currency_targets[]"]')).map(s => s.value);
             jsonObj['currency_multipliers'] = Array.from(form.querySelectorAll('select[name="currency_multipliers[]"]')).map(s => Number(s.value));
+
+            const customSyncPairs = [
+                ['customWeatherSyncChk', 'customWeatherSyncInt', 'custom_weather_int_min'],
+                ['customAqiSyncChk', 'customAqiSyncInt', 'custom_aqi_int_min'],
+                ['customStockSyncChk', 'customStockSyncInt', 'custom_stock_int_min'],
+                ['customCryptoSyncChk', 'customCryptoSyncInt', 'custom_crypto_int_min'],
+                ['customCurrencySyncChk', 'customCurrencySyncInt', 'custom_currency_int_min'],
+            ];
+            customSyncPairs.forEach(([chkId, intId, key]) => {
+                const chk = document.getElementById(chkId);
+                const intEl = document.getElementById(intId);
+                jsonObj[key] = (chk && chk.checked && intEl) ? Number(intEl.value) : -1;
+            });
 
             const jsonPayload = JSON.stringify(jsonObj);
             

@@ -1,8 +1,9 @@
 #ifndef CONFIG_MANAGER_H
 #define CONFIG_MANAGER_H
 
-#include "structs.h"
 #include <Preferences.h>
+
+#include "structs.h"
 
 class ConfigManager {
 public:

@@ -1,7 +1,8 @@
 #include "StockService.h"
+
+#include <ArduinoJson.h>
 #include <HTTPClient.h>
 #include <WiFiClientSecure.h>
-#include <ArduinoJson.h>
 
 bool StockService::fetchStock(const String& symbol, StockData &data) {
     String safeSymbol = symbol;

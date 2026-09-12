@@ -1,7 +1,7 @@
 #include "AirQualityService.h"
 
-#include <HTTPClient.h>
 #include <ArduinoJson.h>
+#include <HTTPClient.h>
 
 bool AirQualityService::fetchAirQuality(const Config& config, AirQualityData &data) {
   HTTPClient http;

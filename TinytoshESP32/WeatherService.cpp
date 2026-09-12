@@ -1,5 +1,7 @@
 #include "WeatherService.h"
+
 #include <ArduinoJson.h>
+#include <HTTPClient.h>
 
 WeatherService::WeatherService() {}
 

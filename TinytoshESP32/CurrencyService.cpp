@@ -1,6 +1,7 @@
 #include "CurrencyService.h"
-#include <HTTPClient.h>
+
 #include <ArduinoJson.h>
+#include <HTTPClient.h>
 
 bool CurrencyService::fetchRate(const String& base, const String& target, CurrencyData &data) {
     String safeBase = base;

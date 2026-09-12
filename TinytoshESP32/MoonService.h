@@ -1,9 +1,9 @@
 #ifndef MOON_SERVICE_H
 #define MOON_SERVICE_H
 
-#include "structs.h"
 #include <Arduino.h>
-#include <HTTPClient.h>
+
+#include "structs.h"
 
 class MoonService {
 public:

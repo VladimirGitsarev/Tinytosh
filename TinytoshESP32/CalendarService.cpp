@@ -1,5 +1,10 @@
 #include "CalendarService.h"
 
+#include <ArduinoJson.h>
+#include <HTTPClient.h>
+#include <time.h>
+#include <WiFiClientSecure.h>
+
 CalendarService::CalendarService() {}
 
 void CalendarService::fetchHolidays(const String& countryCode, CalendarData& data) {

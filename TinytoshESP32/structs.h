@@ -5,6 +5,15 @@
 
 const int MAX_MULTI_ENTRIES = 5;
 
+struct FetchTrackers {
+  unsigned long lastDataUpdate = 0;
+  unsigned long lastWeatherFetch = 0;
+  unsigned long lastAqiFetch = 0;
+  unsigned long lastStockFetch = 0;
+  unsigned long lastCryptoFetch = 0;
+  unsigned long lastCurrencyFetch = 0;
+};
+
 enum ScreenType {
   SCREEN_TIME,
   SCREEN_CALENDAR,
@@ -112,11 +121,13 @@ struct Config {
   bool calendar_minimal = false;
 
   // Weather & AQI Settings
-  bool round_temps = true; 
+  bool round_temps = true;
   String temp_unit = "C";
   String aqi_type = "US";
   bool weather_hide_bar = false;
   bool aqi_hide_bar = false;
+  int custom_weather_int_min = -1;
+  int custom_aqi_int_min = -1;
 
   // Daylight Settings
   bool daylight_minimal = false;
@@ -143,6 +154,10 @@ struct Config {
   bool crypto_fn = true;
   bool currency_fn = true;
   bool stock_fn = true;
+
+  int custom_stock_int_min = -1;
+  int custom_crypto_int_min = -1;
+  int custom_currency_int_min = -1;
 
   // Printer Settings
   String bambu_ip = "";

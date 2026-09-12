@@ -2,8 +2,7 @@
 #define TIME_SERVICE_H
 
 #include <Arduino.h>
-#include <HTTPClient.h>
-#include <time.h> 
+
 #include "structs.h"
 
 class TimeService {
@@ -19,12 +18,15 @@ public:
     static int parseTimeToMinsFromMidnight(String apiTime, String format = "12");
     static int parseDurationToMins(String apiDuration);
     static String lookupPosixTimezone(const String& ianaTimezone);
+    static int getActiveNightAction(const Config& config);
 
 private:
     static constexpr const char* LOCATION_API_URL = "http://ip-api.com/json/";
     static constexpr const char* NTP_SERVER = "pool.ntp.org";
-    const long  gmtOffset_sec = 0; 
+    const long  gmtOffset_sec = 0;
     const int   daylightOffset_sec = 0;
+
+    static bool isTimeInWindow(int currentMins, const String& startStr, const String& endStr);
 };
 
 #endif
