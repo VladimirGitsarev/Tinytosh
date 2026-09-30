@@ -104,8 +104,13 @@
                 <select name="scl_pin" class="hw-pin"></select>
               </div>
             </div>
-            <label class="mt-0">Touch Sensor GPIO Pin:</label>
-            <select name="touch_pin" class="hw-pin"></select>
+            <label>Button Type:</label>
+            <div class="radio-group">
+              <label class="radio-label"><input type="radio" name="button_type" value="touch"> Touch Button</label>
+              <label class="radio-label"><input type="radio" name="button_type" value="switch"> Switch Button</label>
+            </div>
+            <label>Button GPIO Pin:</label>
+            <select name="button_pin" class="hw-pin"></select>
             <p class="help-text mt-0">Reboot Tinytosh to apply any hardware pin changes.</p>
           </div>
 
@@ -201,12 +206,13 @@
               <li class="sortable-item" data-id="4" data-target="showDaylight"><div class="order-ctrl"><span class="move-btn move-up">▲</span><span class="move-btn move-down">▼</span></div>Daylight Info</li>
               <li class="sortable-item" data-id="5" data-target="showMoon"><div class="order-ctrl"><span class="move-btn move-up">▲</span><span class="move-btn move-down">▼</span></div>Moon Info</li>
               <li class="sortable-item" data-id="6" data-target="showPopulation"><div class="order-ctrl"><span class="move-btn move-up">▲</span><span class="move-btn move-down">▼</span></div>Population Info</li>
-              <li class="sortable-item" data-id="7" data-target="showStock"><div class="order-ctrl"><span class="move-btn move-up">▲</span><span class="move-btn move-down">▼</span></div>Stock Tracking</li>
-              <li class="sortable-item" data-id="8" data-target="showCrypto"><div class="order-ctrl"><span class="move-btn move-up">▲</span><span class="move-btn move-down">▼</span></div>Crypto Tracking</li>
-              <li class="sortable-item" data-id="9" data-target="showCurrency"><div class="order-ctrl"><span class="move-btn move-up">▲</span><span class="move-btn move-down">▼</span></div>Currency Exchange</li>
-              <li class="sortable-item" data-id="10" data-target="showPc"><div class="order-ctrl"><span class="move-btn move-up">▲</span><span class="move-btn move-down">▼</span></div>PC Monitor</li>
-              <li class="sortable-item" data-id="11" data-target="showMedia"><div class="order-ctrl"><span class="move-btn move-up">▲</span><span class="move-btn move-down">▼</span></div>PC Media</li>
-              <li class="sortable-item" data-id="12" data-target="showBambu"><div class="order-ctrl"><span class="move-btn move-up">▲</span><span class="move-btn move-down">▼</span></div>Printer Info</li>
+              <li class="sortable-item" data-id="7" data-target="showFlight"><div class="order-ctrl"><span class="move-btn move-up">▲</span><span class="move-btn move-down">▼</span></div>Flight Radar</li>
+              <li class="sortable-item" data-id="8" data-target="showStock"><div class="order-ctrl"><span class="move-btn move-up">▲</span><span class="move-btn move-down">▼</span></div>Stock Tracking</li>
+              <li class="sortable-item" data-id="9" data-target="showCrypto"><div class="order-ctrl"><span class="move-btn move-up">▲</span><span class="move-btn move-down">▼</span></div>Crypto Tracking</li>
+              <li class="sortable-item" data-id="10" data-target="showCurrency"><div class="order-ctrl"><span class="move-btn move-up">▲</span><span class="move-btn move-down">▼</span></div>Currency Exchange</li>
+              <li class="sortable-item" data-id="11" data-target="showPc"><div class="order-ctrl"><span class="move-btn move-up">▲</span><span class="move-btn move-down">▼</span></div>PC Monitor</li>
+              <li class="sortable-item" data-id="12" data-target="showMedia"><div class="order-ctrl"><span class="move-btn move-up">▲</span><span class="move-btn move-down">▼</span></div>PC Media</li>
+              <li class="sortable-item" data-id="13" data-target="showBambu"><div class="order-ctrl"><span class="move-btn move-up">▲</span><span class="move-btn move-down">▼</span></div>Printer Info</li>
             </ul>
             <input type="hidden" name="screen_order" id="screenOrderInput">
           </div>
@@ -247,9 +253,12 @@
                 <div id="weather-grid" class="hidden">
                     <div class="dashboard-grid">
                       <div class="tile"><div class="tile-icon" id="icon-temp">☀️</div><div class="tile-value" id="value-temp">--</div><div class="tile-label">Temperature</div></div>
-                      <div class="tile"><div class="tile-icon">🤒</div><div class="tile-value" id="value-feels">--</div><div class="tile-label">Feels Like</div></div>
-                      <div class="tile"><div class="tile-icon">💧</div><div class="tile-value" id="value-hum">--%</div><div class="tile-label">Humidity</div></div>
-                      <div class="tile"><div class="tile-icon">💨</div><div class="tile-value" id="value-wind">--</div><div class="tile-label">Wind Speed</div></div>
+                      <div class="tile weather-extra-tile hidden" data-value-key="feels"><div class="tile-icon">🤒</div><div class="tile-value" id="value-feels">--</div><div class="tile-label">Feels Like</div></div>
+                      <div class="tile weather-extra-tile hidden" data-value-key="humidity"><div class="tile-icon">💧</div><div class="tile-value" id="value-hum">--%</div><div class="tile-label">Humidity</div></div>
+                      <div class="tile weather-extra-tile hidden" data-value-key="wind"><div class="tile-icon">💨</div><div class="tile-value" id="value-wind">--</div><div class="tile-label">Wind Speed</div></div>
+                      <div class="tile weather-extra-tile hidden" data-value-key="precipitation"><div class="tile-icon">🌧️</div><div class="tile-value" id="value-precipitation">--</div><div class="tile-label">Precipitation</div></div>
+                      <div class="tile weather-extra-tile hidden" data-value-key="pressure"><div class="tile-icon">📊</div><div class="tile-value" id="value-pressure">--</div><div class="tile-label">Pressure</div></div>
+                      <div class="tile weather-extra-tile hidden" data-value-key="visibility"><div class="tile-icon">👁️</div><div class="tile-value" id="value-visibility">--</div><div class="tile-label">Visibility</div></div>
                     </div>
                     <div class="update-footer" id="weather-upd">Last Update: --</div>
                 </div>
@@ -259,7 +268,21 @@
                   <label class="radio-label"><input type="radio" name="temp_unit" value="F"> °F</label>
                 </div>
                 <label class="checkbox-label"><input type="checkbox" name="round_temps"> Round Temperature Values</label>
-                <label class="checkbox-label"><input type="checkbox" name="weather_hide_bar"> Hide Top Bar (Location & Time)</label>
+
+                <label>Layout:</label>
+                <div class="radio-group">
+                  <label class="radio-label"><input type="radio" name="weather_show_header" value="1" onchange="updateValueLimits('weather', 6)"> With Header (Location &amp; Time)</label>
+                  <label class="radio-label"><input type="radio" name="weather_show_header" value="0" onchange="updateValueLimits('weather', 6)"> No Header (more data)</label>
+                </div>
+                <label id="weatherValuesLabel">Extra Values (up to 6):</label>
+                <div class="radio-group" style="flex-wrap:wrap; row-gap:8px;">
+                  <label class="checkbox-label"><input type="checkbox" class="weather-val-chk" data-key="feels" name="wv_feels" onchange="updateValueLimits('weather', 6)"> Feels Like</label>
+                  <label class="checkbox-label"><input type="checkbox" class="weather-val-chk" data-key="humidity" name="wv_humidity" onchange="updateValueLimits('weather', 6)"> Humidity</label>
+                  <label class="checkbox-label"><input type="checkbox" class="weather-val-chk" data-key="wind" name="wv_wind" onchange="updateValueLimits('weather', 6)"> Wind Speed</label>
+                  <label class="checkbox-label"><input type="checkbox" class="weather-val-chk" data-key="precipitation" name="wv_precipitation" onchange="updateValueLimits('weather', 6)"> Precipitation Chance</label>
+                  <label class="checkbox-label"><input type="checkbox" class="weather-val-chk" data-key="pressure" name="wv_pressure" onchange="updateValueLimits('weather', 6)"> Pressure</label>
+                  <label class="checkbox-label"><input type="checkbox" class="weather-val-chk" data-key="visibility" name="wv_visibility" onchange="updateValueLimits('weather', 6)"> Visibility</label>
+                </div>
                 <hr>
                 <label class="checkbox-label"><input type="checkbox" id="customWeatherSyncChk"> Custom Data Sync</label>
                 <div id="customWeatherSyncFields" class="collapsible">
@@ -276,9 +299,16 @@
                 <div id="aqi-grid" class="hidden">
                     <div class="dashboard-grid">
                       <div class="tile"><div class="tile-icon">🍃</div><div class="tile-value" id="value-aqi">--</div><div class="tile-label">AQI Index</div></div>
-                      <div class="tile"><div class="tile-icon">🌫️</div><div class="tile-value" id="value-pm25">-- <small>µg</small></div><div class="tile-label">PM 2.5</div></div>
-                      <div class="tile"><div class="tile-icon">🏭</div><div class="tile-value" id="value-pm10">-- <small>µg</small></div><div class="tile-label">PM 10</div></div>
-                      <div class="tile"><div class="tile-icon">🧪</div><div class="tile-value" id="value-no2">-- <small>µg</small></div><div class="tile-label">Nitrogen Dioxide</div></div>
+                      <div class="tile aqi-extra-tile hidden" data-value-key="pm25"><div class="tile-icon">🌫️</div><div class="tile-value" id="value-pm25">-- <small>µg</small></div><div class="tile-label">PM 2.5</div></div>
+                      <div class="tile aqi-extra-tile hidden" data-value-key="pm10"><div class="tile-icon">🏭</div><div class="tile-value" id="value-pm10">-- <small>µg</small></div><div class="tile-label">PM 10</div></div>
+                      <div class="tile aqi-extra-tile hidden" data-value-key="no2"><div class="tile-icon">🧪</div><div class="tile-value" id="value-no2">-- <small>µg</small></div><div class="tile-label">Nitrogen Dioxide</div></div>
+                      <div class="tile aqi-extra-tile hidden" data-value-key="co"><div class="tile-icon">🚗</div><div class="tile-value" id="value-co">-- <small>µg</small></div><div class="tile-label">Carbon Monoxide</div></div>
+                      <div class="tile aqi-extra-tile hidden" data-value-key="co2"><div class="tile-icon">🏗️</div><div class="tile-value" id="value-co2">-- <small>ppm</small></div><div class="tile-label">Carbon Dioxide</div></div>
+                      <div class="tile aqi-extra-tile hidden" data-value-key="so2"><div class="tile-icon">🌋</div><div class="tile-value" id="value-so2">-- <small>µg</small></div><div class="tile-label">Sulphur Dioxide</div></div>
+                      <div class="tile aqi-extra-tile hidden" data-value-key="o3"><div class="tile-icon">☀️</div><div class="tile-value" id="value-o3">-- <small>µg</small></div><div class="tile-label">Ozone</div></div>
+                      <div class="tile aqi-extra-tile hidden" data-value-key="dust"><div class="tile-icon">🏜️</div><div class="tile-value" id="value-dust">-- <small>µg</small></div><div class="tile-label">Dust</div></div>
+                      <div class="tile aqi-extra-tile hidden" data-value-key="uv"><div class="tile-icon">🕶️</div><div class="tile-value" id="value-uv">--</div><div class="tile-label">UV Index</div></div>
+                      <div class="tile aqi-extra-tile hidden" data-value-key="ch4"><div class="tile-icon">🐄</div><div class="tile-value" id="value-ch4">-- <small>ppb</small></div><div class="tile-label">Methane</div></div>
                     </div>
                     <div class="update-footer" id="aqi-upd">Last Update: --</div>
                 </div>
@@ -288,7 +318,25 @@
                   <label class="radio-label"><input type="radio" name="aqi_type" value="EU"> European Standard</label>
                 </div>
                 <p class='help-text mt-0'>EU: 0-100+ scale | US: 0-500 scale</p>
-                <label class="checkbox-label"><input type="checkbox" name="aqi_hide_bar"> Hide Top Bar (Location & Time)</label>
+
+                <label>Layout:</label>
+                <div class="radio-group">
+                  <label class="radio-label"><input type="radio" name="aqi_show_header" value="1" onchange="updateValueLimits('aqi', 6)"> With Header (Location &amp; Time)</label>
+                  <label class="radio-label"><input type="radio" name="aqi_show_header" value="0" onchange="updateValueLimits('aqi', 6)"> No Header (more data)</label>
+                </div>
+                <label id="aqiValuesLabel">Extra Values (up to 6):</label>
+                <div class="radio-group" style="flex-wrap:wrap; row-gap:8px;">
+                  <label class="checkbox-label"><input type="checkbox" class="aqi-val-chk" data-key="pm25" name="av_pm25" onchange="updateValueLimits('aqi', 6)"> PM 2.5</label>
+                  <label class="checkbox-label"><input type="checkbox" class="aqi-val-chk" data-key="pm10" name="av_pm10" onchange="updateValueLimits('aqi', 6)"> PM 10</label>
+                  <label class="checkbox-label"><input type="checkbox" class="aqi-val-chk" data-key="no2" name="av_no2" onchange="updateValueLimits('aqi', 6)"> Nitrogen Dioxide</label>
+                  <label class="checkbox-label"><input type="checkbox" class="aqi-val-chk" data-key="co" name="av_co" onchange="updateValueLimits('aqi', 6)"> Carbon Monoxide</label>
+                  <label class="checkbox-label"><input type="checkbox" class="aqi-val-chk" data-key="co2" name="av_co2" onchange="updateValueLimits('aqi', 6)"> Carbon Dioxide</label>
+                  <label class="checkbox-label"><input type="checkbox" class="aqi-val-chk" data-key="so2" name="av_so2" onchange="updateValueLimits('aqi', 6)"> Sulphur Dioxide</label>
+                  <label class="checkbox-label"><input type="checkbox" class="aqi-val-chk" data-key="o3" name="av_o3" onchange="updateValueLimits('aqi', 6)"> Ozone</label>
+                  <label class="checkbox-label"><input type="checkbox" class="aqi-val-chk" data-key="dust" name="av_dust" onchange="updateValueLimits('aqi', 6)"> Dust</label>
+                  <label class="checkbox-label"><input type="checkbox" class="aqi-val-chk" data-key="uv" name="av_uv" onchange="updateValueLimits('aqi', 6)"> UV Index</label>
+                  <label class="checkbox-label"><input type="checkbox" class="aqi-val-chk" data-key="ch4" name="av_ch4" onchange="updateValueLimits('aqi', 6)"> Methane</label>
+                </div>
                 <hr>
                 <label class="checkbox-label"><input type="checkbox" id="customAqiSyncChk"> Custom Data Sync</label>
                 <div id="customAqiSyncFields" class="collapsible">
@@ -348,6 +396,62 @@
             </div>
 
             <div class="panel" id="panel-7">
+              <label class="checkbox-label mt-0"><input type="checkbox" id="showFlight" name="show_flight"> Flight Radar Screen</label>
+              <div id="flightContent" class="collapsible">
+                <div id="flight-no-data" class="no-data-tile">🛩️ Flight data will be available after sync</div>
+                <div id="flight-grid" class="hidden">
+                    <div class="dashboard-grid">
+                      <div class="tile"><div class="tile-icon">🛩️</div><div class="tile-value" id="flight-count">--</div><div class="tile-label">Aircraft Nearby</div></div>
+                      <div class="tile"><div class="tile-icon">✈️</div><div class="tile-value" id="flight-closest" style="font-size:1.2rem">--</div><div class="tile-label">Closest Aircraft</div></div>
+                    </div>
+                </div>
+                <label>Radar Mode:</label>
+                <div class="radio-group">
+                  <label class="radio-label"><input type="radio" name="flight_mode" id="flightModeClosest" value="closest"> Closest Aircraft</label>
+                  <label class="radio-label"><input type="radio" name="flight_mode" id="flightModeRadar" value="radar"> Radar (multiple aircraft)</label>
+                </div>
+                <label>Search Radius (nm):</label><input type="number" min="1" name="flight_radius_nm">
+                <label>Display Units:</label>
+                <div class="radio-group">
+                  <label class="radio-label"><input type="radio" name="flight_units" value="aviation"> Aviation (kt / ft)</label>
+                  <label class="radio-label"><input type="radio" name="flight_units" value="metric"> Metric (km/h / m)</label>
+                </div>
+                <div id="flightPrimaryGroup" class="collapsible">
+                  <label>Primary Info (shown right under the radar icon):</label>
+                  <div class="radio-group" style="flex-wrap:wrap; row-gap:8px;">
+                    <label class="radio-label"><input type="radio" name="flight_primary_info" value="callsign"> Callsign</label>
+                    <label class="radio-label"><input type="radio" name="flight_primary_info" value="altitude"> Altitude</label>
+                    <label class="radio-label"><input type="radio" name="flight_primary_info" value="velocity"> Velocity</label>
+                    <label class="radio-label"><input type="radio" name="flight_primary_info" value="distance"> Distance</label>
+                    <label class="radio-label"><input type="radio" name="flight_primary_info" value="track"> Track (°)</label>
+                    <label class="radio-label"><input type="radio" name="flight_primary_info" value="type"> Type</label>
+                    <label class="radio-label"><input type="radio" name="flight_primary_info" value="route"> Route</label>
+                  </div>
+                </div>
+                <div id="flightSecondaryGroup" class="collapsible">
+                  <label>Secondary Info (shown below the primary line):</label>
+                  <div class="radio-group" style="flex-wrap:wrap; row-gap:8px;">
+                    <label class="radio-label"><input type="radio" name="flight_secondary_info" value="none"> None</label>
+                    <label class="radio-label"><input type="radio" name="flight_secondary_info" value="altitude"> Altitude</label>
+                    <label class="radio-label"><input type="radio" name="flight_secondary_info" value="velocity"> Velocity</label>
+                    <label class="radio-label"><input type="radio" name="flight_secondary_info" value="distance"> Distance</label>
+                    <label class="radio-label"><input type="radio" name="flight_secondary_info" value="track"> Track (°)</label>
+                    <label class="radio-label"><input type="radio" name="flight_secondary_info" value="type"> Type</label>
+                    <label class="radio-label"><input type="radio" name="flight_secondary_info" value="route"> Route</label>
+                  </div>
+                </div>
+                <label class="checkbox-label"><input type="checkbox" name="hide_empty_flight"> Hide empty screen</label>
+                <p class="help-text mt-0">Screen is excluded from rotation when no aircraft are found nearby.</p>
+                <hr>
+                <label class="checkbox-label"><input type="checkbox" id="customFlightSyncChk"> Custom Data Sync</label>
+                <div id="customFlightSyncFields" class="collapsible">
+                  <label class="mt-0">Custom Data Sync Interval (Mins):</label>
+                  <input type="number" min="1" id="customFlightSyncInt" name="custom_flight_int_min">
+                </div>
+              </div>
+            </div>
+
+            <div class="panel" id="panel-8">
               <label class="checkbox-label mt-0"><input type="checkbox" id="showStock" name="show_stock"> Stock Tracking Screen</label>
               <div id="stockContent" class="collapsible">
                 <div id="stock-no-data" class="no-data-tile">📈 Stock data will be available after sync</div>
@@ -370,7 +474,7 @@
               </div>
             </div>
 
-            <div class="panel" id="panel-8">
+            <div class="panel" id="panel-9">
               <label class="checkbox-label mt-0"><input type="checkbox" id="showCrypto" name="show_crypto"> Crypto Tracking Screen</label>
               <div id="cryptoContent" class="collapsible">
                 <div id="crypto-no-data" class="no-data-tile">💰 Crypto data will be available after sync</div>
@@ -393,7 +497,7 @@
               </div>
             </div>
 
-            <div class="panel" id="panel-9">
+            <div class="panel" id="panel-10">
               <label class="checkbox-label mt-0"><input type="checkbox" id="showCurrency" name="show_currency"> Currency Exchange Screen</label>
               <div id="currencyContent" class="collapsible">
                 <div id="currency-no-data" class="no-data-tile">💱 Currency data will be available after sync</div>
@@ -416,7 +520,7 @@
               </div>
             </div>
 
-            <div class="panel" id="panel-10">
+            <div class="panel" id="panel-11">
               <label class="checkbox-label mt-0"><input type="checkbox" id="showPc" name="show_pc"> PC Monitoring Screen</label>
               <div id="pcContent" class="collapsible">
                 <div id="pc-no-data" class="no-data-tile">🖥️ PC data will be available after sync</div>
@@ -433,7 +537,7 @@
               </div>
             </div>
 
-            <div class="panel" id="panel-11">
+            <div class="panel" id="panel-12">
               <label class="checkbox-label mt-0"><input type="checkbox" id="showMedia" name="show_media"> PC Media Screen</label>
               <div id="mediaContent" class="collapsible">
                 <div id="media-no-data" class="no-data-tile">🎵 Media data will be available after sync and/or when media is played</div>
@@ -450,7 +554,7 @@
               </div>
             </div>
 
-            <div class="panel" id="panel-12">
+            <div class="panel" id="panel-13">
               <label class="checkbox-label mt-0"><input type="checkbox" id="showBambu" name="show_bambu"> Bambu 3D Printer Screen</label>
               <div id="bambuContent" class="collapsible">
                 <div id="bambu-no-data" class="no-data-tile">🖨️ Printer data will be available after connection is established</div>

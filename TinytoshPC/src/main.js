@@ -218,6 +218,32 @@ const allCurrencies = [
   ["zwl", "Zimbabwean Dollar"]
 ];
 
+const CONFIG_FIELD_MAP = {
+  sda_pin: ['hardware','sda_pin'], scl_pin: ['hardware','scl_pin'], button_pin: ['hardware','button_pin'], button_type: ['hardware','button_type'],
+  refresh_min: ['general','refresh_min'], time_format: ['general','time_format'], auto_detect: ['general','auto_detect'],
+  latitude: ['general','latitude'], longitude: ['general','longitude'], country: ['general','country'], country_code: ['general','country_code'],
+  city: ['general','city'], timezone: ['general','timezone'], date_display: ['general','date_display'],
+  theme_bg: ['theme','bg'], theme_card: ['theme','card'], theme_accent: ['theme','accent'], theme_text: ['theme','text'],
+  night_mode: ['night','mode'], night_start: ['night','start'], night_end: ['night','end'], night_action: ['night','action'], night_dim_start: ['night','dim_start'],
+  auto_cycle: ['screens','auto_cycle'], screen_int: ['screens','interval_sec'], anim_mask: ['screens','anim_mask'], screen_order: ['screens','order'],
+  show_time: ['screens','show_time'], show_calendar: ['screens','show_calendar'], show_weather: ['screens','show_weather'], show_aqi: ['screens','show_aqi'],
+  show_daylight: ['screens','show_daylight'], show_moon: ['screens','show_moon'], show_population: ['screens','show_population'], show_pc: ['screens','show_pc'],
+  show_media: ['screens','show_media'], show_stock: ['screens','show_stock'], show_crypto: ['screens','show_crypto'], show_currency: ['screens','show_currency'],
+  show_bambu: ['screens','show_bambu'], show_flight: ['screens','show_flight'],
+  hide_empty_pc: ['screens','hide_empty_pc'], hide_empty_media: ['screens','hide_empty_media'], hide_empty_bambu: ['screens','hide_empty_bambu'], hide_empty_flight: ['screens','hide_empty_flight'],
+  cal_start: ['calendar','start_day'], cal_hol: ['calendar','show_holidays'], cal_min: ['calendar','minimal'],
+  temp_unit: ['weather','temp_unit'], round_temps: ['weather','round_temps'], weather_show_header: ['weather','show_header'], custom_weather_int_min: ['weather','custom_sync_min'], weather_values: ['weather','values'],
+  aqi_type: ['aqi','type'], aqi_show_header: ['aqi','show_header'], custom_aqi_int_min: ['aqi','custom_sync_min'], aqi_values: ['aqi','values'],
+  daylight_min: ['daylight','minimal'],
+  moon_min: ['moon','minimal'],
+  pop_show_world: ['population','show_world'], pop_show_country: ['population','show_country'],
+  stock_fn: ['stocks','fn'], custom_stock_int_min: ['stocks','custom_sync_min'], stock_symbols: ['stocks','symbols'],
+  crypto_fn: ['crypto','fn'], custom_crypto_int_min: ['crypto','custom_sync_min'], crypto_ids: ['crypto','ids'],
+  currency_fn: ['currency','fn'], custom_currency_int_min: ['currency','custom_sync_min'], currency_bases: ['currency','bases'], currency_targets: ['currency','targets'], currency_multipliers: ['currency','multipliers'],
+  bambu_ip: ['printer','ip'], bambu_sn: ['printer','sn'], bambu_code: ['printer','code'],
+  flight_mode: ['flight','mode'], flight_radius_nm: ['flight','radius_nm'], flight_units: ['flight','units'], flight_primary_info: ['flight','primary_info'], flight_secondary_info: ['flight','secondary_info'], custom_flight_int_min: ['flight','custom_sync_min'],
+};
+
 // State variables
 let isConnected = false;
 let isConfigLoaded = false;
@@ -622,13 +648,13 @@ function updateVisibility() {
       ['showTime', 'timeContent',false], ['showCalendar', 'calendarContent',false],
       ['showWeather','weatherContent',false], ['showAQI','aqiContent',false],
       ['showDaylight', 'daylightContent', false], ['showMoon', 'moonContent', false],
-      ['showPopulation', 'popContent', false],
+      ['showPopulation', 'popContent', false], ['showFlight', 'flightContent', false],
       ['showStock','stockContent',false], ['showCrypto','cryptoContent',false],
       ['showCurrency','currencyContent',false], ['showPc','pcContent',false],
       ['showMedia', 'mediaContent', false], ['showBambu', 'bambuContent', false],
       ['customWeatherSyncChk','customWeatherSyncFields',false], ['customAqiSyncChk','customAqiSyncFields',false],
       ['customStockSyncChk','customStockSyncFields',false], ['customCryptoSyncChk','customCryptoSyncFields',false],
-      ['customCurrencySyncChk','customCurrencySyncFields',false]
+      ['customCurrencySyncChk','customCurrencySyncFields',false], ['customFlightSyncChk','customFlightSyncFields',false]
   ];
   pairs.forEach(p => {
     var ch = document.getElementById(p[0]); if(!ch) return;
@@ -641,6 +667,43 @@ function updateVisibility() {
   var ac = document.getElementById('autoCycle');
   var si = document.getElementById('screenIntInput');
   if(ac && si) si.disabled = !ac.checked;
+
+  updateFlightSecondaryVisibility();
+  updateValueLimits('weather', 6);
+  updateValueLimits('aqi', 6);
+}
+
+function updateFlightSecondaryVisibility() {
+  var radarChk = document.getElementById('flightModeRadar');
+  if (!radarChk) return;
+  var shouldHide = !radarChk.checked;
+  ['flightPrimaryGroup', 'flightSecondaryGroup'].forEach(id => {
+    var group = document.getElementById(id);
+    if (!group) return;
+    group.className = shouldHide ? 'collapsible hidden' : 'collapsible';
+    group.querySelectorAll('input').forEach(el => el.disabled = shouldHide);
+  });
+}
+
+function updateValueLimits(prefix, maxNoHeader) {
+  const headerRadio = document.querySelector('[name="'+prefix+'_show_header"]:checked');
+  const max = (headerRadio && headerRadio.value === '1') ? 3 : maxNoHeader;
+  const boxes = document.querySelectorAll('.'+prefix+'-val-chk');
+  const checked = Array.from(boxes).filter(cb => cb.checked);
+  if (checked.length > max) checked.slice(max).forEach(cb => cb.checked = false);
+  const checkedCount = Array.from(boxes).filter(cb => cb.checked).length;
+  boxes.forEach(cb => { cb.disabled = !cb.checked && checkedCount >= max; });
+
+  const label = document.getElementById(prefix + 'ValuesLabel');
+  if (label) label.innerText = 'Extra Values (' + ((headerRadio && headerRadio.value === '1') ? 'up to 3' : 'up to 6') + '):';
+}
+window.updateValueLimits = updateValueLimits;
+
+function updateExtraValueTiles(prefix, values) {
+  const selected = values || [];
+  document.querySelectorAll('.' + prefix + '-extra-tile').forEach(t => {
+    t.classList.toggle('hidden', !selected.includes(t.dataset.valueKey));
+  });
 }
 
 function checkPopSafetyNet() {
@@ -750,143 +813,162 @@ async function fetchDeviceData() {
 
         const set = (id, val, html=false) => { const el = document.getElementById(id); if(el && val !== undefined) { if(html) el.innerHTML = val; else el.innerText = val; return true; } return false; };
         const setVal = (name, val) => { const el = document.querySelector('[name="'+name+'"]'); if(el && document.activeElement !== el && val !== undefined) el.value = val; };
-        const setCb = (id, val, byName=false) => { 
-            const el = byName ? document.querySelector('[name="'+id+'"]') : document.getElementById(id); 
-            if(el) el.checked = (val == 1 || val === true || val === "1" || val === "true"); 
+        const setCb = (id, val, byName=false) => {
+            const el = byName ? document.querySelector('[name="'+id+'"]') : document.getElementById(id);
+            if(el) el.checked = (val == 1 || val === true || val === "1" || val === "true");
         };
         const setRadio = (name, val) => { const el = document.querySelector('[name="'+name+'"][value="'+val+'"]'); if(el) el.checked = true; };
 
-        if (d.device_id !== undefined) {
-          currentDeviceId = d.device_id;
+        const netCfg = d.config && d.config.network;
+        if (netCfg && netCfg.device_id !== undefined) {
+          currentDeviceId = netCfg.device_id;
         }
-        if (d.ip_address !== undefined) {
-          currentDeviceIp = d.ip_address;
+        if (netCfg && netCfg.ip_address !== undefined) {
+          currentDeviceIp = netCfg.ip_address;
         }
-        if (d.device_id !== undefined || d.ip_address !== undefined) {
+        if (netCfg && (netCfg.device_id !== undefined || netCfg.ip_address !== undefined)) {
           loadPorts();
         }
-        
-        if (d.refresh_min !== undefined && !formDirty) {
+
+        if (d.config !== undefined && !formDirty) {
+            const c = d.config;
             isConfigLoaded = true;
             const wrap = document.getElementById("config-wrapper");
             const ph = document.getElementById("config-placeholder");
             if(wrap) wrap.classList.remove("hidden");
             if(ph) ph.classList.add("hidden");
 
-            setVal('theme_bg', d.theme_bg || "#000000");
-            setVal('theme_card', d.theme_card || "#111111");
-            setVal('theme_accent', d.theme_accent || "#ffffff");
-            setVal('theme_text', d.theme_text || "#ffffff");
+            setVal('theme_bg', c.theme.bg || "#000000");
+            setVal('theme_card', c.theme.card || "#111111");
+            setVal('theme_accent', c.theme.accent || "#ffffff");
+            setVal('theme_text', c.theme.text || "#ffffff");
             applyLiveTheme();
 
-            setVal('sda_pin', d.sda_pin);
-            setVal('scl_pin', d.scl_pin);
-            setVal('touch_pin', d.touch_pin);
+            setVal('sda_pin', c.hardware.sda_pin);
+            setVal('scl_pin', c.hardware.scl_pin);
+            setVal('button_pin', c.hardware.button_pin);
+            setRadio('button_type', c.hardware.button_type);
             updatePinSelects();
 
-            setVal('refresh_min', d.refresh_min);
-            setCb('autoCycle', d.auto_cycle);
-            setVal('screen_int', d.screen_int);
-            setRadio('time_format', d.time_format);
-            
-            setCb('autoDetect', d.auto_detect);
-            setVal('latitude', d.latitude);
-            setVal('longitude', d.longitude);
-            setVal('country_code', d.country_code);
-            setVal('city', d.city);
-            setVal('timezone', d.timezone);
-            
-            setCb('nightMode', d.night_mode);
-            setVal('night_start', d.night_start);
-            setVal('night_dim_start', d.night_dim_start);
-            setVal('night_end', d.night_end);
-            setVal('night_action', d.night_action);
+            setVal('refresh_min', c.general.refresh_min);
+            setCb('autoCycle', c.screens.auto_cycle);
+            setVal('screen_int', c.screens.interval_sec);
+            setRadio('time_format', c.general.time_format);
+
+            setCb('autoDetect', c.general.auto_detect);
+            setVal('latitude', c.general.latitude);
+            setVal('longitude', c.general.longitude);
+            setVal('country_code', c.general.country_code);
+            setVal('city', c.general.city);
+            setVal('timezone', c.general.timezone);
+
+            setCb('nightMode', c.night.mode);
+            setVal('night_start', c.night.start);
+            setVal('night_dim_start', c.night.dim_start);
+            setVal('night_end', c.night.end);
+            setVal('night_action', c.night.action);
             updateNightAction();
-            
-            setCb('showTime', d.show_time);
-            setCb('date_display', d.date_display, true);
 
-            setCb('showCalendar', d.show_calendar);
-            setRadio('cal_start', d.cal_start);
-            setCb('cal_hol', d.cal_hol, true);
-            setCb('cal_min', d.cal_min, true);
+            setCb('showTime', c.screens.show_time);
+            setCb('date_display', c.general.date_display, true);
 
-            setCb('showWeather', d.show_weather);
-            setRadio('temp_unit', d.temp_unit);
-            setCb('round_temps', d.round_temps, true);
-            setCb('weather_hide_bar', d.weather_hide_bar, true);
-            setCb('customWeatherSyncChk', d.custom_weather_int_min > 0 ? 1 : 0);
-            setVal('custom_weather_int_min', d.custom_weather_int_min > 0 ? d.custom_weather_int_min : d.refresh_min);
+            setCb('showCalendar', c.screens.show_calendar);
+            setRadio('cal_start', c.calendar.start_day);
+            setCb('cal_hol', c.calendar.show_holidays, true);
+            setCb('cal_min', c.calendar.minimal, true);
 
-            setCb('showAQI', d.show_aqi);
-            setRadio('aqi_type', d.aqi_type);
-            setCb('aqi_hide_bar', d.aqi_hide_bar, true);
-            setCb('customAqiSyncChk', d.custom_aqi_int_min > 0 ? 1 : 0);
-            setVal('custom_aqi_int_min', d.custom_aqi_int_min > 0 ? d.custom_aqi_int_min : d.refresh_min);
+            setCb('showWeather', c.screens.show_weather);
+            setRadio('temp_unit', c.weather.temp_unit);
+            setCb('round_temps', c.weather.round_temps, true);
+            setRadio('weather_show_header', c.weather.show_header ? 1 : 0);
+            document.querySelectorAll('.weather-val-chk').forEach(cb => { cb.checked = (c.weather.values || []).includes(cb.dataset.key); });
+            updateValueLimits('weather', 6);
+            updateExtraValueTiles('weather', c.weather.values);
+            setCb('customWeatherSyncChk', c.weather.custom_sync_min > 0 ? 1 : 0);
+            setVal('custom_weather_int_min', c.weather.custom_sync_min > 0 ? c.weather.custom_sync_min : c.general.refresh_min);
 
-            setCb('showDaylight', d.show_daylight);
-            setCb('daylight_min', d.daylight_min, true);
+            setCb('showAQI', c.screens.show_aqi);
+            setRadio('aqi_type', c.aqi.type);
+            setRadio('aqi_show_header', c.aqi.show_header ? 1 : 0);
+            document.querySelectorAll('.aqi-val-chk').forEach(cb => { cb.checked = (c.aqi.values || []).includes(cb.dataset.key); });
+            updateValueLimits('aqi', 6);
+            updateExtraValueTiles('aqi', c.aqi.values);
+            setCb('customAqiSyncChk', c.aqi.custom_sync_min > 0 ? 1 : 0);
+            setVal('custom_aqi_int_min', c.aqi.custom_sync_min > 0 ? c.aqi.custom_sync_min : c.general.refresh_min);
 
-            setCb('showMoon', d.show_moon);
-            setCb('moon_min', d.moon_min, true);
+            setCb('showDaylight', c.screens.show_daylight);
+            setCb('daylight_min', c.daylight.minimal, true);
 
-            setCb('showPopulation', d.show_population);
-            setCb('popWldChk', d.pop_show_world);
-            setCb('popCtrChk', d.pop_show_country);
+            setCb('showMoon', c.screens.show_moon);
+            setCb('moon_min', c.moon.minimal, true);
 
-            setCb('showPc', d.show_pc);
+            setCb('showPopulation', c.screens.show_population);
+            setCb('popWldChk', c.population.show_world);
+            setCb('popCtrChk', c.population.show_country);
 
-            setCb('showStock', d.show_stock);
-            setCb('stock_fn', d.stock_fn, true);
-            setCb('customStockSyncChk', d.custom_stock_int_min > 0 ? 1 : 0);
-            setVal('custom_stock_int_min', d.custom_stock_int_min > 0 ? d.custom_stock_int_min : d.refresh_min);
+            setCb('showFlight', c.screens.show_flight);
+            setRadio('flight_mode', c.flight.mode);
+            setVal('flight_radius_nm', c.flight.radius_nm);
+            setRadio('flight_units', c.flight.units);
+            setRadio('flight_primary_info', c.flight.primary_info);
+            setRadio('flight_secondary_info', c.flight.secondary_info);
+            setCb('customFlightSyncChk', c.flight.custom_sync_min > 0 ? 1 : 0);
+            setVal('custom_flight_int_min', c.flight.custom_sync_min > 0 ? c.flight.custom_sync_min : c.general.refresh_min);
+            setCb('hide_empty_flight', c.screens.hide_empty_flight, true);
+
+            setCb('showPc', c.screens.show_pc);
+
+            setCb('showStock', c.screens.show_stock);
+            setCb('stock_fn', c.stocks.fn, true);
+            setCb('customStockSyncChk', c.stocks.custom_sync_min > 0 ? 1 : 0);
+            setVal('custom_stock_int_min', c.stocks.custom_sync_min > 0 ? c.stocks.custom_sync_min : c.general.refresh_min);
             const stCont = document.getElementById("stock-list-container");
-            if (stCont) { stCont.innerHTML = ""; (d.stock_symbols && d.stock_symbols.length > 0 ? d.stock_symbols : ["AAPL"]).forEach(s => window.addStockRow(s)); }
+            if (stCont) { stCont.innerHTML = ""; (c.stocks.symbols && c.stocks.symbols.length > 0 ? c.stocks.symbols : ["AAPL"]).forEach(s => window.addStockRow(s)); }
 
-            setCb('showCrypto', d.show_crypto);
-            setCb('crypto_fn', d.crypto_fn, true);
-            setCb('customCryptoSyncChk', d.custom_crypto_int_min > 0 ? 1 : 0);
-            setVal('custom_crypto_int_min', d.custom_crypto_int_min > 0 ? d.custom_crypto_int_min : d.refresh_min);
+            setCb('showCrypto', c.screens.show_crypto);
+            setCb('crypto_fn', c.crypto.fn, true);
+            setCb('customCryptoSyncChk', c.crypto.custom_sync_min > 0 ? 1 : 0);
+            setVal('custom_crypto_int_min', c.crypto.custom_sync_min > 0 ? c.crypto.custom_sync_min : c.general.refresh_min);
             const crCont = document.getElementById("crypto-list-container");
-            if (crCont) { crCont.innerHTML = ""; (d.crypto_ids && d.crypto_ids.length > 0 ? d.crypto_ids : [90]).forEach(c => window.addCryptoRow(c)); }
+            if (crCont) { crCont.innerHTML = ""; (c.crypto.ids && c.crypto.ids.length > 0 ? c.crypto.ids : [90]).forEach(cId => window.addCryptoRow(cId)); }
 
-            setCb('showCurrency', d.show_currency);
-            setCb('currency_fn', d.currency_fn, true);
-            setCb('customCurrencySyncChk', d.custom_currency_int_min > 0 ? 1 : 0);
-            setVal('custom_currency_int_min', d.custom_currency_int_min > 0 ? d.custom_currency_int_min : d.refresh_min);
+            setCb('showCurrency', c.screens.show_currency);
+            setCb('currency_fn', c.currency.fn, true);
+            setCb('customCurrencySyncChk', c.currency.custom_sync_min > 0 ? 1 : 0);
+            setVal('custom_currency_int_min', c.currency.custom_sync_min > 0 ? c.currency.custom_sync_min : c.general.refresh_min);
             const cuCont = document.getElementById("currency-list-container");
             if (cuCont) {
                 cuCont.innerHTML = "";
-                if (d.currency_bases && d.currency_bases.length > 0) {
-                    for(let i=0; i<d.currency_bases.length; i++) window.addCurrencyRow(d.currency_bases[i], d.currency_targets[i], d.currency_multipliers[i]);
+                if (c.currency.bases && c.currency.bases.length > 0) {
+                    for(let i=0; i<c.currency.bases.length; i++) window.addCurrencyRow(c.currency.bases[i], c.currency.targets[i], c.currency.multipliers[i]);
                 } else { window.addCurrencyRow("usd", "eur", 1); }
             }
 
-            setCb('showMedia', d.show_media);
-            setCb('showBambu', d.show_bambu);
-            setVal('bambu_ip', d.bambu_ip);
-            setVal('bambu_sn', d.bambu_sn);
-            setVal('bambu_code', d.bambu_code);
+            setCb('showMedia', c.screens.show_media);
+            setCb('showBambu', c.screens.show_bambu);
+            setVal('bambu_ip', c.printer.ip);
+            setVal('bambu_sn', c.printer.sn);
+            setVal('bambu_code', c.printer.code);
 
-            setCb('hide_empty_pc', d.hide_empty_pc, true);
-            setCb('hide_empty_media', d.hide_empty_media, true);
-            setCb('hide_empty_bambu', d.hide_empty_bambu, true);
+            setCb('hide_empty_pc', c.screens.hide_empty_pc, true);
+            setCb('hide_empty_media', c.screens.hide_empty_media, true);
+            setCb('hide_empty_bambu', c.screens.hide_empty_bambu, true);
 
-            if (d.anim_mask !== undefined) {
-                const mask = d.anim_mask;
+            if (c.screens.anim_mask !== undefined) {
+                const mask = c.screens.anim_mask;
                 document.querySelectorAll('.anim-chk').forEach(cb => { cb.checked = (mask & parseInt(cb.value)) !== 0; });
                 const noneBox = document.getElementById('animNone');
                 if (noneBox) { noneBox.checked = (mask === 0); toggleNone(); }
             }
 
-            if (d.screen_order && !document.querySelector('.dragging')) {
-                const orderArr = d.screen_order.split(',');
+            if (c.screens.order && !document.querySelector('.dragging')) {
+                const orderArr = c.screens.order.split(',');
                 const list = document.getElementById('sortable-list');
                 if (list) {
                     const items = [...list.querySelectorAll('.sortable-item')];
                     orderArr.forEach(id => { const item = items.find(el => el.getAttribute('data-id') === String(id)); if(item) list.appendChild(item); });
-                    document.getElementById('screenOrderInput').value = d.screen_order;
-                    reorderPhysicalPanels(d.screen_order);
+                    document.getElementById('screenOrderInput').value = c.screens.order;
+                    reorderPhysicalPanels(c.screens.order);
                 }
             }
 
@@ -895,8 +977,9 @@ async function fetchDeviceData() {
             formDirty = false;
         }
 
-        let timeStr = d.time;
-        let dateStr = d.date;
+        const st = d.status || {};
+        let timeStr = st.general && st.general.time;
+        let dateStr = st.general && st.general.date;
 
         if (!timeStr) {
             const now = new Date();
@@ -910,84 +993,86 @@ async function fetchDeviceData() {
         set('preview-time', timeStr);
         set('preview-date', dateStr);
 
-        set('preview-tz', d.timezone || document.querySelector('select[name="timezone"]')?.value || "--");
-        if (d.cal_count !== undefined) { 
-            set('preview-hol', d.cal_count > 0 ? d.cal_count : 'No holiday data'); 
+        const cfgTz = d.config && d.config.general && d.config.general.timezone;
+        set('preview-tz', cfgTz || document.querySelector('select[name="timezone"]')?.value || "--");
+        if (st.calendar && st.calendar.count !== undefined) {
+            set('preview-hol', st.calendar.count > 0 ? st.calendar.count : 'No holiday data');
         }
 
         updateLiveHeader();
 
-        if (d.temp !== undefined && d.temp !== 'nan') {
+        const tempUnit = (d.config && d.config.weather) ? d.config.weather.temp_unit : 'C';
+        const weatherFieldMap = { feels: 'apparent_temperature', humidity: 'humidity', wind: 'wind_speed', precipitation: 'precipitation_probability', pressure: 'pressure', visibility: 'visibility' };
+        const weatherTileMap = { feels: 'value-feels', humidity: 'value-hum', wind: 'value-wind', precipitation: 'value-precipitation', pressure: 'value-pressure', visibility: 'value-visibility' };
+        const weatherUnitMap = { feels: ' °'+tempUnit, humidity: '%', wind: ' km/h', precipitation: '%', pressure: ' hPa', visibility: ' km' };
+        if (st.weather && st.weather.temp !== undefined && st.weather.temp !== 'nan') {
             let nd = document.getElementById('weather-no-data'); if(nd) nd.style.display = 'none';
             let gr = document.getElementById('weather-grid'); if(gr) gr.classList.remove('hidden');
 
-            set('value-temp', d.temp + ' °' + d.temp_unit);
-            set('value-feels', d.apparent_temperature + ' °' + d.temp_unit);
-            set('value-hum', d.humidity + '%');
-            set('value-wind', d.wind_speed + ' km/h');
-            set('weather-upd', 'Last Update: ' + d.update_time);
+            set('value-temp', st.weather.temp + ' °' + tempUnit);
+            Object.keys(weatherFieldMap).forEach(k => { const raw = st.weather[weatherFieldMap[k]]; if (raw !== undefined && raw !== 'nan') set(weatherTileMap[k], raw + weatherUnitMap[k]); });
+            set('weather-upd', 'Last Update: ' + st.weather.update_time);
         } else {
             let nd = document.getElementById('weather-no-data'); if(nd) nd.style.display = 'block';
             let gr = document.getElementById('weather-grid'); if(gr) gr.classList.add('hidden');
         }
 
-        if (d.aqi !== undefined && d.aqi !== -1) {
+        const aqiUnitMap = { pm25: ' <small>µg</small>', pm10: ' <small>µg</small>', no2: ' <small>µg</small>', co: ' <small>µg</small>', co2: ' <small>ppm</small>', so2: ' <small>µg</small>', o3: ' <small>µg</small>', dust: ' <small>µg</small>', uv: '', ch4: ' <small>ppb</small>' };
+        if (st.aqi && st.aqi.index !== undefined && st.aqi.index !== 'nan') {
             let nd = document.getElementById('aqi-no-data'); if(nd) nd.style.display = 'none';
             let gr = document.getElementById('aqi-grid'); if(gr) gr.classList.remove('hidden');
 
-            set('value-aqi', d.aqi);
-            const aqiLabel = document.querySelector('#value-aqi + .tile-label'); if(aqiLabel) aqiLabel.innerText = d.aqi_status + ' Index';
-            set('value-pm25', d.pm25 + ' <small>µg</small>', true);
-            set('value-pm10', d.pm10 + ' <small>µg</small>', true);
-            set('value-no2', d.no2 + ' <small>µg</small>', true);
-            set('aqi-upd', 'Last Update: ' + d.update_time);
+            set('value-aqi', st.aqi.index);
+            const aqiLabel = document.querySelector('#value-aqi + .tile-label'); if(aqiLabel) aqiLabel.innerText = st.aqi.status + ' Index';
+            Object.keys(aqiUnitMap).forEach(k => { const raw = st.aqi[k]; if (raw !== undefined && raw !== 'nan') set('value-'+k, raw + aqiUnitMap[k], true); });
+            set('aqi-upd', 'Last Update: ' + (st.weather ? st.weather.update_time : ''));
         } else {
             let nd = document.getElementById('aqi-no-data'); if(nd) nd.style.display = 'block';
             let gr = document.getElementById('aqi-grid'); if(gr) gr.classList.add('hidden');
         }
 
-        if (d.sunrise !== undefined && d.sunrise !== "") {
+        if (st.daylight && st.daylight.sunrise !== undefined && st.daylight.sunrise !== "") {
             let nd = document.getElementById('daylight-no-data'); if(nd) nd.style.display = 'none';
             let gr = document.getElementById('daylight-grid'); if(gr) gr.classList.remove('hidden');
 
-            set('val-sunrise', d.sunrise);
-            set('val-sunset', d.sunset);
-            set('val-noon', d.solar_noon);
-            set('val-length', d.day_length);
+            set('val-sunrise', st.daylight.sunrise);
+            set('val-sunset', st.daylight.sunset);
+            set('val-noon', st.daylight.solar_noon);
+            set('val-length', st.daylight.day_length);
         } else {
             let nd = document.getElementById('daylight-no-data'); if(nd) nd.style.display = 'block';
             let gr = document.getElementById('daylight-grid'); if(gr) gr.classList.add('hidden');
         }
 
-        if (d.moon_phase !== undefined) {
+        if (st.moon && st.moon.phase !== undefined) {
             let nd = document.getElementById('moon-no-data'); if(nd) nd.style.display = 'none';
             let gr = document.getElementById('moon-grid'); if(gr) gr.classList.remove('hidden');
 
-            set('val-moon-phase', d.moon_phase);
-            set('val-moon-illum', d.moon_illum + '%');
-            set('val-moon-rise', d.moon_rise);
-            set('val-moon-set', d.moon_set);
+            set('val-moon-phase', st.moon.phase);
+            set('val-moon-illum', st.moon.illum + '%');
+            set('val-moon-rise', st.moon.rise);
+            set('val-moon-set', st.moon.set);
         } else {
             let nd = document.getElementById('moon-no-data'); if(nd) nd.style.display = 'block';
             let gr = document.getElementById('moon-grid'); if(gr) gr.classList.add('hidden');
         }
 
-        if (d.pop_wld_live !== undefined || d.pop_ctr_live !== undefined) {
+        if (st.population && (st.population.world_live !== undefined || st.population.country_live !== undefined)) {
             let nd = document.getElementById('pop-no-data'); if(nd) nd.style.display = 'none';
             let gr = document.getElementById('pop-grid'); if(gr) gr.classList.remove('hidden');
 
             const formatNum = (str) => { return str.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ','); };
-            
-            if (d.pop_wld_live !== undefined) {
-                set('val-pop-wld', formatNum(d.pop_wld_live));
-                set('val-pop-wld-gr', (parseFloat(d.pop_wld_gr) > 0 ? '+' : '') + d.pop_wld_gr + '%');
+
+            if (st.population.world_live !== undefined) {
+                set('val-pop-wld', formatNum(st.population.world_live));
+                set('val-pop-wld-gr', (parseFloat(st.population.world_growth) > 0 ? '+' : '') + st.population.world_growth + '%');
                 set('lbl-pop-wld', 'World Population');
             }
-            if (d.pop_ctr_live !== undefined) {
-                set('val-pop-ctr', formatNum(d.pop_ctr_live));
-                set('val-pop-ctr-gr', (parseFloat(d.pop_ctr_gr) > 0 ? '+' : '') + d.pop_ctr_gr + '%');
-                
-                const cCode = d.country_code ? d.country_code.toUpperCase() : 'CTR';
+            if (st.population.country_live !== undefined) {
+                set('val-pop-ctr', formatNum(st.population.country_live));
+                set('val-pop-ctr-gr', (parseFloat(st.population.country_growth) > 0 ? '+' : '') + st.population.country_growth + '%');
+
+                const cCode = (d.config && d.config.general.country_code) ? d.config.general.country_code.toUpperCase() : 'CTR';
                 set('lbl-pop-ctr', cCode + ' Population');
                 set('lbl-pop-ctr-gr', cCode + ' Growth');
             }
@@ -995,97 +1080,110 @@ async function fetchDeviceData() {
             let nd = document.getElementById('pop-no-data'); if(nd) nd.style.display = 'block';
             let gr = document.getElementById('pop-grid'); if(gr) gr.classList.add('hidden');
         }
-        checkPopSafetyNet(); 
+        checkPopSafetyNet();
 
-        if (d.stock_data && d.stock_data.length > 0) {
+        if (st.stocks && st.stocks.data && st.stocks.data.length > 0) {
             let nd = document.getElementById('stock-no-data'); if(nd) nd.style.display = 'none';
             let gr = document.getElementById('stock-grid'); if(gr) gr.classList.remove('hidden');
             let pStr = "", cStr = "";
-            d.stock_data.forEach(s => { 
-                pStr += s.symbol + ": $" + s.price + "<br>"; 
-                cStr += (parseFloat(s.change) >= 0 ? "+" : "") + s.change + "%<br>"; 
+            st.stocks.data.forEach(s => {
+                pStr += s.symbol + ": $" + s.price + "<br>";
+                cStr += (parseFloat(s.change) >= 0 ? "+" : "") + s.change + "%<br>";
             });
-            set('stock-price', pStr, true); set('stock-change', cStr, true); set('stock-upd', 'Last Update: ' + d.update_time);
+            set('stock-price', pStr, true); set('stock-change', cStr, true); set('stock-upd', 'Last Update: ' + (st.weather ? st.weather.update_time : ''));
         } else {
             let nd = document.getElementById('stock-no-data'); if(nd) nd.style.display = 'block';
             let gr = document.getElementById('stock-grid'); if(gr) gr.classList.add('hidden');
         }
 
-        if (d.crypto_data && d.crypto_data.length > 0) {
+        if (st.crypto && st.crypto.data && st.crypto.data.length > 0) {
             let nd = document.getElementById('crypto-no-data'); if(nd) nd.style.display = 'none';
             let gr = document.getElementById('crypto-grid'); if(gr) gr.classList.remove('hidden');
             let pStr = "", cStr = "";
-            d.crypto_data.forEach(s => { 
-                pStr += s.symbol + ": $" + s.price + "<br>"; 
-                cStr += (parseFloat(s.change) >= 0 ? "+" : "") + s.change + "%<br>"; 
+            st.crypto.data.forEach(s => {
+                pStr += s.symbol + ": $" + s.price + "<br>";
+                cStr += (parseFloat(s.change) >= 0 ? "+" : "") + s.change + "%<br>";
             });
-            set('crypto-price', pStr, true); set('crypto-change', cStr, true); set('crypto-upd', 'Last Update: ' + d.update_time);
+            set('crypto-price', pStr, true); set('crypto-change', cStr, true); set('crypto-upd', 'Last Update: ' + (st.weather ? st.weather.update_time : ''));
         } else {
             let nd = document.getElementById('crypto-no-data'); if(nd) nd.style.display = 'block';
             let gr = document.getElementById('crypto-grid'); if(gr) gr.classList.add('hidden');
         }
 
-        if (d.currency_data && d.currency_data.length > 0) {
+        if (st.currency && st.currency.data && st.currency.data.length > 0) {
             let nd = document.getElementById('currency-no-data'); if(nd) nd.style.display = 'none';
             let gr = document.getElementById('currency-grid'); if(gr) gr.classList.remove('hidden');
             let bStr = "", tStr = "";
-            d.currency_data.forEach(s => { 
-                bStr += s.base_text + "<br>"; 
-                tStr += s.target_text + "<br>"; 
+            st.currency.data.forEach(s => {
+                bStr += s.base_text + "<br>";
+                tStr += s.target_text + "<br>";
             });
-            set('currency-base-val', bStr, true); set('currency-target-val', tStr, true); set('currency-upd', 'Last Update: ' + d.update_time);
+            set('currency-base-val', bStr, true); set('currency-target-val', tStr, true); set('currency-upd', 'Last Update: ' + (st.weather ? st.weather.update_time : ''));
         } else {
             let nd = document.getElementById('currency-no-data'); if(nd) nd.style.display = 'block';
             let gr = document.getElementById('currency-grid'); if(gr) gr.classList.add('hidden');
         }
 
-        if (d.pc_cpu !== undefined && d.pc_cpu !== "0.00" && d.pc_cpu !== "0") {
+        if (st.pc && st.pc.cpu !== undefined && st.pc.cpu !== "0.00" && st.pc.cpu !== "0") {
             let nd = document.getElementById('pc-no-data'); if(nd) nd.style.display = 'none';
             let gr = document.getElementById('pc-grid'); if(gr) gr.classList.remove('hidden');
 
-            set('remote-pc-cpu', Math.round(parseFloat(d.pc_cpu)) + '%');
-            let netDown = parseFloat(d.pc_net);
+            set('remote-pc-cpu', Math.round(parseFloat(st.pc.cpu)) + '%');
+            let netDown = parseFloat(st.pc.net);
             let netVal = netDown >= 1024 ? (netDown / 1024).toFixed(1) : Math.round(netDown);
             let netUnit = netDown >= 1024 ? "MB/s" : "KB/s";
             set('remote-pc-net', netVal + " " + netUnit);
-            set('remote-pc-ram', Math.round(parseFloat(d.pc_ram)) + '%');
-            set('remote-pc-disk', Math.round(parseFloat(d.pc_disk)) + '%');
+            set('remote-pc-ram', Math.round(parseFloat(st.pc.ram)) + '%');
+            set('remote-pc-disk', Math.round(parseFloat(st.pc.disk)) + '%');
         } else {
             let nd = document.getElementById('pc-no-data'); if(nd) nd.style.display = 'block';
             let gr = document.getElementById('pc-grid'); if(gr) gr.classList.add('hidden');
         }
 
-        if (d.media_name && d.media_name !== '' && d.media_author && d.media_author !== '') {
+        if (st.media && st.media.name && st.media.name !== '' && st.media.author && st.media.author !== '') {
             let nd = document.getElementById('media-no-data'); if(nd) nd.style.display = 'none';
             let gr = document.getElementById('media-grid'); if(gr) gr.classList.remove('hidden');
 
-            let status = d.media_status || "stopped";
+            let status = st.media.status || "stopped";
             let capitalizedStatus = status.charAt(0).toUpperCase() + status.slice(1);
             set('settings-media-status', capitalizedStatus);
-            set('settings-media-name', d.media_name);
-            set('settings-media-author', d.media_author);
-            set('settings-media-album', d.media_album || 'Unknown');
+            set('settings-media-name', st.media.name);
+            set('settings-media-author', st.media.author);
+            set('settings-media-album', st.media.album || 'Unknown');
         } else {
             let nd = document.getElementById('media-no-data'); if(nd) nd.style.display = 'block';
             let gr = document.getElementById('media-grid'); if(gr) gr.classList.add('hidden');
         }
 
-        if (d.bambu_status !== undefined) {
+        if (st.printer !== undefined) {
             let nd = document.getElementById('bambu-no-data'); if(nd) nd.style.display = 'none';
             let gr = document.getElementById('bambu-grid'); if(gr) gr.classList.remove('hidden');
 
-            set('bambu-status', d.bambu_status);
-            set('bambu-prog', d.bambu_progress + '% | ' + d.bambu_time + 'm<br><span style="font-size:0.9rem">Layer: ' + d.bambu_layer + '/' + d.bambu_total_layers + '</span>', true);
-            set('bambu-temps', 'Nozzle: ' + parseFloat(d.bambu_nozzle).toFixed(1) + '/' + parseFloat(d.bambu_nozzle_target).toFixed(1) + '<br>Bed: ' + parseFloat(d.bambu_bed).toFixed(1) + '/' + parseFloat(d.bambu_bed_target).toFixed(1), true);
-            set('bambu-fans', 'Part: ' + d.bambu_fan_part + ' | Aux: ' + d.bambu_fan_aux);
+            set('bambu-status', st.printer.status);
+            set('bambu-prog', st.printer.progress + '% | ' + st.printer.time + 'm<br><span style="font-size:0.9rem">Layer: ' + st.printer.layer + '/' + st.printer.total_layers + '</span>', true);
+            set('bambu-temps', 'Nozzle: ' + parseFloat(st.printer.nozzle).toFixed(1) + '/' + parseFloat(st.printer.nozzle_target).toFixed(1) + '<br>Bed: ' + parseFloat(st.printer.bed).toFixed(1) + '/' + parseFloat(st.printer.bed_target).toFixed(1), true);
+            set('bambu-fans', 'Part: ' + st.printer.fan_part + ' | Aux: ' + st.printer.fan_aux);
         } else {
             let nd = document.getElementById('bambu-no-data'); if(nd) nd.style.display = 'block';
             let gr = document.getElementById('bambu-grid'); if(gr) gr.classList.add('hidden');
         }
 
+        if (st.flight !== undefined) {
+            let nd = document.getElementById('flight-no-data'); if(nd) nd.style.display = 'none';
+            let gr = document.getElementById('flight-grid'); if(gr) gr.classList.remove('hidden');
+
+            set('flight-count', st.flight.count);
+            var flClosest = st.flight.callsign ? st.flight.callsign : '--';
+            if (st.flight.route !== undefined) { flClosest += "<br><span style='font-size:0.8rem'>" + st.flight.route + '</span>'; }
+            set('flight-closest', flClosest, true);
+        } else {
+            let nd = document.getElementById('flight-no-data'); if(nd) nd.style.display = 'block';
+            let gr = document.getElementById('flight-grid'); if(gr) gr.classList.add('hidden');
+        }
+
     } catch (e) {
         let errStr = e.message || e;
-        console.error("Config Sync Error:", errStr); 
+        console.error("Config Sync Error:", errStr);
 
         if (errStr.includes("timeout")) {
             console.warn("Sync timeout. Keeping connection open and waiting for next cycle...");
@@ -1189,9 +1287,14 @@ window.addEventListener("DOMContentLoaded", () => {
     setInterval(fetchDeviceData, HARDWARE_SYNC_INTERVAL_MS); 
     setTimeout(fetchDeviceData, INITIAL_SYNC_DELAY_MS); 
 
-    ['autoDetect', 'nightMode', 'showTime', 'showCalendar', 'showWeather', 'showDaylight', 'showMoon', 'showPopulation', 'showPc', 'showCrypto', 'showCurrency', 'showStock', 'showAQI', 'showMedia', 'showBambu', 'autoCycle', 'customWeatherSyncChk', 'customAqiSyncChk', 'customStockSyncChk', 'customCryptoSyncChk', 'customCurrencySyncChk'].forEach(id => {
-        var el = document.getElementById(id); 
-        if(el) el.addEventListener('change', () => { updateVisibility(); syncScreenOrder(true); }); 
+    ['autoDetect', 'nightMode', 'showTime', 'showCalendar', 'showWeather', 'showDaylight', 'showMoon', 'showPopulation', 'showFlight', 'showPc', 'showCrypto', 'showCurrency', 'showStock', 'showAQI', 'showMedia', 'showBambu', 'autoCycle', 'customWeatherSyncChk', 'customAqiSyncChk', 'customStockSyncChk', 'customCryptoSyncChk', 'customCurrencySyncChk', 'customFlightSyncChk'].forEach(id => {
+        var el = document.getElementById(id);
+        if(el) el.addEventListener('change', () => { updateVisibility(); syncScreenOrder(true); });
+    });
+
+    ['flightModeClosest', 'flightModeRadar'].forEach(id => {
+        var el = document.getElementById(id);
+        if (el) el.addEventListener('change', updateFlightSecondaryVisibility);
     });
 
     document.querySelector('input[name="city"]')?.addEventListener('input', updateLiveHeader);
@@ -1277,6 +1380,8 @@ window.addEventListener("DOMContentLoaded", () => {
             jsonObj['currency_bases'] = Array.from(form.querySelectorAll('select[name="currency_bases[]"]')).map(s => s.value);
             jsonObj['currency_targets'] = Array.from(form.querySelectorAll('select[name="currency_targets[]"]')).map(s => s.value);
             jsonObj['currency_multipliers'] = Array.from(form.querySelectorAll('select[name="currency_multipliers[]"]')).map(s => Number(s.value));
+            jsonObj['weather_values'] = Array.from(form.querySelectorAll('.weather-val-chk:checked')).map(cb => cb.dataset.key);
+            jsonObj['aqi_values'] = Array.from(form.querySelectorAll('.aqi-val-chk:checked')).map(cb => cb.dataset.key);
 
             const customSyncPairs = [
                 ['customWeatherSyncChk', 'customWeatherSyncInt', 'custom_weather_int_min'],
@@ -1284,6 +1389,7 @@ window.addEventListener("DOMContentLoaded", () => {
                 ['customStockSyncChk', 'customStockSyncInt', 'custom_stock_int_min'],
                 ['customCryptoSyncChk', 'customCryptoSyncInt', 'custom_crypto_int_min'],
                 ['customCurrencySyncChk', 'customCurrencySyncInt', 'custom_currency_int_min'],
+                ['customFlightSyncChk', 'customFlightSyncInt', 'custom_flight_int_min'],
             ];
             customSyncPairs.forEach(([chkId, intId, key]) => {
                 const chk = document.getElementById(chkId);
@@ -1291,8 +1397,14 @@ window.addEventListener("DOMContentLoaded", () => {
                 jsonObj[key] = (chk && chk.checked && intEl) ? Number(intEl.value) : -1;
             });
 
-            const jsonPayload = JSON.stringify(jsonObj);
-            
+            const grouped = {};
+            Object.keys(jsonObj).forEach(k => {
+                const m = CONFIG_FIELD_MAP[k];
+                if (m) { if (!grouped[m[0]]) grouped[m[0]] = {}; grouped[m[0]][m[1]] = jsonObj[k]; }
+            });
+
+            const jsonPayload = JSON.stringify(grouped);
+
             await invoke("save_device_settings", { jsonPayload: jsonPayload });
             
             saveBtn.innerText = "✅ Saved Successfully!";

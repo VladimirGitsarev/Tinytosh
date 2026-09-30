@@ -11,6 +11,7 @@ private:
   static constexpr const char* AIR_QUALITY_API_URL = "https://air-quality-api.open-meteo.com/v1/air-quality";
 
   static String getAQIDescription(int aqi, bool is_eu);
+  static bool aqiValueSelected(const Config& config, const char* key);
 };
 
 #endif

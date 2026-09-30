@@ -11,7 +11,7 @@ public:
     static bool parseConfig(const char* jsonString, AppState& state);
 
 private:
-    static void populateConfigDoc(const Config& config, DynamicJsonDocument& doc);
+    static void populateConfigDoc(const Config& config, JsonObject configObj);
 };
 
 #endif

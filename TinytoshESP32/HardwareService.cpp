@@ -31,13 +31,17 @@ void HardwareService::validatePins(Config& config) {
 
     claimPin(config.sda_pin, DEFAULT_SDA_PIN);
     claimPin(config.scl_pin, DEFAULT_SCL_PIN);
-    claimPin(config.touch_pin, DEFAULT_TOUCH_PIN);
+    claimPin(config.button_pin, DEFAULT_BUTTON_PIN);
 }
 
 void HardwareService::begin(Config& config) {
     validatePins(config);
 
-    button.setup(config.touch_pin, INPUT, false);
+    if (config.button_type == "switch") {
+        button.setup(config.button_pin, INPUT_PULLUP, true);
+    } else {
+        button.setup(config.button_pin, INPUT, false);
+    }
     button.attachClick(onClickCb);
     button.attachDoubleClick(onDoubleClickCb);
     button.attachLongPressStart(onLongPressCb);
@@ -46,7 +50,7 @@ void HardwareService::begin(Config& config) {
     button.setPressTicks(500);
     button.reset();
 
-    Serial.printf("Hardware Configured: SDA=%d, SCL=%d, TOUCH=%d\n", config.sda_pin, config.scl_pin, config.touch_pin);
+    Serial.printf("Hardware Configured: SDA=%d, SCL=%d, BUTTON=%d (%s)\n", config.sda_pin, config.scl_pin, config.button_pin, config.button_type.c_str());
 }
 
 void HardwareService::tick() {

@@ -11,6 +11,7 @@
 #include "CurrencyService.h"
 #include "DaylightService.h"
 #include "DisplayService.h"
+#include "FlightService.h"
 #include "MoonService.h"
 #include "PopulationService.h"
 #include "StockService.h"
@@ -30,6 +31,7 @@ extern PopulationService populationService;
 extern StockService stockService;
 extern CryptoService cryptoService;
 extern CurrencyService currencyService;
+extern FlightService flightService;
 
 unsigned long DataSyncService::getGlobalIntervalMs(const Config& config, bool nightModeLatched) const {
     unsigned long multiplier = nightModeLatched ? NIGHT_INTERVAL_MULTIPLIER : 1;
@@ -60,6 +62,8 @@ bool DataSyncService::isDue(ScreenType screen, const Config& config, bool nightM
             return config.show_weather && isFetchDue(trackers.lastWeatherFetch, config.custom_weather_int_min, config, nightModeLatched);
         case SCREEN_AIR_QUALITY:
             return config.show_aqi && isFetchDue(trackers.lastAqiFetch, config.custom_aqi_int_min, config, nightModeLatched);
+        case SCREEN_FLIGHT:
+            return config.show_flight && isFetchDue(trackers.lastFlightFetch, config.custom_flight_int_min, config, nightModeLatched);
         case SCREEN_STOCK:
             return config.show_stock && isFetchDue(trackers.lastStockFetch, config.custom_stock_int_min, config, nightModeLatched);
         case SCREEN_CRYPTO:
@@ -76,6 +80,7 @@ void DataSyncService::markFetched(ScreenType screen) {
     switch (screen) {
         case SCREEN_WEATHER: trackers.lastWeatherFetch = now; break;
         case SCREEN_AIR_QUALITY: trackers.lastAqiFetch = now; break;
+        case SCREEN_FLIGHT: trackers.lastFlightFetch = now; break;
         case SCREEN_STOCK: trackers.lastStockFetch = now; break;
         case SCREEN_CRYPTO: trackers.lastCryptoFetch = now; break;
         case SCREEN_CURRENCY: trackers.lastCurrencyFetch = now; break;
@@ -143,7 +148,14 @@ void DataSyncService::runFullSync(AppState& state) {
         populationService.fetchPopulation(config, state.population);
     }
 
-    // 9. Fetch Stocks (Independent)
+    // 9. Fetch Flight Radar (Depends on Lat/Lon)
+    if (config.show_flight) {
+        displayService.showOLEDStatus({"\n", "\n", "Updating Flights...", "\n", "Radius:", String(config.flight_radius_nm) + " nm"}, true);
+        flightService.fetchFlights(config, state.flight);
+        markFetched(SCREEN_FLIGHT);
+    }
+
+    // 10. Fetch Stocks (Independent)
     if (config.show_stock) {
         for (int i = 0; i < config.stock_count; i++) {
             displayService.showOLEDStatus({"\n", "\n", "Updating Stocks...", "\n", "Stock:", config.stock_symbols[i]}, true);
@@ -152,7 +164,7 @@ void DataSyncService::runFullSync(AppState& state) {
         markFetched(SCREEN_STOCK);
     }
 
-    // 10. Fetch Crypto (Independent)
+    // 11. Fetch Crypto (Independent)
     if (config.show_crypto) {
         for (int i = 0; i < config.crypto_count; i++) {
             displayService.showOLEDStatus({"\n", "\n", "Updating Crypto...", "\n", "Ticker ID:", String(config.crypto_ids[i])}, true);
@@ -161,7 +173,7 @@ void DataSyncService::runFullSync(AppState& state) {
         markFetched(SCREEN_CRYPTO);
     }
 
-    // 11. Fetch Currency (Independent)
+    // 12. Fetch Currency (Independent)
     if (config.show_currency) {
         for (int i = 0; i < config.currency_count; i++) {
             String baseUpper = String(config.currency_bases[i]);
@@ -177,7 +189,7 @@ void DataSyncService::runFullSync(AppState& state) {
 
     displayService.showOLEDStatus({"\n", "\n", "Data Updated", "\n", "\n", "Tinytosh is Ready", "\n", "\n", "Welcome!"}, true);
 
-    // 12. Save Everything
+    // 13. Save Everything
     configManager.saveConfig(config);
 
     markGlobalSynced();
@@ -188,6 +200,7 @@ void DataSyncService::maybeStartBackgroundSync(AppState& state, bool nightModeLa
     bool anyScreenDue = dueGlobal
         || isDue(SCREEN_WEATHER, state.config, nightModeLatched)
         || isDue(SCREEN_AIR_QUALITY, state.config, nightModeLatched)
+        || isDue(SCREEN_FLIGHT, state.config, nightModeLatched)
         || isDue(SCREEN_STOCK, state.config, nightModeLatched)
         || isDue(SCREEN_CRYPTO, state.config, nightModeLatched)
         || isDue(SCREEN_CURRENCY, state.config, nightModeLatched);
@@ -253,6 +266,10 @@ void DataSyncService::runBackgroundSyncBody() {
     if (isDue(SCREEN_AIR_QUALITY, config, nightModeLatched)) {
         airQualityService.fetchAirQuality(config, state.aqi);
         markFetched(SCREEN_AIR_QUALITY);
+    }
+    if (isDue(SCREEN_FLIGHT, config, nightModeLatched)) {
+        flightService.fetchFlights(config, state.flight);
+        markFetched(SCREEN_FLIGHT);
     }
     if (isDue(SCREEN_STOCK, config, nightModeLatched)) {
         for (int i = 0; i < config.stock_count; i++) stockService.fetchStock(config.stock_symbols[i], state.stocks[i]);

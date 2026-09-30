@@ -60,7 +60,7 @@ void WebServerService::handleRoot() {
   PcMedia& media = state->media;
   
   bool weatherValid = !isnan(weather.temp);
-  bool aqiValid = !isnan(aqi.pm25) && !isnan(aqi.pm10) && !isnan(aqi.no2);
+  bool aqiValid = (aqi.aqi != -1);
   bool daylightValid = daylight.sunrise_mins != -1;
   bool moonValid = (moon.curphase != "N/A");
   bool popValid = (population.world_pop_base != -1 || population.country_pop_base != -1);
@@ -154,8 +154,8 @@ void WebServerService::handleRoot() {
   add("<div class='panel'><h3 class='panel-title'>Hardware Setup</h3>");
   add("<div class='dashboard-grid mt-0'>");
   
-  auto buildPinSelect = [&](String name, String label, int currentValue) {
-      String out = "<label class='mt-0'>" + label + ":</label><select name='" + name + "' class='hw-pin'>";
+  auto buildPinSelect = [&](String name, String label, int currentValue, bool noTopMargin = true) {
+      String out = "<label" + String(noTopMargin ? " class='mt-0'" : "") + ">" + label + ":</label><select name='" + name + "' class='hw-pin'>";
       for (int p = 0; p <= 21; p++) {
           out += "<option value='" + String(p) + "'" + (p == currentValue ? " selected" : "") + ">GPIO " + String(p) + "</option>";
       }
@@ -166,7 +166,10 @@ void WebServerService::handleRoot() {
   add("  <div>" + buildPinSelect("sda_pin", "I2C SDA Pin", config.sda_pin) + "</div>");
   add("  <div>" + buildPinSelect("scl_pin", "I2C SCL Pin", config.scl_pin) + "</div>");
   add("</div>");
-  add(buildPinSelect("touch_pin", "Touch Sensor GPIO Pin", config.touch_pin));
+  add("<label>Button Type:</label><div class='radio-group'>");
+  add("<label class='radio-label'><input type='radio' name='button_type' value='touch' " + String(config.button_type == "touch" ? "checked" : "") + "> Touch Button</label>");
+  add("<label class='radio-label'><input type='radio' name='button_type' value='switch' " + String(config.button_type == "switch" ? "checked" : "") + "> Switch Button</label></div>");
+  add(buildPinSelect("button_pin", "Button GPIO Pin", config.button_pin, false));
   add("<p class='help-text mt-0'>Reboot Tinytosh to apply any hardware pin changes.</p>");
   add("</div>");
 
@@ -297,6 +300,7 @@ void WebServerService::handleRoot() {
       case SCREEN_DAYLIGHT: targetId = "showDaylight"; break;
       case SCREEN_MOON: targetId = "showMoon"; break;
       case SCREEN_POPULATION: targetId = "showPopulation"; break;
+      case SCREEN_FLIGHT: targetId = "showFlight"; break;
       case SCREEN_CRYPTO: targetId = "showCrypto"; break;
       case SCREEN_CURRENCY: targetId = "showCurrency"; break;
       case SCREEN_STOCK: targetId = "showStock"; break;
@@ -365,9 +369,23 @@ void WebServerService::handleRoot() {
               
               add("<div class='dashboard-grid'>");
               add("<div class='tile'><div class='tile-icon' id='icon-temp'>" + WeatherService::getWeatherIcon(weather.weather_code) + "</div><div class='tile-value' id='value-temp'>" + String(weather.temp, 1) + " °" + config.temp_unit + "</div><div class='tile-label'>Temperature</div></div>");
-              add("<div class='tile'><div class='tile-icon'>🤒</div><div class='tile-value' id='value-feels'>" + String(weather.apparent_temperature, 1) + " °" + config.temp_unit + "</div><div class='tile-label'>Feels Like</div></div>");
-              add("<div class='tile'><div class='tile-icon'>💧</div><div class='tile-value' id='value-hum'>" + String(weather.humidity) + "%</div><div class='tile-label'>Humidity</div></div>");
-              add("<div class='tile'><div class='tile-icon'>💨</div><div class='tile-value' id='value-wind'>" + String(weather.wind_speed, 1) + " km/h</div><div class='tile-label'>Wind Speed</div></div>");
+              {
+                  const char* weatherPreview[][3] = {{"feels", "🤒", "Feels Like"}, {"humidity", "💧", "Humidity"}, {"wind", "💨", "Wind Speed"}, {"precipitation", "🌧️", "Precipitation"}, {"pressure", "📊", "Pressure"}, {"visibility", "👁️", "Visibility"}};
+                  for (int i = 0; i < 6; i++) {
+                      bool selected = false;
+                      for (int j = 0; j < 6; j++) if (config.weather_values[j] == weatherPreview[i][0]) selected = true;
+                      if (!selected) continue;
+                      String key = weatherPreview[i][0];
+                      String val;
+                      if (key == "feels") val = String(weather.apparent_temperature, 1) + " °" + config.temp_unit;
+                      else if (key == "humidity") val = String(weather.humidity) + "%";
+                      else if (key == "wind") val = String(weather.wind_speed, 1) + " km/h";
+                      else if (key == "precipitation") val = String(weather.precipitation_probability, 0) + "%";
+                      else if (key == "pressure") val = String(weather.pressure, 0) + " hPa";
+                      else if (key == "visibility") val = String(weather.visibility / 1000.0, 1) + " km";
+                      add("<div class='tile'><div class='tile-icon'>" + String(weatherPreview[i][1]) + "</div><div class='tile-value' id='value-" + key + "'>" + val + "</div><div class='tile-label'>" + String(weatherPreview[i][2]) + "</div></div>");
+                  }
+              }
               add("</div><div class='update-footer' id='weather-upd'>Last Update: " + weather.update_time + "</div></div>");
               
               add("<label>Temperature Unit:</label><div class='radio-group'>");
@@ -375,7 +393,21 @@ void WebServerService::handleRoot() {
               add("<label class='radio-label'><input type='radio' name='temp_unit' value='F' " + String(config.temp_unit == "F" ? "checked" : "") + "> °F</label></div>");
               
               add("<label class='checkbox-label'><input type='checkbox' name='round_temps' value='1' " + String(config.round_temps ? "checked" : "") + "> Round Temperature Values</label>");
-              add("<label class='checkbox-label'><input type='checkbox' name='weather_hide_bar' value='1' " + String(config.weather_hide_bar ? "checked" : "") + "> Hide Top Bar (Location & Time)</label>");
+
+              add("<label>Layout:</label><div class='radio-group'>");
+              add("<label class='radio-label'><input type='radio' name='weather_show_header' value='1' onchange='updateValueLimits(\"weather\", 6)' " + String(config.weather_show_header ? "checked" : "") + "> With Header (Location & Time)</label>");
+              add("<label class='radio-label'><input type='radio' name='weather_show_header' value='0' onchange='updateValueLimits(\"weather\", 6)' " + String(!config.weather_show_header ? "checked" : "") + "> No Header (more data)</label></div>");
+
+              {
+                  const char* weatherOptions[][2] = {{"feels", "Feels Like"}, {"humidity", "Humidity"}, {"wind", "Wind Speed"}, {"precipitation", "Precipitation Chance"}, {"pressure", "Pressure"}, {"visibility", "Visibility"}};
+                  add("<label>Extra Values (" + String(config.weather_show_header ? "up to 3" : "up to 6") + "):</label><div class='radio-group' style='flex-wrap:wrap; row-gap:8px;'>");
+                  for (int i = 0; i < 6; i++) {
+                      bool checked = false;
+                      for (int j = 0; j < 6; j++) if (config.weather_values[j] == weatherOptions[i][0]) checked = true;
+                      add("<label class='checkbox-label'><input type='checkbox' class='weather-val-chk' data-key='" + String(weatherOptions[i][0]) + "' name='wv_" + String(weatherOptions[i][0]) + "' onchange='updateValueLimits(\"weather\", 6)' " + String(checked ? "checked" : "") + "> " + String(weatherOptions[i][1]) + "</label>");
+                  }
+                  add("</div>");
+              }
               add("<hr>");
               add("<label class='checkbox-label' id='customWeatherSyncLbl'><input type='checkbox' id='customWeatherSyncChk' name='custom_weather_sync_ui' value='1' " + String(config.custom_weather_int_min > 0 ? "checked" : "") + "> Custom Data Sync</label>");
               add("<div id='customWeatherSyncFields' class='collapsible" + String(config.custom_weather_int_min > 0 ? "" : " hidden") + "'>");
@@ -398,16 +430,49 @@ void WebServerService::handleRoot() {
               
               add("<div class='dashboard-grid'>");
               add("<div class='tile'><div class='tile-icon'>🍃</div><div class='tile-value' id='value-aqi'>" + String(aqi.aqi) + "</div><div class='tile-label'>" + aqi.status + " Index</div></div>");
-              add("<div class='tile'><div class='tile-icon'>🌫️</div><div class='tile-value' id='value-pm25'>" + String(aqi.pm25, 1) + " <small>µg</small></div><div class='tile-label'>PM 2.5</div></div>");
-              add("<div class='tile'><div class='tile-icon'>🏭</div><div class='tile-value' id='value-pm10'>" + String(aqi.pm10, 1) + " <small>µg</small></div><div class='tile-label'>PM 10</div></div>");
-              add("<div class='tile'><div class='tile-icon'>🧪</div><div class='tile-value' id='value-no2'>" + String(aqi.no2, 1) + " <small>µg</small></div><div class='tile-label'>Nitrogen Dioxide</div></div>");
+              {
+                  const char* aqiPreview[][3] = {{"pm25", "🌫️", "PM 2.5"}, {"pm10", "🏭", "PM 10"}, {"no2", "🧪", "Nitrogen Dioxide"}, {"co", "🚗", "Carbon Monoxide"}, {"co2", "🏗️", "Carbon Dioxide"}, {"so2", "🌋", "Sulphur Dioxide"}, {"o3", "☀️", "Ozone"}, {"dust", "🏜️", "Dust"}, {"uv", "🕶️", "UV Index"}, {"ch4", "🐄", "Methane"}};
+                  for (int i = 0; i < 10; i++) {
+                      bool selected = false;
+                      for (int j = 0; j < 6; j++) if (config.aqi_values[j] == aqiPreview[i][0]) selected = true;
+                      if (!selected) continue;
+                      String key = aqiPreview[i][0];
+                      float rawVal;
+                      String unit = " <small>µg</small>";
+                      if (key == "pm25") rawVal = aqi.pm25;
+                      else if (key == "pm10") rawVal = aqi.pm10;
+                      else if (key == "no2") rawVal = aqi.no2;
+                      else if (key == "co") rawVal = aqi.co;
+                      else if (key == "co2") { rawVal = aqi.co2; unit = " <small>ppm</small>"; }
+                      else if (key == "so2") rawVal = aqi.so2;
+                      else if (key == "o3") rawVal = aqi.o3;
+                      else if (key == "dust") rawVal = aqi.dust;
+                      else if (key == "uv") { rawVal = aqi.uv; unit = ""; }
+                      else { rawVal = aqi.ch4; unit = " <small>ppb</small>"; }
+                      add("<div class='tile'><div class='tile-icon'>" + String(aqiPreview[i][1]) + "</div><div class='tile-value' id='value-" + key + "'>" + String(rawVal, 1) + unit + "</div><div class='tile-label'>" + String(aqiPreview[i][2]) + "</div></div>");
+                  }
+              }
               add("</div><div class='update-footer' id='aqi-upd'>Last Update: " + weather.update_time + "</div></div>");
 
               add("<label>AQI Standard:</label><div class='radio-group'>");
               add("<label class='radio-label'><input type='radio' name='aqi_type' value='US' " + String(config.aqi_type == "US" ? "checked" : "") + "> US Standard</label>");
               add("<label class='radio-label'><input type='radio' name='aqi_type' value='EU' " + String(config.aqi_type == "EU" ? "checked" : "") + "> European Standard</label></div>");
               add("<p class='help-text mt-0'>EU: 0-100+ scale | US: 0-500 scale</p>");
-              add("<label class='checkbox-label'><input type='checkbox' name='aqi_hide_bar' value='1' " + String(config.aqi_hide_bar ? "checked" : "") + "> Hide Top Bar (Location & Time)</label>");
+
+              add("<label>Layout:</label><div class='radio-group'>");
+              add("<label class='radio-label'><input type='radio' name='aqi_show_header' value='1' onchange='updateValueLimits(\"aqi\", 6)' " + String(config.aqi_show_header ? "checked" : "") + "> With Header (Location & Time)</label>");
+              add("<label class='radio-label'><input type='radio' name='aqi_show_header' value='0' onchange='updateValueLimits(\"aqi\", 6)' " + String(!config.aqi_show_header ? "checked" : "") + "> No Header (more data)</label></div>");
+
+              {
+                  const char* aqiOptions[][2] = {{"pm25", "PM 2.5"}, {"pm10", "PM 10"}, {"no2", "Nitrogen Dioxide"}, {"co", "Carbon Monoxide"}, {"co2", "Carbon Dioxide"}, {"so2", "Sulphur Dioxide"}, {"o3", "Ozone"}, {"dust", "Dust"}, {"uv", "UV Index"}, {"ch4", "Methane"}};
+                  add("<label>Extra Values (" + String(config.aqi_show_header ? "up to 3" : "up to 6") + "):</label><div class='radio-group' style='flex-wrap:wrap; row-gap:8px;'>");
+                  for (int i = 0; i < 10; i++) {
+                      bool checked = false;
+                      for (int j = 0; j < 6; j++) if (config.aqi_values[j] == aqiOptions[i][0]) checked = true;
+                      add("<label class='checkbox-label'><input type='checkbox' class='aqi-val-chk' data-key='" + String(aqiOptions[i][0]) + "' name='av_" + String(aqiOptions[i][0]) + "' onchange='updateValueLimits(\"aqi\", 6)' " + String(checked ? "checked" : "") + "> " + String(aqiOptions[i][1]) + "</label>");
+                  }
+                  add("</div>");
+              }
               add("<hr>");
               add("<label class='checkbox-label' id='customAqiSyncLbl'><input type='checkbox' id='customAqiSyncChk' name='custom_aqi_sync_ui' value='1' " + String(config.custom_aqi_int_min > 0 ? "checked" : "") + "> Custom Data Sync</label>");
               add("<div id='customAqiSyncFields' class='collapsible" + String(config.custom_aqi_int_min > 0 ? "" : " hidden") + "'>");
@@ -486,6 +551,72 @@ void WebServerService::handleRoot() {
             add("<label class='checkbox-label'><input type='checkbox' id='popCtrChk' name='pop_show_country' value='1' " + String(config.pop_show_country ? "checked" : "") + "> Track Country Population</label>");
             add("</div></div>");
             break;
+          }
+
+          case SCREEN_FLIGHT: {
+              FlightData& flight = state->flight;
+              bool flightValid = (config.flight_mode == "closest") ? (flight.closest.callsign.length() > 0) : (flight.aircraft_count > 0);
+
+              add("<div class='panel' id='panel-" + String(screenId) + "'>");
+              add("<label class='checkbox-label mt-0'><input type='checkbox' id='showFlight' name='show_flight' value='1' " + String(config.show_flight ? "checked" : "") + "> Flight Radar Screen</label>");
+              add("<div id='flightContent' class='collapsible'>");
+
+              if (!flightValid) {
+                  add("<div id='flight-no-data' class='no-data-tile'>🛩️ Flight data will be available after sync</div><div id='flight-grid' class='hidden'>");
+              } else {
+                  add("<div id='flight-no-data' class='no-data-tile hidden'>🛩️ Flight data will be available after sync</div><div id='flight-grid'>");
+              }
+
+              add("<div class='dashboard-grid'>");
+              {
+                  const FlightAircraft& c = (config.flight_mode == "closest") ? flight.closest : flight.aircraft[0];
+
+                  String closestVal = (flightValid && c.callsign.length() > 0) ? c.callsign : "--";
+                  if (flightValid && config.flight_mode == "closest") {
+                      String routeVal = c.has_route ? (c.origin_code + " &rarr; " + c.destination_code) : "N/A";
+                      closestVal += "<br><span style='font-size:0.8rem'>" + routeVal + "</span>";
+                  }
+
+                  add("<div class='tile'><div class='tile-icon'>🛩️</div><div class='tile-value' id='flight-count'>" + (flightValid ? String(flight.aircraft_count) : String("--")) + "</div><div class='tile-label'>Aircraft Nearby</div></div>");
+                  add("<div class='tile'><div class='tile-icon'>✈️</div><div class='tile-value' id='flight-closest' style='font-size:1.2rem'>" + closestVal + "</div><div class='tile-label'>Closest Aircraft</div></div>");
+              }
+              add("</div></div>");
+
+              add("<label>Radar Mode:</label><div class='radio-group'>");
+              add("<label class='radio-label'><input type='radio' name='flight_mode' id='flightModeClosest' value='closest' " + String(config.flight_mode == "closest" ? "checked" : "") + "> Closest Aircraft</label>");
+              add("<label class='radio-label'><input type='radio' name='flight_mode' id='flightModeRadar' value='radar' " + String(config.flight_mode == "radar" ? "checked" : "") + "> Radar (multiple aircraft)</label></div>");
+
+              add("<label>Search Radius (nm):</label><input type='number' min='1' name='flight_radius_nm' value='" + String(config.flight_radius_nm) + "'>");
+
+              add("<label>Display Units:</label><div class='radio-group'>");
+              add("<label class='radio-label'><input type='radio' name='flight_units' value='aviation' " + String(config.flight_units == "aviation" ? "checked" : "") + "> Aviation (kt / ft)</label>");
+              add("<label class='radio-label'><input type='radio' name='flight_units' value='metric' " + String(config.flight_units == "metric" ? "checked" : "") + "> Metric (km/h / m)</label></div>");
+
+              add("<div id='flightPrimaryGroup' class='collapsible" + String(config.flight_mode == "radar" ? "" : " hidden") + "'>");
+              add("<label>Primary Info (shown right under the radar icon):</label><div class='radio-group' style='flex-wrap:wrap; row-gap:8px;'>");
+              const char* primaryOptions[][2] = {{"callsign", "Callsign"}, {"altitude", "Altitude"}, {"velocity", "Velocity"}, {"distance", "Distance"}, {"track", "Track (°)"}, {"type", "Type"}, {"route", "Route"}};
+              for (int i = 0; i < 7; i++) {
+                  add("<label class='radio-label'><input type='radio' name='flight_primary_info' value='" + String(primaryOptions[i][0]) + "' " + String(config.flight_primary_info == primaryOptions[i][0] ? "checked" : "") + "> " + String(primaryOptions[i][1]) + "</label>");
+              }
+              add("</div></div>");
+
+              add("<div id='flightSecondaryGroup' class='collapsible" + String(config.flight_mode == "radar" ? "" : " hidden") + "'>");
+              add("<label>Secondary Info (shown below the primary line):</label><div class='radio-group' style='flex-wrap:wrap; row-gap:8px;'>");
+              const char* secondaryOptions[][2] = {{"none", "None"}, {"altitude", "Altitude"}, {"velocity", "Velocity"}, {"distance", "Distance"}, {"track", "Track (°)"}, {"type", "Type"}, {"route", "Route"}};
+              for (int i = 0; i < 7; i++) {
+                  add("<label class='radio-label'><input type='radio' name='flight_secondary_info' value='" + String(secondaryOptions[i][0]) + "' " + String(config.flight_secondary_info == secondaryOptions[i][0] ? "checked" : "") + "> " + String(secondaryOptions[i][1]) + "</label>");
+              }
+              add("</div></div>");
+
+              add("<label class='checkbox-label'><input type='checkbox' name='hide_empty_flight' value='1' " + String(config.hide_empty_flight ? "checked" : "") + "> Hide empty screen</label>");
+              add("<p class='help-text mt-0'>Screen is excluded from rotation when no aircraft are found nearby.</p>");
+              add("<hr>");
+              add("<label class='checkbox-label' id='customFlightSyncLbl'><input type='checkbox' id='customFlightSyncChk' name='custom_flight_sync_ui' value='1' " + String(config.custom_flight_int_min > 0 ? "checked" : "") + "> Custom Data Sync</label>");
+              add("<div id='customFlightSyncFields' class='collapsible" + String(config.custom_flight_int_min > 0 ? "" : " hidden") + "'>");
+              add("<label class='mt-0'>Custom Data Sync Interval (Mins):</label><input type='number' min='1' id='customFlightSyncInt' name='custom_flight_int_min' value='" + String(config.custom_flight_int_min > 0 ? config.custom_flight_int_min : config.refresh_interval_min) + "'>");
+              add("</div>");
+              add("</div></div>");
+              break;
           }
 
           case SCREEN_STOCK: {
@@ -642,7 +773,7 @@ void WebServerService::handleRoot() {
   add("let formDirty = false;");
 
   add("function updateVisibility(){");
-  add("  var pairs = [['autoDetect','manualFields',true], ['nightMode','nightFields',false], ['showTime', 'timeContent',false], ['showCalendar', 'calendarContent',false], ['showWeather','weatherContent',false], ['showDaylight','daylightContent',false], ['showMoon','moonContent',false], ['showPopulation','popContent',false], ['showPc','pcContent',false], ['showCrypto','cryptoContent',false], ['showCurrency','currencyContent',false], ['showStock','stockContent',false], ['showAQI','aqiContent',false], ['showMedia','mediaContent',false], ['showBambu','bambuContent',false], ['customWeatherSyncChk','customWeatherSyncFields',false], ['customAqiSyncChk','customAqiSyncFields',false], ['customStockSyncChk','customStockSyncFields',false], ['customCryptoSyncChk','customCryptoSyncFields',false], ['customCurrencySyncChk','customCurrencySyncFields',false]];");
+  add("  var pairs = [['autoDetect','manualFields',true], ['nightMode','nightFields',false], ['showTime', 'timeContent',false], ['showCalendar', 'calendarContent',false], ['showWeather','weatherContent',false], ['showDaylight','daylightContent',false], ['showMoon','moonContent',false], ['showPopulation','popContent',false], ['showFlight','flightContent',false], ['showPc','pcContent',false], ['showCrypto','cryptoContent',false], ['showCurrency','currencyContent',false], ['showStock','stockContent',false], ['showAQI','aqiContent',false], ['showMedia','mediaContent',false], ['showBambu','bambuContent',false], ['customWeatherSyncChk','customWeatherSyncFields',false], ['customAqiSyncChk','customAqiSyncFields',false], ['customStockSyncChk','customStockSyncFields',false], ['customCryptoSyncChk','customCryptoSyncFields',false], ['customCurrencySyncChk','customCurrencySyncFields',false], ['customFlightSyncChk','customFlightSyncFields',false]];");
   add("  pairs.forEach(p => {");
   add("    var ch = document.getElementById(p[0]); if(!ch) return;");
   add("    var target = document.getElementById(p[1]);");
@@ -653,6 +784,21 @@ void WebServerService::handleRoot() {
   add("  var ac = document.getElementById('autoCycle');");
   add("  var si = document.getElementById('screenIntInput');");
   add("  if(ac && si) si.disabled = !ac.checked;");
+  add("  updateFlightSecondaryVisibility();");
+  add("  updateValueLimits('weather', 6);");
+  add("  updateValueLimits('aqi', 6);");
+  add("}");
+
+  add("function updateFlightSecondaryVisibility(){");
+  add("  var radarChk = document.getElementById('flightModeRadar');");
+  add("  if(!radarChk) return;");
+  add("  var shouldHide = !radarChk.checked;");
+  add("  ['flightPrimaryGroup', 'flightSecondaryGroup'].forEach(id => {");
+  add("    var group = document.getElementById(id);");
+  add("    if(!group) return;");
+  add("    group.className = shouldHide ? 'collapsible hidden' : 'collapsible';");
+  add("    group.querySelectorAll('input').forEach(el => el.disabled = shouldHide);");
+  add("  });");
   add("}");
 
   add("function updatePinSelects() {");
@@ -666,6 +812,16 @@ void WebServerService::handleRoot() {
   add("}");
   add("document.querySelectorAll('.hw-pin').forEach(s => s.addEventListener('change', updatePinSelects));");
   add("updatePinSelects();");
+
+  add("function updateValueLimits(prefix, maxNoHeader) {");
+  add("  const headerRadio = document.querySelector('[name=\"'+prefix+'_show_header\"]:checked');");
+  add("  const max = (headerRadio && headerRadio.value === '1') ? 3 : maxNoHeader;");
+  add("  const boxes = document.querySelectorAll('.'+prefix+'-val-chk');");
+  add("  const checked = Array.from(boxes).filter(cb => cb.checked);");
+  add("  if (checked.length > max) checked.slice(max).forEach(cb => cb.checked = false);");
+  add("  const checkedCount = Array.from(boxes).filter(cb => cb.checked).length;");
+  add("  boxes.forEach(cb => { cb.disabled = !cb.checked && checkedCount >= max; });");
+  add("}");
 
   add("function updateNightAction() {");
   add("  var action = document.getElementById('nightActionSelect').value;");
@@ -694,7 +850,7 @@ void WebServerService::handleRoot() {
   }
   add("div.innerHTML = `<div class='input-wrapper'><label class='mt-0'>Base:</label><select name='currency_bases[]'>${cOpts}</select></div><div class='input-wrapper'><label class='mt-0'>Target:</label><select name='currency_targets[]'>${cOpts}</select></div><div class='input-wrapper'><label class='mt-0'>Mult:</label><select name='currency_multipliers[]'><option value='1'>1</option><option value='10'>10</option><option value='100'>100</option><option value='1000'>1000</option></select></div><button type='button' class='btn-remove' onclick=\"removeRow(this, 'currency-list-container')\">-</button>`; container.appendChild(div); if (bVal) div.querySelector(\"select[name='currency_bases[]']\").value = bVal; if (tVal) div.querySelector(\"select[name='currency_targets[]']\").value = tVal; if (mVal) div.querySelector(\"select[name='currency_multipliers[]']\").value = mVal; formDirty = true; updateRowControls('currency-list-container', 5); };");
 
-  add("['autoDetect', 'nightMode', 'showTime', 'showCalendar', 'showWeather', 'showDaylight', 'showMoon', 'showPopulation', 'showPc', 'showCrypto', 'showCurrency', 'showStock', 'showAQI', 'showMedia', 'showBambu', 'autoCycle', 'customWeatherSyncChk', 'customAqiSyncChk', 'customStockSyncChk', 'customCryptoSyncChk', 'customCurrencySyncChk'].forEach(id => { var el=document.getElementById(id); if(el) el.addEventListener('change', updateVisibility); });");
+  add("['autoDetect', 'nightMode', 'showTime', 'showCalendar', 'showWeather', 'showDaylight', 'showMoon', 'showPopulation', 'showFlight', 'showPc', 'showCrypto', 'showCurrency', 'showStock', 'showAQI', 'showMedia', 'showBambu', 'autoCycle', 'customWeatherSyncChk', 'customAqiSyncChk', 'customStockSyncChk', 'customCryptoSyncChk', 'customCurrencySyncChk', 'customFlightSyncChk', 'flightModeRadar', 'flightModeClosest'].forEach(id => { var el=document.getElementById(id); if(el) el.addEventListener('change', updateVisibility); });");
   add("updateVisibility();");
 
   add("const countryGreetings = {");
@@ -846,6 +1002,32 @@ void WebServerService::handleRoot() {
 
   add("syncScreenOrder();");
   
+  add("const CONFIG_FIELD_MAP = {");
+  add("  sda_pin: ['hardware','sda_pin'], scl_pin: ['hardware','scl_pin'], button_pin: ['hardware','button_pin'], button_type: ['hardware','button_type'],");
+  add("  refresh_min: ['general','refresh_min'], time_format: ['general','time_format'], auto_detect: ['general','auto_detect'],");
+  add("  latitude: ['general','latitude'], longitude: ['general','longitude'], country: ['general','country'], country_code: ['general','country_code'],");
+  add("  city: ['general','city'], timezone: ['general','timezone'], date_display: ['general','date_display'],");
+  add("  theme_bg: ['theme','bg'], theme_card: ['theme','card'], theme_accent: ['theme','accent'], theme_text: ['theme','text'],");
+  add("  night_mode: ['night','mode'], night_start: ['night','start'], night_end: ['night','end'], night_action: ['night','action'], night_dim_start: ['night','dim_start'],");
+  add("  auto_cycle: ['screens','auto_cycle'], screen_int: ['screens','interval_sec'], anim_mask: ['screens','anim_mask'], screen_order: ['screens','order'],");
+  add("  show_time: ['screens','show_time'], show_calendar: ['screens','show_calendar'], show_weather: ['screens','show_weather'], show_aqi: ['screens','show_aqi'],");
+  add("  show_daylight: ['screens','show_daylight'], show_moon: ['screens','show_moon'], show_population: ['screens','show_population'], show_pc: ['screens','show_pc'],");
+  add("  show_media: ['screens','show_media'], show_stock: ['screens','show_stock'], show_crypto: ['screens','show_crypto'], show_currency: ['screens','show_currency'],");
+  add("  show_bambu: ['screens','show_bambu'], show_flight: ['screens','show_flight'],");
+  add("  hide_empty_pc: ['screens','hide_empty_pc'], hide_empty_media: ['screens','hide_empty_media'], hide_empty_bambu: ['screens','hide_empty_bambu'], hide_empty_flight: ['screens','hide_empty_flight'],");
+  add("  cal_start: ['calendar','start_day'], cal_hol: ['calendar','show_holidays'], cal_min: ['calendar','minimal'],");
+  add("  temp_unit: ['weather','temp_unit'], round_temps: ['weather','round_temps'], weather_show_header: ['weather','show_header'], custom_weather_int_min: ['weather','custom_sync_min'], weather_values: ['weather','values'],");
+  add("  aqi_type: ['aqi','type'], aqi_show_header: ['aqi','show_header'], custom_aqi_int_min: ['aqi','custom_sync_min'], aqi_values: ['aqi','values'],");
+  add("  daylight_min: ['daylight','minimal'],");
+  add("  moon_min: ['moon','minimal'],");
+  add("  pop_show_world: ['population','show_world'], pop_show_country: ['population','show_country'],");
+  add("  stock_fn: ['stocks','fn'], custom_stock_int_min: ['stocks','custom_sync_min'], stock_symbols: ['stocks','symbols'],");
+  add("  crypto_fn: ['crypto','fn'], custom_crypto_int_min: ['crypto','custom_sync_min'], crypto_ids: ['crypto','ids'],");
+  add("  currency_fn: ['currency','fn'], custom_currency_int_min: ['currency','custom_sync_min'], currency_bases: ['currency','bases'], currency_targets: ['currency','targets'], currency_multipliers: ['currency','multipliers'],");
+  add("  bambu_ip: ['printer','ip'], bambu_sn: ['printer','sn'], bambu_code: ['printer','code'],");
+  add("  flight_mode: ['flight','mode'], flight_radius_nm: ['flight','radius_nm'], flight_units: ['flight','units'], flight_primary_info: ['flight','primary_info'], flight_secondary_info: ['flight','secondary_info'], custom_flight_int_min: ['flight','custom_sync_min'],");
+  add("};");
+
   add("document.querySelector('form').addEventListener('submit', function(e) {");
   add("  e.preventDefault();");
   add("  let mask = 0; document.querySelectorAll('.anim-chk').forEach(cb => { if(cb.checked) mask += parseInt(cb.value); });");
@@ -863,7 +1045,9 @@ void WebServerService::handleRoot() {
   add("  jsonObj['currency_bases'] = Array.from(e.target.querySelectorAll('select[name=\"currency_bases[]\"]')).map(s => s.value);");
   add("  jsonObj['currency_targets'] = Array.from(e.target.querySelectorAll('select[name=\"currency_targets[]\"]')).map(s => s.value);");
   add("  jsonObj['currency_multipliers'] = Array.from(e.target.querySelectorAll('select[name=\"currency_multipliers[]\"]')).map(s => Number(s.value));");
-  add("  const customSyncPairs = [['customWeatherSyncChk','customWeatherSyncInt','custom_weather_int_min'], ['customAqiSyncChk','customAqiSyncInt','custom_aqi_int_min'], ['customStockSyncChk','customStockSyncInt','custom_stock_int_min'], ['customCryptoSyncChk','customCryptoSyncInt','custom_crypto_int_min'], ['customCurrencySyncChk','customCurrencySyncInt','custom_currency_int_min']];");
+  add("  jsonObj['weather_values'] = Array.from(e.target.querySelectorAll('.weather-val-chk:checked')).map(cb => cb.dataset.key);");
+  add("  jsonObj['aqi_values'] = Array.from(e.target.querySelectorAll('.aqi-val-chk:checked')).map(cb => cb.dataset.key);");
+  add("  const customSyncPairs = [['customWeatherSyncChk','customWeatherSyncInt','custom_weather_int_min'], ['customAqiSyncChk','customAqiSyncInt','custom_aqi_int_min'], ['customStockSyncChk','customStockSyncInt','custom_stock_int_min'], ['customCryptoSyncChk','customCryptoSyncInt','custom_crypto_int_min'], ['customCurrencySyncChk','customCurrencySyncInt','custom_currency_int_min'], ['customFlightSyncChk','customFlightSyncInt','custom_flight_int_min']];");
   add("  customSyncPairs.forEach(([chkId, intId, key]) => { const chk = document.getElementById(chkId); const intEl = document.getElementById(intId); jsonObj[key] = (chk && chk.checked && intEl) ? Number(intEl.value) : -1; });");
   add("  jsonObj['anim_mask'] = mask;");
   add("  jsonObj['screen_order'] = document.getElementById('screenOrderInput').value;");
@@ -877,7 +1061,10 @@ void WebServerService::handleRoot() {
   add("  btn.style.opacity = '0.7';");
   add("  btn.disabled = true;");
   
-  add("  fetch('/save', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(jsonObj) })");
+  add("  const grouped = {};");
+  add("  Object.keys(jsonObj).forEach(k => { const m = CONFIG_FIELD_MAP[k]; if (m) { if (!grouped[m[0]]) grouped[m[0]] = {}; grouped[m[0]][m[1]] = jsonObj[k]; } });");
+
+  add("  fetch('/save', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(grouped) })");
   add("    .then(r => {");
   add("      if (r.ok) {");
   add("        btn.innerText = '✅ Saved Successfully!';");
@@ -912,97 +1099,113 @@ void WebServerService::handleRoot() {
   add("  const setCb = (id, val, byName=false) => { const el = byName ? document.querySelector('[name=\"'+id+'\"]') : document.getElementById(id); if(el) el.checked = (val === 1 || val === true || val === '1'); };");
   add("  const setRadio = (name, val) => { const el = document.querySelector('[name=\"'+name+'\"][value=\"'+val+'\"]'); if(el) el.checked = true; };");
 
-  add("  if (d.refresh_min !== undefined && !formDirty) {");
-  add("    setVal('theme_bg', d.theme_bg || '#000000'); setVal('theme_card', d.theme_card || '#111111'); setVal('theme_accent', d.theme_accent || '#ffffff'); setVal('theme_text', d.theme_text || '#ffffff'); applyLiveTheme();");
-  add("    setVal('sda_pin', d.sda_pin);");
-  add("    setVal('scl_pin', d.scl_pin);");
-  add("    setVal('touch_pin', d.touch_pin);");
+  add("  if (d.config !== undefined && !formDirty) {");
+  add("    const c = d.config;");
+  add("    setVal('theme_bg', c.theme.bg || '#000000'); setVal('theme_card', c.theme.card || '#111111'); setVal('theme_accent', c.theme.accent || '#ffffff'); setVal('theme_text', c.theme.text || '#ffffff'); applyLiveTheme();");
+  add("    setVal('sda_pin', c.hardware.sda_pin);");
+  add("    setVal('scl_pin', c.hardware.scl_pin);");
+  add("    setVal('button_pin', c.hardware.button_pin);");
+  add("    setRadio('button_type', c.hardware.button_type);");
   add("    updatePinSelects();");
-  
-  add("    setVal('refresh_min', d.refresh_min);");
-  add("    setCb('autoCycle', d.auto_cycle);");
-  add("    setVal('screen_int', d.screen_int);");
-  add("    setRadio('time_format', d.time_format);");
-  
-  add("    setCb('autoDetect', d.auto_detect);");
-  add("    setVal('latitude', d.latitude);");
-  add("    setVal('longitude', d.longitude);");
-  add("    setVal('country', d.country);");
-  add("    setVal('country_code', d.country_code);");
-  add("    setVal('city', d.city);");
-  add("    setVal('timezone', d.timezone);");
-  
-  add("    setCb('nightMode', d.night_mode);");
-  add("    setVal('night_start', d.night_start);");
-  add("    setVal('night_end', d.night_end);");
-  add("    setVal('night_action', d.night_action);");
-  add("    setVal('night_dim_start', d.night_dim_start);");
+
+  add("    setVal('refresh_min', c.general.refresh_min);");
+  add("    setCb('autoCycle', c.screens.auto_cycle);");
+  add("    setVal('screen_int', c.screens.interval_sec);");
+  add("    setRadio('time_format', c.general.time_format);");
+
+  add("    setCb('autoDetect', c.general.auto_detect);");
+  add("    setVal('latitude', c.general.latitude);");
+  add("    setVal('longitude', c.general.longitude);");
+  add("    setVal('country', c.general.country);");
+  add("    setVal('country_code', c.general.country_code);");
+  add("    setVal('city', c.general.city);");
+  add("    setVal('timezone', c.general.timezone);");
+
+  add("    setCb('nightMode', c.night.mode);");
+  add("    setVal('night_start', c.night.start);");
+  add("    setVal('night_end', c.night.end);");
+  add("    setVal('night_action', c.night.action);");
+  add("    setVal('night_dim_start', c.night.dim_start);");
   add("    updateNightAction();");
-  
-  add("    setCb('showTime', d.show_time);");
-  add("    setCb('date_display', d.date_display, true);");
 
-  add("    setCb('showCalendar', d.show_calendar);");
-  add("    setRadio('cal_start', d.cal_start);");
-  add("    setCb('cal_hol', d.cal_hol, true);");
-  add("    setCb('cal_min', d.cal_min, true);");
-  
-  add("    setCb('showWeather', d.show_weather);");
-  add("    setRadio('temp_unit', d.temp_unit);");
-  add("    setCb('round_temps', d.round_temps, true);");
-  add("    setCb('weather_hide_bar', d.weather_hide_bar, true);");
-  add("    setCb('customWeatherSyncChk', d.custom_weather_int_min > 0 ? 1 : 0);");
-  add("    setVal('custom_weather_int_min', d.custom_weather_int_min > 0 ? d.custom_weather_int_min : d.refresh_min);");
+  add("    setCb('showTime', c.screens.show_time);");
+  add("    setCb('date_display', c.general.date_display, true);");
 
-  add("    setCb('showAQI', d.show_aqi);");
-  add("    setRadio('aqi_type', d.aqi_type);");
-  add("    setCb('aqi_hide_bar', d.aqi_hide_bar, true);");
-  add("    setCb('customAqiSyncChk', d.custom_aqi_int_min > 0 ? 1 : 0);");
-  add("    setVal('custom_aqi_int_min', d.custom_aqi_int_min > 0 ? d.custom_aqi_int_min : d.refresh_min);");
+  add("    setCb('showCalendar', c.screens.show_calendar);");
+  add("    setRadio('cal_start', c.calendar.start_day);");
+  add("    setCb('cal_hol', c.calendar.show_holidays, true);");
+  add("    setCb('cal_min', c.calendar.minimal, true);");
 
-  add("    setCb('showDaylight', d.show_daylight);");
-  add("    setCb('daylight_min', d.daylight_min, true);");
+  add("    setCb('showWeather', c.screens.show_weather);");
+  add("    setRadio('temp_unit', c.weather.temp_unit);");
+  add("    setCb('round_temps', c.weather.round_temps, true);");
+  add("    setRadio('weather_show_header', c.weather.show_header ? 1 : 0);");
+  add("    document.querySelectorAll('.weather-val-chk').forEach(cb => { cb.checked = (c.weather.values || []).includes(cb.dataset.key); });");
+  add("    updateValueLimits('weather', 6);");
+  add("    setCb('customWeatherSyncChk', c.weather.custom_sync_min > 0 ? 1 : 0);");
+  add("    setVal('custom_weather_int_min', c.weather.custom_sync_min > 0 ? c.weather.custom_sync_min : c.general.refresh_min);");
 
-  add("    setCb('showMoon', d.show_moon);");
-  add("    setCb('moon_min', d.moon_min, true);");
+  add("    setCb('showAQI', c.screens.show_aqi);");
+  add("    setRadio('aqi_type', c.aqi.type);");
+  add("    setRadio('aqi_show_header', c.aqi.show_header ? 1 : 0);");
+  add("    document.querySelectorAll('.aqi-val-chk').forEach(cb => { cb.checked = (c.aqi.values || []).includes(cb.dataset.key); });");
+  add("    updateValueLimits('aqi', 6);");
+  add("    setCb('customAqiSyncChk', c.aqi.custom_sync_min > 0 ? 1 : 0);");
+  add("    setVal('custom_aqi_int_min', c.aqi.custom_sync_min > 0 ? c.aqi.custom_sync_min : c.general.refresh_min);");
 
-  add("    setCb('showPopulation', d.show_population);");
-  add("    setCb('pop_show_world', d.pop_show_world, true);");
-  add("    setCb('pop_show_country', d.pop_show_country, true);");
+  add("    setCb('showDaylight', c.screens.show_daylight);");
+  add("    setCb('daylight_min', c.daylight.minimal, true);");
 
-  add("    setCb('showPc', d.show_pc);");
+  add("    setCb('showMoon', c.screens.show_moon);");
+  add("    setCb('moon_min', c.moon.minimal, true);");
 
-  add("    setCb('showStock', d.show_stock); setCb('stock_fn', d.stock_fn, true);");
-  add("    setCb('customStockSyncChk', d.custom_stock_int_min > 0 ? 1 : 0);");
-  add("    setVal('custom_stock_int_min', d.custom_stock_int_min > 0 ? d.custom_stock_int_min : d.refresh_min);");
-  add("    const stCont = document.getElementById('stock-list-container'); if (stCont) { stCont.innerHTML = ''; (d.stock_symbols && d.stock_symbols.length > 0 ? d.stock_symbols : ['AAPL']).forEach(s => window.addStockRow(s)); }");
-  add("    setCb('showCrypto', d.show_crypto); setCb('crypto_fn', d.crypto_fn, true);");
-  add("    setCb('customCryptoSyncChk', d.custom_crypto_int_min > 0 ? 1 : 0);");
-  add("    setVal('custom_crypto_int_min', d.custom_crypto_int_min > 0 ? d.custom_crypto_int_min : d.refresh_min);");
-  add("    const crCont = document.getElementById('crypto-list-container'); if (crCont) { crCont.innerHTML = ''; (d.crypto_ids && d.crypto_ids.length > 0 ? d.crypto_ids : [90]).forEach(c => window.addCryptoRow(c)); }");
-  add("    setCb('showCurrency', d.show_currency); setCb('currency_fn', d.currency_fn, true);");
-  add("    setCb('customCurrencySyncChk', d.custom_currency_int_min > 0 ? 1 : 0);");
-  add("    setVal('custom_currency_int_min', d.custom_currency_int_min > 0 ? d.custom_currency_int_min : d.refresh_min);");
-  add("    const cuCont = document.getElementById('currency-list-container'); if (cuCont) { cuCont.innerHTML = ''; if (d.currency_bases && d.currency_bases.length > 0) { for(let i=0; i<d.currency_bases.length; i++) window.addCurrencyRow(d.currency_bases[i], d.currency_targets[i], d.currency_multipliers[i]); } else { window.addCurrencyRow('usd', 'eur', 1); } }");
+  add("    setCb('showPopulation', c.screens.show_population);");
+  add("    setCb('pop_show_world', c.population.show_world, true);");
+  add("    setCb('pop_show_country', c.population.show_country, true);");
 
-  add("    setCb('showMedia', d.show_media);");
+  add("    setCb('showFlight', c.screens.show_flight);");
+  add("    setRadio('flight_mode', c.flight.mode);");
+  add("    setVal('flight_radius_nm', c.flight.radius_nm);");
+  add("    setRadio('flight_units', c.flight.units);");
+  add("    setRadio('flight_primary_info', c.flight.primary_info);");
+  add("    setRadio('flight_secondary_info', c.flight.secondary_info);");
+  add("    setCb('customFlightSyncChk', c.flight.custom_sync_min > 0 ? 1 : 0);");
+  add("    setVal('custom_flight_int_min', c.flight.custom_sync_min > 0 ? c.flight.custom_sync_min : c.general.refresh_min);");
 
-  add("    setCb('showBambu', d.show_bambu);");
-  add("    setVal('bambu_ip', d.bambu_ip);");
-  add("    setVal('bambu_sn', d.bambu_sn);");
-  add("    setVal('bambu_code', d.bambu_code);");
+  add("    setCb('showPc', c.screens.show_pc);");
 
-  add("    setCb('hide_empty_pc', d.hide_empty_pc, true);");
-  add("    setCb('hide_empty_media', d.hide_empty_media, true);");
-  add("    setCb('hide_empty_bambu', d.hide_empty_bambu, true);");
+  add("    setCb('showStock', c.screens.show_stock); setCb('stock_fn', c.stocks.fn, true);");
+  add("    setCb('customStockSyncChk', c.stocks.custom_sync_min > 0 ? 1 : 0);");
+  add("    setVal('custom_stock_int_min', c.stocks.custom_sync_min > 0 ? c.stocks.custom_sync_min : c.general.refresh_min);");
+  add("    const stCont = document.getElementById('stock-list-container'); if (stCont) { stCont.innerHTML = ''; (c.stocks.symbols && c.stocks.symbols.length > 0 ? c.stocks.symbols : ['AAPL']).forEach(s => window.addStockRow(s)); }");
+  add("    setCb('showCrypto', c.screens.show_crypto); setCb('crypto_fn', c.crypto.fn, true);");
+  add("    setCb('customCryptoSyncChk', c.crypto.custom_sync_min > 0 ? 1 : 0);");
+  add("    setVal('custom_crypto_int_min', c.crypto.custom_sync_min > 0 ? c.crypto.custom_sync_min : c.general.refresh_min);");
+  add("    const crCont = document.getElementById('crypto-list-container'); if (crCont) { crCont.innerHTML = ''; (c.crypto.ids && c.crypto.ids.length > 0 ? c.crypto.ids : [90]).forEach(cId => window.addCryptoRow(cId)); }");
+  add("    setCb('showCurrency', c.screens.show_currency); setCb('currency_fn', c.currency.fn, true);");
+  add("    setCb('customCurrencySyncChk', c.currency.custom_sync_min > 0 ? 1 : 0);");
+  add("    setVal('custom_currency_int_min', c.currency.custom_sync_min > 0 ? c.currency.custom_sync_min : c.general.refresh_min);");
+  add("    const cuCont = document.getElementById('currency-list-container'); if (cuCont) { cuCont.innerHTML = ''; if (c.currency.bases && c.currency.bases.length > 0) { for(let i=0; i<c.currency.bases.length; i++) window.addCurrencyRow(c.currency.bases[i], c.currency.targets[i], c.currency.multipliers[i]); } else { window.addCurrencyRow('usd', 'eur', 1); } }");
 
-  add("    const mask = d.anim_mask;");
+  add("    setCb('showMedia', c.screens.show_media);");
+
+  add("    setCb('showBambu', c.screens.show_bambu);");
+  add("    setVal('bambu_ip', c.printer.ip);");
+  add("    setVal('bambu_sn', c.printer.sn);");
+  add("    setVal('bambu_code', c.printer.code);");
+
+  add("    setCb('hide_empty_pc', c.screens.hide_empty_pc, true);");
+  add("    setCb('hide_empty_media', c.screens.hide_empty_media, true);");
+  add("    setCb('hide_empty_bambu', c.screens.hide_empty_bambu, true);");
+  add("    setCb('hide_empty_flight', c.screens.hide_empty_flight, true);");
+
+  add("    const mask = c.screens.anim_mask;");
   add("    document.querySelectorAll('.anim-chk').forEach(cb => { cb.checked = (mask & parseInt(cb.value)) !== 0; });");
   add("    const noneBox = document.getElementById('animNone');");
   add("    if (noneBox) { noneBox.checked = (mask === 0); toggleNone(); }");
 
-  add("    if (d.screen_order && !document.querySelector('.dragging')) {");
-  add("      const orderArr = d.screen_order.split(',');");
+  add("    if (c.screens.order && !document.querySelector('.dragging')) {");
+  add("      const orderArr = c.screens.order.split(',');");
   add("      const list = document.getElementById('sortable-list');");
   add("      if (list) {");
   add("        const items = [...list.querySelectorAll('.sortable-item')];");
@@ -1016,111 +1219,120 @@ void WebServerService::handleRoot() {
   add("    formDirty = false;");
   add("  }");
 
-  add("  set('time-display', d.time);"); 
-  add("  set('preview-time', d.time);");
-  add("  set('preview-date', d.date);");
+  add("  const st = d.status || {};");
+  add("  set('time-display', st.general && st.general.time);");
+  add("  set('preview-time', st.general && st.general.time);");
+  add("  set('preview-date', st.general && st.general.date);");
 
-  add("  set('preview-tz', d.timezone);");
-  add("  if (d.cal_count !== undefined) { set('preview-hol', d.cal_count > 0 ? d.cal_count : 'No holiday data'); }");
+  add("  set('preview-tz', d.config && d.config.general.timezone);");
+  add("  if (st.calendar && st.calendar.count !== undefined) { set('preview-hol', st.calendar.count > 0 ? st.calendar.count : 'No holiday data'); }");
 
   add("  updateLiveHeader();");
 
-  add("  if (d.temp !== undefined && d.temp !== 'nan') {");
-  add("    if (!set('value-temp', d.temp + ' °' + d.temp_unit)) { location.reload(); return; }");
+  add("  const weatherFieldMap = { feels: 'apparent_temperature', humidity: 'humidity', wind: 'wind_speed', precipitation: 'precipitation_probability', pressure: 'pressure', visibility: 'visibility' };");
+  add("  if (st.weather && st.weather.temp !== undefined && st.weather.temp !== 'nan') {");
+  add("    const tempUnit = d.config ? d.config.weather.temp_unit : 'C';");
+  add("    if (!set('value-temp', st.weather.temp + ' °' + tempUnit)) { location.reload(); return; }");
   add("    hide('weather-no-data', true); hide('weather-grid', false);");
-  add("    set('value-feels', d.apparent_temperature + ' °' + d.temp_unit);");
-  add("    set('value-hum', d.humidity + '%');");
-  add("    set('value-wind', d.wind_speed + ' km/h');");
-  add("    set('weather-upd', 'Last Update: ' + d.update_time);");
+  add("    const weatherUnitMap = { feels: ' °'+tempUnit, humidity: '%', wind: ' km/h', precipitation: '%', pressure: ' hPa', visibility: ' km' };");
+  add("    Object.keys(weatherFieldMap).forEach(k => { const raw = st.weather[weatherFieldMap[k]]; if (raw !== undefined && raw !== 'nan') set('value-'+k, raw + weatherUnitMap[k]); });");
+  add("    set('weather-upd', 'Last Update: ' + st.weather.update_time);");
   add("  } else { hide('weather-no-data', false); hide('weather-grid', true); }");
 
-  add("  if (d.aqi !== undefined && d.aqi !== 'nan') {");
-  add("    if (!set('value-aqi', d.aqi)) { location.reload(); return; }");
+  add("  const aqiUnitMap = { pm25: ' <small>µg</small>', pm10: ' <small>µg</small>', no2: ' <small>µg</small>', co: ' <small>µg</small>', co2: ' <small>ppm</small>', so2: ' <small>µg</small>', o3: ' <small>µg</small>', dust: ' <small>µg</small>', uv: '', ch4: ' <small>ppb</small>' };");
+  add("  if (st.aqi && st.aqi.index !== undefined && st.aqi.index !== 'nan') {");
+  add("    if (!set('value-aqi', st.aqi.index)) { location.reload(); return; }");
   add("    hide('aqi-no-data', true); hide('aqi-grid', false);");
-  add("    const aqiLabel = document.querySelector('#value-aqi + .tile-label'); if(aqiLabel) aqiLabel.innerText = d.aqi_status + ' Index';"); 
-  add("    set('value-pm25', d.pm25 + ' <small>µg</small>', true);");
-  add("    set('value-pm10', d.pm10 + ' <small>µg</small>', true);");
-  add("    set('value-no2', d.no2 + ' <small>µg</small>', true);");
-  add("    set('aqi-upd', 'Last Update: ' + d.update_time);");
+  add("    const aqiLabel = document.querySelector('#value-aqi + .tile-label'); if(aqiLabel) aqiLabel.innerText = st.aqi.status + ' Index';");
+  add("    Object.keys(aqiUnitMap).forEach(k => { const raw = st.aqi[k]; if (raw !== undefined && raw !== 'nan') set('value-'+k, raw + aqiUnitMap[k], true); });");
+  add("    set('aqi-upd', 'Last Update: ' + st.weather.update_time);");
   add("  } else { hide('aqi-no-data', false); hide('aqi-grid', true); }");
 
-  add("  if (d.sunrise !== undefined) {");
+  add("  if (st.daylight && st.daylight.sunrise !== undefined) {");
   add("    hide('daylight-no-data', true); hide('daylight-grid', false);");
-  add("    set('val-sunrise', d.sunrise);");
-  add("    set('val-sunset', d.sunset);");
-  add("    set('val-noon', d.solar_noon);");
-  add("    set('val-length', d.day_length);");
+  add("    set('val-sunrise', st.daylight.sunrise);");
+  add("    set('val-sunset', st.daylight.sunset);");
+  add("    set('val-noon', st.daylight.solar_noon);");
+  add("    set('val-length', st.daylight.day_length);");
   add("  } else { hide('daylight-no-data', false); hide('daylight-grid', true); }");
 
-  add("  if (d.moon_phase !== undefined) {");
+  add("  if (st.moon && st.moon.phase !== undefined) {");
   add("    hide('moon-no-data', true); hide('moon-grid', false);");
-  add("    set('val-moon-phase', d.moon_phase);");
-  add("    set('val-moon-illum', d.moon_illum + '%');");
-  add("    set('val-moon-rise', d.moon_rise);");
-  add("    set('val-moon-set', d.moon_set);");
+  add("    set('val-moon-phase', st.moon.phase);");
+  add("    set('val-moon-illum', st.moon.illum + '%');");
+  add("    set('val-moon-rise', st.moon.rise);");
+  add("    set('val-moon-set', st.moon.set);");
   add("  } else { hide('moon-no-data', false); hide('moon-grid', true); }");
 
-  add("  if (d.pop_wld_live !== undefined || d.pop_ctr_live !== undefined) {");
+  add("  if (st.population && (st.population.world_live !== undefined || st.population.country_live !== undefined)) {");
   add("    hide('pop-no-data', true); hide('pop-grid', false);");
   add("    const formatNum = (str) => { return str.replace(/\\B(?=(\\d{3})+(?!\\d))/g, ','); };");
-  add("    if (d.pop_wld_live !== undefined) {");
-  add("      set('val-pop-wld', formatNum(d.pop_wld_live));");
-  add("      set('val-pop-wld-gr', (parseFloat(d.pop_wld_gr) > 0 ? '+' : '') + d.pop_wld_gr + '%');");
+  add("    if (st.population.world_live !== undefined) {");
+  add("      set('val-pop-wld', formatNum(st.population.world_live));");
+  add("      set('val-pop-wld-gr', (parseFloat(st.population.world_growth) > 0 ? '+' : '') + st.population.world_growth + '%');");
   add("      set('lbl-pop-wld', 'World Population');");
   add("    }");
-  add("    if (d.pop_ctr_live !== undefined) {");
-  add("      set('val-pop-ctr', formatNum(d.pop_ctr_live));");
-  add("      set('val-pop-ctr-gr', (parseFloat(d.pop_ctr_gr) > 0 ? '+' : '') + d.pop_ctr_gr + '%');");
-  add("      const cCode = d.country_code ? d.country_code.toUpperCase() : 'CTR';");
+  add("    if (st.population.country_live !== undefined) {");
+  add("      set('val-pop-ctr', formatNum(st.population.country_live));");
+  add("      set('val-pop-ctr-gr', (parseFloat(st.population.country_growth) > 0 ? '+' : '') + st.population.country_growth + '%');");
+  add("      const cCode = (d.config && d.config.general.country_code) ? d.config.general.country_code.toUpperCase() : 'CTR';");
   add("      set('lbl-pop-ctr', cCode + ' Population');");
   add("      set('lbl-pop-ctr-gr', cCode + ' Growth');");
   add("    }");
   add("  } else { hide('pop-no-data', false); hide('pop-grid', true); }");
 
-  add("  if (d.stock_data && d.stock_data.length > 0) {");
+  add("  if (st.stocks && st.stocks.data && st.stocks.data.length > 0) {");
   add("    hide('stock-no-data', true); hide('stock-grid', false); let p='', c='';");
-  add("    d.stock_data.forEach(s => { p += s.symbol + ': $' + s.price + '<br>'; c += (parseFloat(s.change) >= 0 ? '+' : '') + s.change + '%<br>'; });");
-  add("    set('stock-price', p, true); set('stock-change', c, true); set('stock-upd', 'Last Update: ' + d.update_time);");
+  add("    st.stocks.data.forEach(s => { p += s.symbol + ': $' + s.price + '<br>'; c += (parseFloat(s.change) >= 0 ? '+' : '') + s.change + '%<br>'; });");
+  add("    set('stock-price', p, true); set('stock-change', c, true); set('stock-upd', 'Last Update: ' + st.weather.update_time);");
   add("  } else { hide('stock-no-data', false); hide('stock-grid', true); }");
 
-  add("  if (d.crypto_data && d.crypto_data.length > 0) {");
+  add("  if (st.crypto && st.crypto.data && st.crypto.data.length > 0) {");
   add("    hide('crypto-no-data', true); hide('crypto-grid', false); let p='', c='';");
-  add("    d.crypto_data.forEach(s => { p += s.symbol + ': $' + s.price + '<br>'; c += (parseFloat(s.change) >= 0 ? '+' : '') + s.change + '%<br>'; });");
-  add("    set('crypto-price', p, true); set('crypto-change', c, true); set('crypto-upd', 'Last Update: ' + d.update_time);");
+  add("    st.crypto.data.forEach(s => { p += s.symbol + ': $' + s.price + '<br>'; c += (parseFloat(s.change) >= 0 ? '+' : '') + s.change + '%<br>'; });");
+  add("    set('crypto-price', p, true); set('crypto-change', c, true); set('crypto-upd', 'Last Update: ' + st.weather.update_time);");
   add("  } else { hide('crypto-no-data', false); hide('crypto-grid', true); }");
 
-  add("  if (d.currency_data && d.currency_data.length > 0) {");
+  add("  if (st.currency && st.currency.data && st.currency.data.length > 0) {");
   add("    hide('currency-no-data', true); hide('currency-grid', false); let b='', t='';");
-  add("    d.currency_data.forEach(s => { b += s.base_text + '<br>'; t += s.target_text + '<br>'; });");
-  add("    set('currency-base-val', b, true); set('currency-target-val', t, true); set('currency-upd', 'Last Update: ' + d.update_time);");
+  add("    st.currency.data.forEach(s => { b += s.base_text + '<br>'; t += s.target_text + '<br>'; });");
+  add("    set('currency-base-val', b, true); set('currency-target-val', t, true); set('currency-upd', 'Last Update: ' + st.weather.update_time);");
   add("  } else { hide('currency-no-data', false); hide('currency-grid', true); }");
 
-  add("  if (d.pc_cpu !== undefined && d.pc_cpu !== '0.00' && d.pc_cpu !== '0') {");
-  add("    if (!set('pc-cpu', Math.round(parseFloat(d.pc_cpu)) + '%')) { location.reload(); return; }");
+  add("  if (st.pc && st.pc.cpu !== undefined && st.pc.cpu !== '0.00' && st.pc.cpu !== '0') {");
+  add("    if (!set('pc-cpu', Math.round(parseFloat(st.pc.cpu)) + '%')) { location.reload(); return; }");
   add("    hide('pc-no-data', true); hide('pc-grid', false);");
-  add("    set('pc-net', Math.round(parseFloat(d.pc_net)) + ' KB/s');");
-  add("    set('pc-ram', Math.round(parseFloat(d.pc_ram)) + '%');");
-  add("    set('pc-disk', Math.round(parseFloat(d.pc_disk)) + '%');");
+  add("    set('pc-net', Math.round(parseFloat(st.pc.net)) + ' KB/s');");
+  add("    set('pc-ram', Math.round(parseFloat(st.pc.ram)) + '%');");
+  add("    set('pc-disk', Math.round(parseFloat(st.pc.disk)) + '%');");
   add("  } else { hide('pc-no-data', false); hide('pc-grid', true); }");
 
-  add("  if (d.media_name && d.media_name !== '' && d.media_author && d.media_author !== '') {");
+  add("  if (st.media && st.media.name && st.media.name !== '' && st.media.author && st.media.author !== '') {");
   add("    hide('media-no-data', true); hide('media-grid', false);");
-  add("    let s = d.media_status || 'stopped';");
+  add("    let s = st.media.status || 'stopped';");
   add("    set('web-media-status', s.charAt(0).toUpperCase() + s.slice(1));");
-  add("    set('web-media-name', d.media_name);");
-  add("    set('web-media-author', d.media_author);");
-  add("    set('web-media-album', d.media_album || 'Unknown');");
+  add("    set('web-media-name', st.media.name);");
+  add("    set('web-media-author', st.media.author);");
+  add("    set('web-media-album', st.media.album || 'Unknown');");
   add("  } else { hide('media-no-data', false); hide('media-grid', true); }");
 
-  add("  if (d.bambu_status !== undefined) {");
+  add("  if (st.printer !== undefined) {");
   add("    hide('bambu-no-data', true); hide('bambu-grid', false);");
-  add("    set('bambu-status', d.bambu_status);");
-  add("    set('bambu-prog', d.bambu_progress + '% | ' + d.bambu_time + 'm<br><span style=\"font-size:0.9rem\">Layer: ' + d.bambu_layer + '/' + d.bambu_total_layers + '</span>', true);");
-  add("    set('bambu-temps', 'Nozzle: ' + parseFloat(d.bambu_nozzle).toFixed(1) + '/' + parseFloat(d.bambu_nozzle_target).toFixed(1) + '<br>Bed: ' + parseFloat(d.bambu_bed).toFixed(1) + '/' + parseFloat(d.bambu_bed_target).toFixed(1), true);");
-  add("    set('bambu-fans', 'Part: ' + d.bambu_fan_part + ' | Aux: ' + d.bambu_fan_aux);");
+  add("    set('bambu-status', st.printer.status);");
+  add("    set('bambu-prog', st.printer.progress + '% | ' + st.printer.time + 'm<br><span style=\"font-size:0.9rem\">Layer: ' + st.printer.layer + '/' + st.printer.total_layers + '</span>', true);");
+  add("    set('bambu-temps', 'Nozzle: ' + parseFloat(st.printer.nozzle).toFixed(1) + '/' + parseFloat(st.printer.nozzle_target).toFixed(1) + '<br>Bed: ' + parseFloat(st.printer.bed).toFixed(1) + '/' + parseFloat(st.printer.bed_target).toFixed(1), true);");
+  add("    set('bambu-fans', 'Part: ' + st.printer.fan_part + ' | Aux: ' + st.printer.fan_aux);");
   add("  } else { hide('bambu-no-data', false); hide('bambu-grid', true); }");
-  
-  add("  if (d.pc_status !== undefined) set('pc-link-status', d.pc_status);");
+
+  add("  if (st.flight !== undefined) {");
+  add("    hide('flight-no-data', true); hide('flight-grid', false);");
+  add("    set('flight-count', st.flight.count);");
+  add("    var flClosest = st.flight.callsign ? st.flight.callsign : '--';");
+  add("    if (st.flight.route !== undefined) { flClosest += \"<br><span style='font-size:0.8rem'>\" + st.flight.route + '</span>'; }");
+  add("    set('flight-closest', flClosest, true);");
+  add("  } else { hide('flight-no-data', false); hide('flight-grid', true); }");
+
+  add("  if (st.pc && st.pc.status !== undefined) set('pc-link-status', st.pc.status);");
   add("}).catch(e => console.log('Sync error:', e)); } setInterval(updateData, 15000); updateData();");
   add("</script></div></body></html>");
 

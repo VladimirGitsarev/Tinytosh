@@ -27,6 +27,7 @@ public:
     void drawPcScreen(const PcStats& pcStats);
     void drawMediaScreen(const PcMedia& media);
     void drawBambuScreen(const BambuData& bambu);
+    void drawFlightScreen(const Config& config, const FlightData& data);
     void drawInfoScreen(const unsigned char* image = nullptr, String text = "No Data");
 
     void drawScreen(int screenIndex, const AppState& state, int subIndex = 0);

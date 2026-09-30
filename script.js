@@ -212,3 +212,39 @@ async function fetchLatestRelease() {
 }
 
 fetchLatestRelease();
+
+const lightbox = document.createElement('div');
+lightbox.className = 'lightbox';
+lightbox.innerHTML = '<span class="lightbox-close">&times;</span><img src="" alt="">';
+document.body.appendChild(lightbox);
+
+const lightboxImg = lightbox.querySelector('img');
+const lightboxClose = lightbox.querySelector('.lightbox-close');
+
+function openLightbox(img) {
+    lightboxImg.src = img.currentSrc || img.src;
+    lightboxImg.alt = img.alt;
+    lightbox.classList.add('active');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeLightbox() {
+    lightbox.classList.remove('active');
+    document.body.style.overflow = '';
+}
+
+document.querySelectorAll('img').forEach(img => {
+    if (lightbox.contains(img)) return;
+    img.classList.add('lightbox-zoomable');
+    img.addEventListener('click', () => openLightbox(img));
+});
+
+lightboxClose.addEventListener('click', closeLightbox);
+
+lightbox.addEventListener('click', (e) => {
+    if (e.target === lightbox) closeLightbox();
+});
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && lightbox.classList.contains('active')) closeLightbox();
+});

@@ -18,7 +18,7 @@ private:
     static const int MAX_GPIO_PIN = 21;
     static const int DEFAULT_SDA_PIN = 8;
     static const int DEFAULT_SCL_PIN = 9;
-    static const int DEFAULT_TOUCH_PIN = 10;
+    static const int DEFAULT_BUTTON_PIN = 10;
 
     OneButton button;
     ButtonCallback onClickCb;

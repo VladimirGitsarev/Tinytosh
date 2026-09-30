@@ -10,6 +10,7 @@
 #include "DataSyncService.h"
 #include "DaylightService.h"
 #include "DisplayService.h"
+#include "FlightService.h"
 #include "HardwareService.h"
 #include "images.h"
 #include "MoonService.h"
@@ -21,6 +22,8 @@
 #include "TimeService.h"
 #include "WeatherService.h"
 #include "WebServerService.h"
+
+SET_LOOP_TASK_STACK_SIZE(16 * 1024);
 
 // Global Constants
 const char* AP_SSID = "Tinytosh";
@@ -51,6 +54,7 @@ PopulationService populationService;
 CryptoService cryptoService;
 CurrencyService currencyService;
 StockService stockService;
+FlightService flightService;
 PcMonitorService pcMonitorService;
 BambuService bambuService;
 DataSyncService dataSyncService;

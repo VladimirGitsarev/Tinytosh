@@ -1,40 +1,121 @@
-#include "DisplayService.h"
 
-#include <Arduino.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
 #include <Fonts/Picopixel.h>
+#include <OneButton.h>
+#include <Wire.h>
 #include <time.h>
 
 #include "images.h"
-#include "PopulationService.h"
-#include "TimeService.h"
-#include "WeatherService.h"
+#include "structs.h"
 
-const unsigned char* DisplayService::getWeatherBitmap(int wmo_code, bool is_day) {
+Adafruit_SSD1306 display(128, 64, &Wire, -1);
+OneButton button;
+
+AppState appState;
+
+int currentScreen = 0;
+int currentSubScreen = 0;
+unsigned long lastScreenSwitch = 0;
+
+uint8_t screenBufferOld[1024];
+uint8_t screenBufferNew[1024];
+
+const int CONTRAST_DIM = 1;
+const int CONTRAST_MAX = 255;
+
+String getCurrentTimeShort(String format) {
+    time_t now = time(nullptr);
+    struct tm timeinfo;
+    localtime_r(&now, &timeinfo);
+    char time_str[12];
+    if (format == "12") strftime(time_str, sizeof(time_str), "%I:%M", &timeinfo);
+    else strftime(time_str, sizeof(time_str), "%H:%M", &timeinfo);
+    return String(time_str);
+}
+
+String getFullDate() {
+    struct tm timeinfo;
+    if (!getLocalTime(&timeinfo)) return "No Date";
+    char buffer[32];
+    strftime(buffer, sizeof(buffer), "%A, %b %d", &timeinfo);
+    return String(buffer);
+}
+
+String formatMinsFromMidnight(int mins, String format, bool show_ampm = true) {
+    if (mins == -1) return "--:--";
+    int h = mins / 60;
+    int m = mins % 60;
+    char buf[12];
+    if (format == "24") {
+        snprintf(buf, sizeof(buf), "%02d:%02d", h, m);
+    } else {
+        int displayH = h % 12;
+        if (displayH == 0) displayH = 12;
+        if (show_ampm) {
+            const char* ampm = (h >= 12) ? "PM" : "AM";
+            snprintf(buf, sizeof(buf), "%02d:%02d %s", displayH, m, ampm);
+        } else {
+            snprintf(buf, sizeof(buf), "%02d:%02d", displayH, m);
+        }
+    }
+    return String(buf);
+}
+
+String formatDurationMins(int mins) {
+    if (mins == -1) return "--";
+    char buf[12];
+    snprintf(buf, sizeof(buf), "%dh %dm", mins / 60, mins % 60);
+    return String(buf);
+}
+
+String getWeatherDescription(int wmo_code) {
+    if (wmo_code == 0) return "Clear Sky";
+    if (wmo_code >= 1 && wmo_code <= 3) return "Cloudy";
+    if (wmo_code >= 45 && wmo_code <= 48) return "Fog";
+    if (wmo_code >= 51 && wmo_code <= 67) return "Rain";
+    if (wmo_code >= 71 && wmo_code <= 77) return "Snow";
+    if (wmo_code >= 95) return "Thunder";
+    return "Unknown";
+}
+
+long long getLivePopulation(long long basePop, double growth, int year) {
+    if (basePop <= 0 || year <= 0) return basePop;
+
+    struct tm timeinfo = {0};
+    timeinfo.tm_year = year - 1900;
+    timeinfo.tm_mon = 0;
+    timeinfo.tm_mday = 1;
+
+    time_t baseline = mktime(&timeinfo);
+    time_t now = time(nullptr);
+
+    if (now < baseline) return basePop;
+
+    double growth_per_sec = (basePop * (growth / 100.0)) / 31557600.0;
+    double diff_sec = difftime(now, baseline);
+
+    return basePop + (long long)(diff_sec * growth_per_sec);
+}
+
+const unsigned char* getWeatherBitmap(int wmo_code, bool is_day) {
     if (wmo_code == 0) {
-        if (is_day) {
-            return icon_sun;
-        }
-        return icon_moon;
-    }
-    else if (wmo_code >= 1 && wmo_code <= 3) {
-        if (is_day) {
-            return icon_cloud;
-        }
-        return icon_cloud_moon; 
-    }
-    else if (wmo_code >= 45 && wmo_code <= 48) return icon_fog;
+        return is_day ? icon_sun : icon_moon;
+    } else if (wmo_code >= 1 && wmo_code <= 3) {
+        return is_day ? icon_cloud : icon_cloud_moon;
+    } else if (wmo_code >= 45 && wmo_code <= 48) return icon_fog;
     else if (wmo_code >= 51 && wmo_code <= 67) return icon_rain;
     else if (wmo_code >= 71 && wmo_code <= 77) return icon_snow;
     else if (wmo_code >= 95) return icon_thunder;
     return icon_cloud;
 }
 
-const unsigned char* DisplayService::getAQIBitmap(int val, bool is_eu) {
+const unsigned char* getAQIBitmap(int val, bool is_eu) {
     if (is_eu) {
-        if (val <= 20) return icon_smile;    
+        if (val <= 20) return icon_smile;
         if (val <= 60) return icon_neutral;
         if (val <= 80) return icon_bad;
-        return icon_dead;                   
+        return icon_dead;
     } else {
         if (val <= 50)  return icon_smile;
         if (val <= 100) return icon_neutral;
@@ -43,61 +124,48 @@ const unsigned char* DisplayService::getAQIBitmap(int val, bool is_eu) {
     }
 }
 
-DisplayService::DisplayService(int width, int height, int reset_pin) : 
-    display(width, height, &Wire, reset_pin) {}
-
-void DisplayService::begin(int sda, int scl) {
-    Wire.begin(sda, scl);
-    if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) { 
-        Serial.println(F("DisplayService: SSD1306 allocation failed."));
-    } else {
-        Serial.println("DisplayService: Display initialized.");
-        display.clearDisplay();
-        display.drawBitmap(0, 0, icon_hello, 128, 64, SSD1306_WHITE);
-        display.display();
-    }
-}
-
-void DisplayService::showOLEDStatus(std::initializer_list<String> lines, bool clear) {
-    if (clear) display.clearDisplay();
-
-    display.setTextColor(SSD1306_WHITE);
-    display.setTextWrap(false);
-    display.setTextSize(1);
-    display.setFont(); 
-    
-    int lineHeight = 10;
-    int cursorY = 0;
-    int16_t x1, y1;
-    uint16_t w, h;
-    
-    for (const String& line : lines) {
-        if (line == "\n") { 
-            cursorY += lineHeight / 2;
-            continue;
-        }
-
-        display.getTextBounds(line.c_str(), 0, 0, &x1, &y1, &w, &h);
-        int xStart = (display.width() - w) / 2;
-        
-        display.setCursor(xStart, cursorY);
-        display.print(line);
-        
-        cursorY += lineHeight;
-        
-        if (cursorY >= display.height()) break;
-    }
-    
-    display.display();
-}
-
-void DisplayService::drawTimeScreen(const Config& config, String timeStr, String dateStr) {
+void drawInfoScreen(const unsigned char* image = nullptr, String text = "No Data") {
     display.clearDisplay();
 
     display.setTextColor(SSD1306_WHITE);
     display.setTextWrap(false);
     display.setTextSize(1);
-    display.setFont(); 
+    display.setFont();
+
+    display.drawRect(1, 1, 126, 62, 1);
+    display.drawRect(3, 3, 122, 58, 1);
+
+    int16_t x1, y1;
+    uint16_t w, h;
+
+    if (image != nullptr) {
+        display.setTextSize(1);
+
+        display.getTextBounds(text.c_str(), 0, 0, &x1, &y1, &w, &h);
+        int textX = (128 - w) / 2;
+
+        display.drawBitmap(48, 10, image, 32, 32, 1);
+        display.setCursor(textX, 46);
+        display.print(text);
+    } else {
+        display.setTextSize(2);
+
+        display.getTextBounds(text.c_str(), 0, 0, &x1, &y1, &w, &h);
+        int textX = (128 - w) / 2;
+        int textY = (64 - h) / 2;
+
+        display.setCursor(textX, textY);
+        display.print(text);
+    }
+}
+
+void drawTimeScreen(const Config& config, String timeStr, String dateStr) {
+    display.clearDisplay();
+
+    display.setTextColor(SSD1306_WHITE);
+    display.setTextWrap(false);
+    display.setTextSize(1);
+    display.setFont();
 
     int16_t x1, y1;
     uint16_t w, h;
@@ -124,7 +192,7 @@ void DisplayService::drawTimeScreen(const Config& config, String timeStr, String
     }
 }
 
-void DisplayService::drawCalendarScreen(const Config& config, const CalendarData& calendar) {
+void drawCalendarScreen(const Config& config, const CalendarData& calendar) {
     display.clearDisplay();
 
     time_t now = time(nullptr);
@@ -132,14 +200,13 @@ void DisplayService::drawCalendarScreen(const Config& config, const CalendarData
     localtime_r(&now, &timeinfo);
 
     int day = timeinfo.tm_mday;
-    int mon = timeinfo.tm_mon; 
+    int mon = timeinfo.tm_mon;
     int year = timeinfo.tm_year + 1900;
-    int wday = timeinfo.tm_wday; 
+    int wday = timeinfo.tm_wday;
 
     const char* months[] = {"JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE", "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER"};
     const char* weekdays[] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
 
-    // 1. Check if Today is a Holiday
     String todayHolidayName = "";
     if (config.calendar_show_holidays) {
         char todayBuf[16];
@@ -153,12 +220,11 @@ void DisplayService::drawCalendarScreen(const Config& config, const CalendarData
         }
     }
 
-    // 2. Draw Main Text
     int colWidth = config.calendar_minimal ? 128 : 57;
 
     display.setTextColor(SSD1306_WHITE);
     display.setTextWrap(false);
-    display.setFont(); 
+    display.setFont();
 
     int16_t x1, y1; uint16_t w, h;
 
@@ -178,19 +244,19 @@ void DisplayService::drawCalendarScreen(const Config& config, const CalendarData
 
     if (todayHolidayName != "") {
         display.setFont(&Picopixel);
-        
+
         String lines[2] = {"", ""};
         int l = 0, start = 0;
         todayHolidayName.toUpperCase();
-        
+
         while (start < todayHolidayName.length() && l < 2) {
             int spaceIdx = todayHolidayName.indexOf(' ', start);
             if (spaceIdx == -1) spaceIdx = todayHolidayName.length();
             String word = todayHolidayName.substring(start, spaceIdx);
-            
+
             String testLine = lines[l].length() == 0 ? word : lines[l] + " " + word;
             display.getTextBounds(testLine.c_str(), 0, 0, &x1, &y1, &w, &h);
-            
+
             if (w > colWidth) {
                 if (lines[l].length() == 0) { lines[l] = word; l++; }
                 else { l++; if (l < 2) lines[l] = word; }
@@ -201,7 +267,7 @@ void DisplayService::drawCalendarScreen(const Config& config, const CalendarData
         }
 
         int numLines = (lines[1].length() > 0) ? 2 : 1;
-        int cursorY = (numLines == 1) ? 47 : 44; 
+        int cursorY = (numLines == 1) ? 47 : 44;
 
         for (int i = 0; i < numLines; i++) {
             if (lines[i].length() > 0) {
@@ -216,26 +282,24 @@ void DisplayService::drawCalendarScreen(const Config& config, const CalendarData
 
                 display.setCursor((colWidth - w) / 2, cursorY);
                 display.print(lines[i]);
-                cursorY += 6; 
+                cursorY += 6;
             }
         }
-        display.setFont(); 
+        display.setFont();
     } else {
         display.getTextBounds(weekdays[wday], 0, 0, &x1, &y1, &w, &h);
         display.setCursor((colWidth - w) / 2, 41);
         display.print(weekdays[wday]);
     }
 
-    // 3. Stop if in Minimalistic Mode
     if (config.calendar_minimal) return;
 
-    // 4. Right Column Grid Setup
     int daysInMonth[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
-    if (year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)) daysInMonth[1] = 29; 
+    if (year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)) daysInMonth[1] = 29;
     int numDays = daysInMonth[mon];
 
-    int firstWday = (wday - ((day - 1) % 7) + 7) % 7; 
-    
+    int firstWday = (wday - ((day - 1) % 7) + 7) % 7;
+
     bool isMondayFirst = (config.calendar_start_day == "mon");
     int startCol = isMondayFirst ? ((firstWday + 6) % 7) : firstWday;
 
@@ -243,23 +307,23 @@ void DisplayService::drawCalendarScreen(const Config& config, const CalendarData
     int numLines = (totalCells + 6) / 7;
 
     display.setFont(&Picopixel);
-    
+
     const char* headersMon[] = {"M", "T", "W", "T", "F", "S", "S"};
     const char* headersSun[] = {"S", "M", "T", "W", "T", "F", "S"};
     const char** headers = isMondayFirst ? headersMon : headersSun;
-    
-    int colCenters[] = {62, 72, 82, 92, 102, 112, 122}; 
-    
+
+    int colCenters[] = {62, 72, 82, 92, 102, 112, 122};
+
     for (int i = 0; i < 7; i++) {
         display.getTextBounds(headers[i], 0, 0, &x1, &y1, &w, &h);
         display.setCursor(colCenters[i] - (w / 2), 6);
         display.print(headers[i]);
     }
-    
-    int lineY = (numLines == 6) ? 8 : 9; 
-    display.drawLine(59, lineY, 126, lineY, SSD1306_WHITE); 
 
-    int rowY = (numLines == 6) ? 16 : 18; 
+    int lineY = (numLines == 6) ? 8 : 9;
+    display.drawLine(59, lineY, 126, lineY, SSD1306_WHITE);
+
+    int rowY = (numLines == 6) ? 16 : 18;
     int rowSpacing = (numLines == 6) ? 9 : 10;
 
     int currCol = startCol;
@@ -268,7 +332,7 @@ void DisplayService::drawCalendarScreen(const Config& config, const CalendarData
         char dateBuf[16];
         snprintf(dateBuf, sizeof(dateBuf), "%04d-%02d-%02d", year, mon + 1, d);
         String dateStr = String(dateBuf);
-        
+
         bool isHoliday = false;
         if (config.calendar_show_holidays) {
             for (int i = 0; i < calendar.count; i++) {
@@ -283,7 +347,7 @@ void DisplayService::drawCalendarScreen(const Config& config, const CalendarData
 
         if (isHoliday) {
             display.fillRect(xCenter - 4, rowY - 5, 9, 7, SSD1306_WHITE);
-            display.setTextColor(SSD1306_BLACK); 
+            display.setTextColor(SSD1306_BLACK);
         } else {
             display.setTextColor(SSD1306_WHITE);
         }
@@ -293,7 +357,7 @@ void DisplayService::drawCalendarScreen(const Config& config, const CalendarData
         display.setCursor(xCenter - (w / 2), rowY);
         display.print(dStr);
 
-        display.setTextColor(SSD1306_WHITE); 
+        display.setTextColor(SSD1306_WHITE);
 
         if (d == day) {
             display.drawRect(xCenter - 5, rowY - 6, 11, 9, SSD1306_WHITE);
@@ -307,7 +371,7 @@ void DisplayService::drawCalendarScreen(const Config& config, const CalendarData
     }
 }
 
-void DisplayService::drawWeatherScreen(const Config& config, const WeatherData& data, const String& currentTime) {
+void drawWeatherScreen(const Config& config, const WeatherData& data, const String& currentTime) {
     display.clearDisplay();
 
     display.setTextColor(SSD1306_WHITE);
@@ -321,6 +385,9 @@ void DisplayService::drawWeatherScreen(const Config& config, const WeatherData& 
     bool valid = !isnan(data.temp) && data.weather_code != -1;
 
     bool showHeader = config.weather_show_header;
+
+    float displayTemp = data.temp;
+    if (config.temp_unit == "F") displayTemp = displayTemp * 1.8 + 32;
 
     String weatherKeys[6];
     int weatherKeyCount = 0;
@@ -340,7 +407,11 @@ void DisplayService::drawWeatherScreen(const Config& config, const WeatherData& 
 
     auto weatherTextFor = [&](const String& key) -> String {
         if (!valid) return "--";
-        if (key == "feels") return config.round_temps ? String((int)round(data.apparent_temperature)) : String(data.apparent_temperature, 1);
+        if (key == "feels") {
+            float displayApparent = data.apparent_temperature;
+            if (config.temp_unit == "F") displayApparent = displayApparent * 1.8 + 32;
+            return config.round_temps ? String((int)round(displayApparent)) : String(displayApparent, 1);
+        }
         if (key == "humidity") return String(data.humidity) + "%";
         if (key == "wind") return String((int)round(data.wind_speed)) + "km";
         if (key == "precipitation") return isnan(data.precipitation_probability) ? "--" : String((int)round(data.precipitation_probability)) + "%";
@@ -388,7 +459,7 @@ void DisplayService::drawWeatherScreen(const Config& config, const WeatherData& 
     };
 
     if (showHeader) {
-        // 1. Header (City and Time)
+
         display.setTextSize(1);
         String cityStr = valid ? config.city : "No Location";
 
@@ -423,13 +494,12 @@ void DisplayService::drawWeatherScreen(const Config& config, const WeatherData& 
         int ySeparator = 14;
         display.drawFastHLine(0, ySeparator, display.width(), SSD1306_WHITE);
 
-        // 2. Main Temperature and Icon
         int yMiddleStart = 18;
         int middleHeight = 35;
 
         display.setTextSize(3);
 
-        String tempValueStr = valid ? (config.round_temps ? String((int)round(data.temp)) : String(data.temp, 1)) : "--";
+        String tempValueStr = valid ? (config.round_temps ? String((int)round(displayTemp)) : String(displayTemp, 1)) : "--";
 
         display.getTextBounds(tempValueStr.c_str(), 0, 0, &x1, &y1, &w, &h);
         int yTemp = yMiddleStart + ((middleHeight - h) / 2);
@@ -451,9 +521,8 @@ void DisplayService::drawWeatherScreen(const Config& config, const WeatherData& 
         const unsigned char* iconBitmap = valid ? getWeatherBitmap(data.weather_code, data.is_day) : icon_cloud;
         display.drawBitmap(xIcon, yIcon, iconBitmap, iconSize, iconSize, SSD1306_WHITE);
 
-        // 3. Weather Description
         display.setTextSize(1);
-        String desc = valid ? WeatherService::getWeatherDescription(data.weather_code) : "No Data";
+        String desc = valid ? getWeatherDescription(data.weather_code) : "No Data";
         display.getTextBounds(desc.c_str(), 0, 0, &x1, &y1, &w, &h);
 
         int xDesc = xRightEdge - w;
@@ -461,17 +530,16 @@ void DisplayService::drawWeatherScreen(const Config& config, const WeatherData& 
         display.setCursor(xDesc, yDesc);
         display.print(desc);
 
-        // 4. Footer Stats
         int yFooter = 56;
         int count = weatherKeyCount > 3 ? 3 : weatherKeyCount;
         drawWeatherRow(count, yFooter);
     } else {
-        // 1. Main Temperature and Icon
+
         int numberX = 3;
         int topY = 3;
 
         display.setTextSize(3);
-        String tempValueStr = valid ? (config.round_temps ? String((int)round(data.temp)) : String(data.temp, 1)) : "--";
+        String tempValueStr = valid ? (config.round_temps ? String((int)round(displayTemp)) : String(displayTemp, 1)) : "--";
         display.getTextBounds(tempValueStr.c_str(), 0, 0, &x1, &y1, &w, &h);
         display.setCursor(numberX, topY);
         display.print(tempValueStr);
@@ -486,32 +554,30 @@ void DisplayService::drawWeatherScreen(const Config& config, const WeatherData& 
         const unsigned char* iconBitmap = valid ? getWeatherBitmap(data.weather_code, data.is_day) : icon_cloud;
         display.drawBitmap(iconX, iconY, iconBitmap, iconSize, iconSize, SSD1306_WHITE);
 
-        // 2. Weather Description
         display.setTextSize(1);
         display.setFont(&Picopixel);
-        String desc = valid ? WeatherService::getWeatherDescription(data.weather_code) : "No Data";
+        String desc = valid ? getWeatherDescription(data.weather_code) : "No Data";
         desc.toUpperCase();
         display.getTextBounds(desc.c_str(), 0, 0, &x1, &y1, &w, &h);
         display.setCursor(numberX + (numberW - (int)w) / 2, iconY + iconSize + 2 - y1);
         display.print(desc);
         display.setFont();
 
-        // 3. Selected values
         drawWeatherList();
     }
 }
 
-void DisplayService::drawAQIScreen(const Config& config, const AirQualityData& data, const String& currentTime) {
+void drawAQIScreen(const Config& config, const AirQualityData& data, const String& currentTime) {
     display.clearDisplay();
 
     display.setTextColor(SSD1306_WHITE);
     display.setTextWrap(false);
     display.setTextSize(1);
-    display.setFont(); 
-    
+    display.setFont();
+
     int16_t x1, y1;
     uint16_t w, h;
-    
+
     bool valid = (data.aqi != -1);
 
     bool showHeader = config.aqi_show_header;
@@ -598,7 +664,7 @@ void DisplayService::drawAQIScreen(const Config& config, const AirQualityData& d
     };
 
     if (showHeader) {
-        // 1. Header
+
         display.setTextSize(1);
         String cityStr = valid ? config.city : "No Location";
 
@@ -633,7 +699,6 @@ void DisplayService::drawAQIScreen(const Config& config, const AirQualityData& d
         int ySeparator = 14;
         display.drawFastHLine(0, ySeparator, display.width(), SSD1306_WHITE);
 
-        // 2. Main AQI Value and Status Icon
         int yMiddleStart = 18;
         int middleHeight = 35;
 
@@ -665,7 +730,6 @@ void DisplayService::drawAQIScreen(const Config& config, const AirQualityData& d
         const unsigned char* aqiIcon = valid ? getAQIBitmap(data.aqi, config.aqi_type == "EU") : icon_neutral;
         display.drawBitmap(xIcon, yIcon, aqiIcon, iconSize, iconSize, SSD1306_WHITE);
 
-        // 3. Status Description
         display.setTextSize(1);
         String desc = valid ? data.status : "No Data";
         display.getTextBounds(desc.c_str(), 0, 0, &x1, &y1, &w, &h);
@@ -675,12 +739,11 @@ void DisplayService::drawAQIScreen(const Config& config, const AirQualityData& d
         display.setCursor(xDesc, yDesc);
         display.print(desc);
 
-        // 4. Footer Stats
         int yFooter = 56;
         int count = aqiKeyCount > 3 ? 3 : aqiKeyCount;
         for (int i = 0; i < count; i++) drawAqiHeaderRow(i, aqiKeys[i], yFooter);
     } else {
-        // 1. Main AQI Value and Type Label
+
         int numberX = 3;
         int topY = 3;
 
@@ -705,7 +768,6 @@ void DisplayService::drawAQIScreen(const Config& config, const AirQualityData& d
         const unsigned char* aqiIcon = valid ? getAQIBitmap(data.aqi, config.aqi_type == "EU") : icon_neutral;
         display.drawBitmap(iconX, iconY, aqiIcon, iconSize, iconSize, SSD1306_WHITE);
 
-        // 2. Status Description
         display.setTextSize(1);
         display.setFont(&Picopixel);
         String desc = valid ? data.status : "No Data";
@@ -715,15 +777,14 @@ void DisplayService::drawAQIScreen(const Config& config, const AirQualityData& d
         display.print(desc);
         display.setFont();
 
-        // 3. Selected values
         drawAqiList();
     }
 }
 
-void DisplayService::drawDaylightScreen(const Config& config, const DaylightData& data) {
+void drawDaylightScreen(const Config& config, const DaylightData& data) {
     if (data.sunrise_mins == -1) {
-        drawInfoScreen(icon_error, "No Daylight Data"); 
-        return; 
+        drawInfoScreen(icon_error, "No Daylight Data");
+        return;
     }
 
     display.clearDisplay();
@@ -735,7 +796,6 @@ void DisplayService::drawDaylightScreen(const Config& config, const DaylightData
     localtime_r(&now, &timeinfo);
     int currentMins = timeinfo.tm_hour * 60 + timeinfo.tm_min;
 
-    // 1. Calculate Day/Night state and progress
     bool isDay = (currentMins >= data.sunrise_mins && currentMins < data.sunset_mins);
     int progress = 0;
     int mins_left = 0;
@@ -747,50 +807,46 @@ void DisplayService::drawDaylightScreen(const Config& config, const DaylightData
         mins_left = data.sunset_mins - currentMins;
     } else {
         int total_night = (1440 - data.sunset_mins) + data.sunrise_mins;
-        int night_passed = (currentMins >= data.sunset_mins) ? 
-                           (currentMins - data.sunset_mins) : 
+        int night_passed = (currentMins >= data.sunset_mins) ?
+                           (currentMins - data.sunset_mins) :
                            ((1440 - data.sunset_mins) + currentMins);
 
         if (total_night > 0) progress = (night_passed * 100) / total_night;
         mins_left = total_night - night_passed;
     }
 
-    // 2. Assign Times and Icons
     int leftMins = isDay ? data.sunrise_mins : data.sunset_mins;
     int rightMins = isDay ? data.sunset_mins : data.sunrise_mins;
-    int centerMins = isDay ? data.noon_mins : (data.noon_mins + 720) % 1440; 
-    int displayLengthMins = isDay ? data.length_mins : (1440 - data.length_mins); 
-    
+    int centerMins = isDay ? data.noon_mins : (data.noon_mins + 720) % 1440;
+    int displayLengthMins = isDay ? data.length_mins : (1440 - data.length_mins);
+
     const unsigned char* leftIcon = isDay ? icon_sun_rise : icon_sun_set;
     const unsigned char* rightIcon = isDay ? icon_sun_set : icon_sun_rise;
     const unsigned char* centerIcon = isDay ? icon_sun : icon_moon;
 
-    // 3. Layout Positioning 
-    int iconY = config.daylight_minimal ? 14 : 2; 
+    int iconY = config.daylight_minimal ? 14 : 2;
     int textY = iconY + 24 + 4;
 
     int16_t x1, y1; uint16_t w, h;
 
-    // 4. Main Icons
     display.drawBitmap(19 - 12, iconY, leftIcon, 24, 24, 1);
     display.drawBitmap(64 - 12, iconY, centerIcon, 24, 24, 1);
     display.drawBitmap(110 - 12, iconY, rightIcon, 24, 24, 1);
 
-    // 5. Main Times
-    display.setFont(); 
+    display.setFont();
     display.setTextSize(1);
-    
-    String leftStr = TimeService::formatMinsFromMidnight(leftMins, config.time_format, false);
+
+    String leftStr = formatMinsFromMidnight(leftMins, config.time_format, false);
     display.getTextBounds(leftStr.c_str(), 0, 0, &x1, &y1, &w, &h);
     display.setCursor(19 - (w / 2), textY);
     display.print(leftStr);
 
-    String centerStr = TimeService::formatMinsFromMidnight(centerMins, config.time_format, false);
+    String centerStr = formatMinsFromMidnight(centerMins, config.time_format, false);
     display.getTextBounds(centerStr.c_str(), 0, 0, &x1, &y1, &w, &h);
     display.setCursor(64 - (w / 2), textY);
     display.print(centerStr);
 
-    String rightStr = TimeService::formatMinsFromMidnight(rightMins, config.time_format, false);
+    String rightStr = formatMinsFromMidnight(rightMins, config.time_format, false);
     display.getTextBounds(rightStr.c_str(), 0, 0, &x1, &y1, &w, &h);
     display.setCursor(110 - (w / 2), textY);
     display.print(rightStr);
@@ -799,19 +855,16 @@ void DisplayService::drawDaylightScreen(const Config& config, const DaylightData
         return;
     }
 
-    // 6. Progress Bar
     display.drawRect(2, 45, 124, 6, 1);
     int fillW = (int)((constrain(progress, 0, 100) / 100.0) * 120);
     if (fillW > 0) display.fillRect(4, 47, fillW, 2, 1);
 
-    // 7. Progress Percentage
     String progStr = String(progress) + "%";
     display.getTextBounds(progStr.c_str(), 0, 0, &x1, &y1, &w, &h);
     display.setCursor(64 - (w / 2), 55);
     display.print(progStr);
 
-    // 8. Secondary Bottom Text
-    String lengthStr = TimeService::formatDurationMins(displayLengthMins);
+    String lengthStr = formatDurationMins(displayLengthMins);
     lengthStr.replace(" ", "");
     display.setCursor(2, 55);
     display.print(lengthStr);
@@ -822,7 +875,7 @@ void DisplayService::drawDaylightScreen(const Config& config, const DaylightData
     display.print(timeLeftStr);
 }
 
-void DisplayService::drawMoonScreen(const Config& config, const MoonData& data) {
+void drawMoonScreen(const Config& config, const MoonData& data) {
     if (data.fracillum == -1) {
         drawInfoScreen(icon_error, "No Moon Data");
         return;
@@ -837,7 +890,6 @@ void DisplayService::drawMoonScreen(const Config& config, const MoonData& data) 
     int16_t x1, y1; uint16_t w, h;
     bool isMinimal = config.moon_minimal;
 
-    // 1. Phase Name
     String phaseStr = data.curphase;
     phaseStr.toUpperCase();
     display.getTextBounds(phaseStr.c_str(), 0, 0, &x1, &y1, &w, &h);
@@ -849,33 +901,29 @@ void DisplayService::drawMoonScreen(const Config& config, const MoonData& data) 
     int r = 17;
 
     if (!isMinimal) {
-        // 2. Illumination
         String illumStr = String(data.fracillum) + "%";
         display.getTextBounds(illumStr.c_str(), 0, 0, &x1, &y1, &w, &h);
         display.setCursor((128 - w) / 2, 2);
         display.print(illumStr);
 
-        // 3. Moonrise
-        String riseStr = (data.rise_mins != -1) ? TimeService::formatMinsFromMidnight(data.rise_mins, config.time_format) : "--:--";
+        String riseStr = (data.rise_mins != -1) ? formatMinsFromMidnight(data.rise_mins, config.time_format) : "--:--";
         display.setCursor(6, 29);
         display.print(riseStr);
         display.drawBitmap(17, 21, icon_up, 7, 4, 1);
 
-        // 4. Moonset
-        String setStr = (data.set_mins != -1) ? TimeService::formatMinsFromMidnight(data.set_mins, config.time_format) : "--:--";
+        String setStr = (data.set_mins != -1) ? formatMinsFromMidnight(data.set_mins, config.time_format) : "--:--";
         display.setCursor(92, 29);
         display.print(setStr);
         display.drawBitmap(103, 21, icon_down, 7, 4, 1);
     } else {
-        cy = 27; 
-        r = 22;  
+        cy = 27;
+        r = 22;
     }
 
-    // 5. Moon
     float f = data.fracillum / 100.0;
 
     bool isWaxing = (data.curphase.indexOf("Wax") >= 0 || data.curphase.indexOf("First") >= 0 || data.curphase.indexOf("New") >= 0);
-    
+
     display.fillCircle(cx, cy, r, SSD1306_WHITE);
 
     if (isWaxing) {
@@ -896,7 +944,7 @@ void DisplayService::drawMoonScreen(const Config& config, const MoonData& data) 
     display.drawCircle(cx, cy, r, SSD1306_WHITE);
 }
 
-void DisplayService::drawPopulationScreen(const Config& config, const PopulationData& data) {
+void drawPopulationScreen(const Config& config, const PopulationData& data) {
     if (data.world_pop_base == -1 && data.country_pop_base == -1) {
         drawInfoScreen(icon_error, "No Populace Data");
         return;
@@ -907,7 +955,7 @@ void DisplayService::drawPopulationScreen(const Config& config, const Population
     display.setTextWrap(false);
     display.setTextSize(1);
     display.setFont();
-    
+
     int16_t x1, y1; uint16_t w, h;
     bool showW = config.pop_show_world && data.world_year > 0;
     bool showC = config.pop_show_country && data.country_year > 0;
@@ -918,124 +966,109 @@ void DisplayService::drawPopulationScreen(const Config& config, const Population
         while (p > 0) { str = str.substring(0, p) + "," + str.substring(p); p -= 3; }
         return str;
     };
-    
+
     if (showW && showC) {
-        long long liveW = PopulationService::getLivePopulation(data.world_pop_base, data.world_growth, data.world_year);
-        long long liveC = PopulationService::getLivePopulation(data.country_pop_base, data.country_growth, data.country_year);
-                
-        // 1. World Icon & Label
+        long long liveW = getLivePopulation(data.world_pop_base, data.world_growth, data.world_year);
+        long long liveC = getLivePopulation(data.country_pop_base, data.country_growth, data.country_year);
+
         display.drawBitmap(8, 4, icon_world, 16, 16, 1);
         display.getTextBounds("World", 0, 0, &x1, &y1, &w, &h);
-        display.setCursor(16 - (w / 2), 21); 
+        display.setCursor(16 - (w / 2), 21);
         display.print("World");
 
-        // 2. Country Icon & Label
-        String cCode = config.country_code; 
+        String cCode = config.country_code;
         cCode.toUpperCase();
-        if(cCode.length() > 2) cCode = cCode.substring(0, 2);
-        
+        if (cCode.length() > 2) cCode = cCode.substring(0, 2);
+
         display.drawBitmap(9, 36, icon_location, 13, 16, 1);
         display.getTextBounds(cCode.c_str(), 0, 0, &x1, &y1, &w, &h);
-        display.setCursor(16 - (w / 2), 53); 
+        display.setCursor(16 - (w / 2), 53);
         display.print(cCode);
-        
-        // 3. World Population
+
         String popWStr = formatPop(liveW);
         display.getTextBounds(popWStr.c_str(), 0, 0, &x1, &y1, &w, &h);
-        
+
         int w_world_pop = w;
-        int world_pop_x = 126 - w_world_pop;          
-        int world_icon_x = world_pop_x - 12;         
-        int center_ref = world_icon_x + (12 + w_world_pop) / 2; 
+        int world_pop_x = 126 - w_world_pop;
+        int world_icon_x = world_pop_x - 12;
+        int center_ref = world_icon_x + (12 + w_world_pop) / 2;
 
         display.drawBitmap(world_icon_x, 6, icon_people, 8, 8, 1);
-        display.setCursor(world_pop_x, 7); 
+        display.setCursor(world_pop_x, 7);
         display.print(popWStr);
 
-        // 4. World Growth 
         String grWStr = (data.world_growth > 0 ? "+" : "") + String(data.world_growth, 2) + "%";
         display.getTextBounds(grWStr.c_str(), 0, 0, &x1, &y1, &w, &h);
         int gr_w_icon_x = center_ref - (12 + w) / 2;
         display.drawBitmap(gr_w_icon_x, 18, (data.world_growth >= 0 ? icon_up_arrow : icon_down_arrow), 8, 8, 1);
-        display.setCursor(gr_w_icon_x + 12, 19); 
+        display.setCursor(gr_w_icon_x + 12, 19);
         display.print(grWStr);
 
-        // 5. Country Population
         String popCStr = formatPop(liveC);
         display.getTextBounds(popCStr.c_str(), 0, 0, &x1, &y1, &w, &h);
         int ctr_pop_icon_x = center_ref - (12 + w) / 2;
         display.drawBitmap(ctr_pop_icon_x, 38, icon_people, 8, 8, 1);
-        display.setCursor(ctr_pop_icon_x + 12, 39); 
+        display.setCursor(ctr_pop_icon_x + 12, 39);
         display.print(popCStr);
 
-        // 6. Country Growth
         String grCStr = (data.country_growth > 0 ? "+" : "") + String(data.country_growth, 2) + "%";
         display.getTextBounds(grCStr.c_str(), 0, 0, &x1, &y1, &w, &h);
         int gr_c_icon_x = center_ref - (12 + w) / 2;
         display.drawBitmap(gr_c_icon_x, 50, (data.country_growth >= 0 ? icon_up_arrow : icon_down_arrow), 8, 8, 1);
-        display.setCursor(gr_c_icon_x + 12, 51); 
+        display.setCursor(gr_c_icon_x + 12, 51);
         display.print(grCStr);
 
     } else if (showW || showC) {
         long long base = showW ? data.world_pop_base : data.country_pop_base;
         double growth = showW ? data.world_growth : data.country_growth;
         int year = showW ? data.world_year : data.country_year;
-        
-        long long liveP = PopulationService::getLivePopulation(base, growth, year);
-        String title = showW ? "World" : config.country; 
 
-        // 1. Title Setup & Truncation
+        long long liveP = getLivePopulation(base, growth, year);
+        String title = showW ? "World" : config.country;
+
         display.getTextBounds(title.c_str(), 0, 0, &x1, &y1, &w, &h);
-        bool titleTrimmed = false;
         if (w > 128) {
+            String trunc;
             for (int i = title.length(); i > 0; i--) {
-                String trunc = title.substring(0, i);
+                trunc = title.substring(0, i) + "...";
                 display.getTextBounds(trunc.c_str(), 0, 0, &x1, &y1, &w, &h);
-                if ((int)w + 8 <= 128) {
+                if (w <= 128) {
                     title = trunc;
-                    titleTrimmed = true;
                     break;
                 }
             }
         }
 
-        // 2. Main Icon & Centered Title
         const unsigned char* mainIcon = showW ? icon_world : icon_location;
         int iconW = showW ? 16 : 13;
 
         display.drawBitmap((128 - iconW) / 2, 6, mainIcon, iconW, 16, 1);
 
         display.getTextBounds(title.c_str(), 0, 0, &x1, &y1, &w, &h);
-        int titleX = (128 - (w + (titleTrimmed ? 8 : 0))) / 2;
-        display.setCursor(titleX, 23);
+        display.setCursor((128 - w) / 2, 23);
         display.print(title);
-        if (titleTrimmed) {
-            display.drawBitmap(titleX + w, 23, icon_dots, 8, 8, SSD1306_WHITE);
-        }
 
-        // 3. Population Count
         String popStr = formatPop(liveP);
         display.getTextBounds(popStr.c_str(), 0, 0, &x1, &y1, &w, &h);
-        int popBlockW = 12 + w; 
+        int popBlockW = 12 + w;
         int popIconX = (128 - popBlockW) / 2;
-        
+
         display.drawBitmap(popIconX, 36, icon_people, 8, 8, 1);
-        display.setCursor(popIconX + 12, 37); 
+        display.setCursor(popIconX + 12, 37);
         display.print(popStr);
 
-        // 4. Growth Percentage
         String grStr = (growth > 0 ? "+" : "") + String(growth, 2) + "%";
         display.getTextBounds(grStr.c_str(), 0, 0, &x1, &y1, &w, &h);
         int grBlockW = 12 + w;
         int grIconX = (128 - grBlockW) / 2;
-        
+
         display.drawBitmap(grIconX, 50, (growth >= 0 ? icon_up_arrow : icon_down_arrow), 8, 8, 1);
-        display.setCursor(grIconX + 12, 51); 
+        display.setCursor(grIconX + 12, 51);
         display.print(grStr);
     }
 }
 
-void DisplayService::drawCryptoScreen(const Config& config, const CryptoData& data) {
+void drawCryptoScreen(const Config& config, const CryptoData& data) {
     if (!data.updated) {
         drawInfoScreen(icon_error, "No Crypto Data");
         return;
@@ -1048,55 +1081,35 @@ void DisplayService::drawCryptoScreen(const Config& config, const CryptoData& da
     display.setTextSize(1);
     display.setFont();
 
-    int16_t x1, y1; uint16_t w, h;
-
-    // 1. Symbol
     display.setTextSize(3);
     display.setCursor(4, 6);
     display.print(data.symbol);
 
-    // 2. Full Name
     if (config.crypto_fn) {
         display.setTextSize(1);
-        String displayName = data.name;
-        displayName.toUpperCase();
-        display.getTextBounds(displayName.c_str(), 0, 0, &x1, &y1, &w, &h);
-        bool nameTrimmed = false;
-        if ((int)w > 120) {
-            for (int i = displayName.length(); i > 0; i--) {
-                String trunc = displayName.substring(0, i);
-                display.getTextBounds(trunc.c_str(), 0, 0, &x1, &y1, &w, &h);
-                if ((int)w + 8 <= 120) {
-                    displayName = trunc;
-                    nameTrimmed = true;
-                    break;
-                }
-            }
-        }
         display.setCursor(4, 32);
+        String displayName = data.name;
+        int maxLen = 20;
+        if (displayName.length() > maxLen) displayName = displayName.substring(0, maxLen - 3) + "...";
+        displayName.toUpperCase();
         display.print(displayName);
-        if (nameTrimmed) {
-            display.drawBitmap(4 + w, 32, icon_dots, 8, 8, SSD1306_WHITE);
-        }
     }
 
-    // 3. Price
     display.setTextSize(2);
     display.setCursor(4, 44);
     display.print("$" + String(data.price_usd));
 
-    // 4. Arrow & Percentage
     bool isPositive = (data.percent_change_24h >= 0);
     const unsigned char* arrowIcon = isPositive ? icon_arrow_up : icon_arrow_down;
     display.drawBitmap(102, 3, arrowIcon, 15, 15, 1);
 
     display.setTextSize(1);
     display.setCursor(95, 22);
-    String trendPrefix = isPositive ? "+" : ""; 
+    String trendPrefix = isPositive ? "+" : "";
     display.print(trendPrefix + String(data.percent_change_24h, 1) + "%");
 }
 
-void DisplayService::drawCurrencyScreen(const Config& config, const CurrencyData& data, int multiplier) {
+void drawCurrencyScreen(const Config& config, const CurrencyData& data, int multiplier) {
     if (!data.updated) {
         drawInfoScreen(icon_error, "No Currency Data");
         return;
@@ -1109,14 +1122,10 @@ void DisplayService::drawCurrencyScreen(const Config& config, const CurrencyData
     display.setTextSize(1);
     display.setFont();
 
-    int16_t x1, y1; uint16_t w, h;
-
-    // 1. Base Currency Symbol
     display.setTextSize(3);
     display.setCursor(4, 6);
     display.print(data.base);
 
-    // 2. Full Currency Name
     if (config.currency_fn) {
         String fullName = "Unknown";
         for (auto c : allCurrencies) {
@@ -1126,54 +1135,37 @@ void DisplayService::drawCurrencyScreen(const Config& config, const CurrencyData
             }
         }
         display.setTextSize(1);
-        fullName.toUpperCase();
-        display.getTextBounds(fullName.c_str(), 0, 0, &x1, &y1, &w, &h);
-        bool nameTrimmed = false;
-        if ((int)w > 120) {
-            for (int i = fullName.length(); i > 0; i--) {
-                String trunc = fullName.substring(0, i);
-                display.getTextBounds(trunc.c_str(), 0, 0, &x1, &y1, &w, &h);
-                if ((int)w + 8 <= 120) {
-                    fullName = trunc;
-                    nameTrimmed = true;
-                    break;
-                }
-            }
-        }
         display.setCursor(4, 32);
+        int maxLen = 20;
+        if (fullName.length() > maxLen) fullName = fullName.substring(0, maxLen - 3) + "...";
+        fullName.toUpperCase();
         display.print(fullName);
-        if (nameTrimmed) {
-            display.drawBitmap(4 + w, 32, icon_dots, 8, 8, SSD1306_WHITE);
-        }
     }
 
-    // 3. Calculate Rate & Decimals using the passed Multiplier
     float displayRate = data.rate * multiplier;
     int decimals = (displayRate < 10.0) ? 3 : (displayRate < 100.0) ? 2 : (displayRate < 1000.0) ? 1 : 0;
 
-    // 4. Rate and Target Currency
     display.setTextSize(2);
     display.setCursor(4, 44);
     display.print(String(displayRate, decimals) + " " + data.target);
 
-    // 5. Context helper & Equals sign
     display.setTextSize(1);
     String topText = String(multiplier) + " " + data.base;
-    uint16_t wTop, hTop;
+    int16_t x1, y1; uint16_t wTop, hTop;
     display.getTextBounds(topText, 0, 0, &x1, &y1, &wTop, &hTop);
     int topTextX = 128 - wTop - 4;
-    display.setCursor(topTextX, 8); 
+    display.setCursor(topTextX, 8);
     display.print(topText);
 
     String eqText = "=";
     uint16_t wEq, hEq;
     display.getTextBounds(eqText, 0, 0, &x1, &y1, &wEq, &hEq);
     int centerOfTopText = topTextX + (wTop / 2);
-    display.setCursor(centerOfTopText - (wEq / 2), 19); 
+    display.setCursor(centerOfTopText - (wEq / 2), 19);
     display.print(eqText);
 }
 
-void DisplayService::drawStockScreen(const Config& config, const StockData& data) {
+void drawStockScreen(const Config& config, const StockData& data) {
     if (!data.updated) {
         drawInfoScreen(icon_error, "No Stock Data");
         return;
@@ -1186,60 +1178,40 @@ void DisplayService::drawStockScreen(const Config& config, const StockData& data
     display.setTextSize(1);
     display.setFont();
 
-    int16_t x1, y1; uint16_t w, h;
-
-    // 1. Symbol
     display.setTextSize(3);
     display.setCursor(4, 6);
     display.print(data.symbol);
 
-    // 2. Company Name
     if (config.stock_fn) {
         display.setTextSize(1);
-        String displayName = data.name;
-        displayName.toUpperCase();
-        display.getTextBounds(displayName.c_str(), 0, 0, &x1, &y1, &w, &h);
-        bool nameTrimmed = false;
-        if ((int)w > 120) {
-            for (int i = displayName.length(); i > 0; i--) {
-                String trunc = displayName.substring(0, i);
-                display.getTextBounds(trunc.c_str(), 0, 0, &x1, &y1, &w, &h);
-                if ((int)w + 8 <= 120) {
-                    displayName = trunc;
-                    nameTrimmed = true;
-                    break;
-                }
-            }
-        }
         display.setCursor(4, 32);
+        String displayName = data.name;
+        int maxLen = 20;
+        if (displayName.length() > maxLen) displayName = displayName.substring(0, maxLen - 3) + "...";
+        displayName.toUpperCase();
         display.print(displayName);
-        if (nameTrimmed) {
-            display.drawBitmap(4 + w, 32, icon_dots, 8, 8, SSD1306_WHITE);
-        }
     }
 
-    // 3. Price
     display.setTextSize(2);
     display.setCursor(4, 44);
     display.print("$" + String(data.price));
 
-    // 4. Arrow & Percentage
     bool isPositive = (data.percent_change >= 0);
     const unsigned char* arrowIcon = isPositive ? icon_arrow_up : icon_arrow_down;
     display.drawBitmap(102, 3, arrowIcon, 15, 15, 1);
 
     display.setTextSize(1);
     display.setCursor(95, 22);
-    String trendPrefix = isPositive ? "+" : ""; 
+    String trendPrefix = isPositive ? "+" : "";
     display.print(trendPrefix + String(data.percent_change, 1) + "%");
 }
 
-void DisplayService::drawPcScreen(const PcStats& pcStats) {
-    bool isInvalid = (isnan(pcStats.cpu_percent) || pcStats.cpu_percent == 0) && (isnan(pcStats.mem_percent) || pcStats.mem_percent == 0); 
+void drawPcScreen(const PcStats& pcStats) {
+    bool isInvalid = (isnan(pcStats.cpu_percent) || pcStats.cpu_percent == 0) && (isnan(pcStats.mem_percent) || pcStats.mem_percent == 0);
 
     if (isInvalid) {
-        drawInfoScreen(icon_monitor, "No PC"); 
-        return; 
+        drawInfoScreen(icon_monitor, "No PC");
+        return;
     }
 
     display.clearDisplay();
@@ -1247,52 +1219,48 @@ void DisplayService::drawPcScreen(const PcStats& pcStats) {
     display.setTextColor(SSD1306_WHITE);
     display.setTextWrap(false);
     display.setTextSize(1);
-    display.setFont(); 
+    display.setFont();
 
-    const int barX = 20;
-    const int barW = 86;
-    const int barH = 6;
-    
-    const int fillXOffset = 2;       
-    const int fillYOffset = 2;       
-    const int maxFillW = barW - 4;
-    const int fillH = 2;
-    const int textX = 110;
+    const int BAR_X = 20;
+    const int BAR_W = 86;
+    const int BAR_H = 6;
+
+    const int FILL_X_OFFSET = 2;
+    const int FILL_Y_OFFSET = 2;
+    const int MAX_FILL_W = BAR_W - 4;
+    const int FILL_H = 2;
+    const int TEXT_X = 110;
 
     auto drawInfilledBar = [&](int y, float percent) {
-        display.drawRect(barX, y, barW, barH, 1);
-        int fillW = (int)((constrain(percent, 0, 100) / 100.0) * maxFillW);
+        display.drawRect(BAR_X, y, BAR_W, BAR_H, 1);
+        int fillW = (int)((constrain(percent, 0, 100) / 100.0) * MAX_FILL_W);
         if (fillW > 0) {
-            display.fillRect(barX + fillXOffset, y + fillYOffset, fillW, fillH, 1);
+            display.fillRect(BAR_X + FILL_X_OFFSET, y + FILL_Y_OFFSET, fillW, FILL_H, 1);
         }
     };
 
-    // 1. CPU
     display.drawBitmap(0, 0, icon_cpu_percent, 16, 16, 1);
     drawInfilledBar(5, pcStats.cpu_percent);
-    display.setCursor(textX, 4);
+    display.setCursor(TEXT_X, 4);
     display.print(String((int)round(pcStats.cpu_percent)) + "%");
 
-    // 2. RAM
     display.drawBitmap(0, 16, icon_ram_percent, 16, 16, 1);
     drawInfilledBar(21, pcStats.mem_percent);
-    display.setCursor(textX, 20);
+    display.setCursor(TEXT_X, 20);
     display.print(String((int)round(pcStats.mem_percent)) + "%");
 
-    // 3. Disk
     display.drawBitmap(0, 32, icon_disk_percent, 16, 16, 1);
     drawInfilledBar(37, pcStats.disk_percent);
-    display.setCursor(textX, 36);
+    display.setCursor(TEXT_X, 36);
     display.print(String((int)round(pcStats.disk_percent)) + "%");
 
-    // 4. Download
-    display.drawBitmap(0, 48, icon_net_down, 16, 16, 1); 
-    
+    display.drawBitmap(0, 48, icon_net_down, 16, 16, 1);
+
     float netPercent = (pcStats.net_down_kb / 5120.0) * 100.0;
     drawInfilledBar(53, netPercent);
-    
-    display.setCursor(textX, 52);
-    
+
+    display.setCursor(TEXT_X, 52);
+
     if (pcStats.net_down_kb >= 1024) {
         display.print(String((int)round(pcStats.net_down_kb / 1024.0)) + "M");
     } else if (pcStats.net_down_kb >= 100) {
@@ -1302,12 +1270,12 @@ void DisplayService::drawPcScreen(const PcStats& pcStats) {
     }
 }
 
-void DisplayService::drawMediaScreen(const PcMedia& media) {
+void drawMediaScreen(const PcMedia& media) {
     bool isInvalid = (media.status.length() == 0 || media.name.length() == 0 || media.author.length() == 0 || media.name.equalsIgnoreCase("Unknown"));
 
     if (isInvalid) {
-        drawInfoScreen(icon_note, "No Media"); 
-        return; 
+        drawInfoScreen(icon_note, "No Media");
+        return;
     }
 
     display.clearDisplay();
@@ -1315,7 +1283,7 @@ void DisplayService::drawMediaScreen(const PcMedia& media) {
     display.setTextColor(SSD1306_WHITE);
     display.setTextWrap(false);
     display.setTextSize(1);
-    display.setFont(); 
+    display.setFont();
 
     display.drawBitmap(2, 4, icon_note, 32, 32, 1);
 
@@ -1323,7 +1291,7 @@ void DisplayService::drawMediaScreen(const PcMedia& media) {
     String statusStr = media.status;
     statusStr.toUpperCase();
     if (statusStr == "") statusStr = "STOPPED";
-    
+
     int16_t x1, y1; uint16_t w, h;
     display.getTextBounds(statusStr.c_str(), 0, 0, &x1, &y1, &w, &h);
     display.setCursor(18 - (w / 2), 46);
@@ -1337,66 +1305,56 @@ void DisplayService::drawMediaScreen(const PcMedia& media) {
     auto drawSmartText = [&](String text, int x, int &y, const GFXfont* font, bool isPicopixel, int maxLines) {
         if (text == "") return;
         display.setFont(font);
-        
-        String lines[8] = {"", "", "", "", "", "", "", ""}; 
+
+        String lines[8] = {"", "", "", "", "", "", "", ""};
         int lineCount = 0;
         int start = 0;
-        int maxWidth = 82; 
-        
+        int maxWidth = 82;
+
         while (start < text.length()) {
             int spaceIdx = text.indexOf(' ', start);
             if (spaceIdx == -1) spaceIdx = text.length();
             String word = text.substring(start, spaceIdx);
-            
+
             String testLine = lines[lineCount].length() == 0 ? word : lines[lineCount] + " " + word;
             display.getTextBounds(testLine.c_str(), 0, 0, &x1, &y1, &w, &h);
-            
+
             if (w > maxWidth) {
                 if (lines[lineCount].length() == 0) {
-                    lines[lineCount++] = word; 
+                    lines[lineCount++] = word;
                 } else {
                     lineCount++;
                     if (lineCount < maxLines) lines[lineCount] = word;
                 }
-                if (lineCount == maxLines) break; 
+                if (lineCount == maxLines) break;
             } else {
                 lines[lineCount] = testLine;
             }
             start = spaceIdx + 1;
         }
         if (lineCount < maxLines && lines[lineCount].length() > 0) lineCount++;
-        
-        bool lastLineTrimmed = false;
+
         if (start < text.length() && lineCount == maxLines) {
-            lastLineTrimmed = true;
             String& lastLine = lines[maxLines - 1];
             while (lastLine.length() > 0) {
-                display.getTextBounds(lastLine.c_str(), 0, 0, &x1, &y1, &w, &h);
-                if ((int)w + 8 <= maxWidth) break;
+                display.getTextBounds((lastLine + "...").c_str(), 0, 0, &x1, &y1, &w, &h);
+                if (w <= maxWidth) break;
                 int lastSpace = lastLine.lastIndexOf(' ');
                 if (lastSpace == -1) lastLine = lastLine.substring(0, lastLine.length() - 1);
                 else lastLine = lastLine.substring(0, lastSpace);
             }
+            lastLine += "...";
         }
 
         for (int i = 0; i < lineCount; i++) {
-            bool isLastLine = (i == lineCount - 1);
             if (isPicopixel) {
                 y += 5;
                 display.setCursor(x, y);
                 display.print(lines[i]);
-                if (lastLineTrimmed && isLastLine) {
-                    display.getTextBounds(lines[i].c_str(), 0, 0, &x1, &y1, &w, &h);
-                    display.drawBitmap(x + w, y - 6, icon_dots, 8, 8, SSD1306_WHITE);
-                }
                 y += 1;
             } else {
                 display.setCursor(x, y);
                 display.print(lines[i]);
-                if (lastLineTrimmed && isLastLine) {
-                    display.getTextBounds(lines[i].c_str(), 0, 0, &x1, &y1, &w, &h);
-                    display.drawBitmap(x + w, y, icon_dots, 8, 8, SSD1306_WHITE);
-                }
                 y += 8 + 1;
             }
         }
@@ -1430,12 +1388,12 @@ void DisplayService::drawMediaScreen(const PcMedia& media) {
     }
 }
 
-void DisplayService::drawBambuScreen(const BambuData& data) {
+void drawBambuScreen(const BambuData& data) {
     bool isInvalid = (data.status == "SYNCING" || data.status.length() == 0);
 
     if (isInvalid) {
-        drawInfoScreen(icon_printer, "No Printer"); 
-        return; 
+        drawInfoScreen(icon_printer, "No Printer");
+        return;
     }
 
     display.clearDisplay();
@@ -1443,35 +1401,32 @@ void DisplayService::drawBambuScreen(const BambuData& data) {
     display.setTextColor(SSD1306_WHITE);
     display.setTextWrap(false);
     display.setTextSize(1);
-    display.setFont(); 
+    display.setFont();
 
     String status = data.status;
     status.toUpperCase();
     bool isIdle = (status == "IDLE" || status == "FINISH" || status == "FINISHED" || status == "FAILED");
 
     if (isIdle) {
-        // 1. Printer Icon & IDLE Text (Left side)
         display.drawBitmap(22, 9, icon_printer, 32, 32, 1);
-        
+
         display.setTextSize(1);
         display.setCursor(26, 45);
         display.print("IDLE");
 
         display.setTextSize(2);
 
-        // 2. Nozzle Temp (Top Right)
         String n_val = String((int)round(data.nozzle_temp));
-        int n_circle_x = 79 + (n_val.length() * 12) + 5; 
-        
+        int n_circle_x = 79 + (n_val.length() * 12) + 5;
+
         display.drawBitmap(65, 17, icon_nozzle, 8, 8, 1);
         display.setCursor(79, 13);
         display.print(n_val);
-        display.drawCircle(n_circle_x, 16, 3, SSD1306_WHITE); 
+        display.drawCircle(n_circle_x, 16, 3, SSD1306_WHITE);
 
-        // 3. Bed Temp (Bottom Right)
         String b_val = String((int)round(data.bed_temp));
         int b_circle_x = 79 + (b_val.length() * 12) + 5;
-        
+
         display.drawBitmap(65, 41, icon_bed, 8, 8, 1);
         display.setCursor(79, 37);
         display.print(b_val);
@@ -1479,20 +1434,18 @@ void DisplayService::drawBambuScreen(const BambuData& data) {
 
         return;
     }
-    
+
     display.setTextSize(1);
     display.setFont();
 
     int16_t x1, y1;
     uint16_t w, h;
 
-    // 1. Icons
     display.drawBitmap(4, 4, icon_nozzle, 8, 8, 1);
     display.drawBitmap(4, 16, icon_bed, 8, 8, 1);
     display.drawBitmap(116, 4, icon_part_fan, 8, 8, 1);
     display.drawBitmap(116, 16, icon_aux_fan, 8, 8, 1);
 
-    // 2. Temperatures (Smart Slash Alignment)
     String n_lhs = String((int)round(data.nozzle_temp));
     String n_rhs = "/" + String((int)round(data.nozzle_target)) + " C";
     String b_lhs = String((int)round(data.bed_temp));
@@ -1502,7 +1455,7 @@ void DisplayService::drawBambuScreen(const BambuData& data) {
     display.getTextBounds(n_lhs.c_str(), 0, 0, &x1, &y1, &w_n_lhs, &h);
     display.getTextBounds(b_lhs.c_str(), 0, 0, &x1, &y1, &w_b_lhs, &h);
 
-    int startX = 16; 
+    int startX = 16;
     int x_slash = startX + max(w_n_lhs, w_b_lhs);
 
     display.setCursor(x_slash - w_n_lhs, 4);
@@ -1511,7 +1464,6 @@ void DisplayService::drawBambuScreen(const BambuData& data) {
     display.setCursor(x_slash - w_b_lhs, 16);
     display.print(b_lhs + b_rhs);
 
-    // 3. Fans (Right Alignment)
     String p_fan = String(data.fan_part) + "%";
     String a_fan = String(data.fan_aux) + "%";
 
@@ -1523,23 +1475,22 @@ void DisplayService::drawBambuScreen(const BambuData& data) {
     display.setCursor(116 - 4 - w, 16);
     display.print(a_fan);
 
-    // 4. File Name (Center Alignment & Truncation)
     String fileName = data.file_name;
-    
+
     if (fileName.length() == 0 || fileName.equalsIgnoreCase("None")) {
         fileName = "Idle";
     }
-        
-    int maxWidth = 120; 
+
+    int maxWidth = 120;
     display.getTextBounds(fileName.c_str(), 0, 0, &x1, &y1, &w, &h);
-    
+
     if (w > maxWidth) {
         String trunc;
         for (int i = 1; i <= fileName.length() / 2; i++) {
             int leftLen = (fileName.length() / 2) - i;
             int rightLen = fileName.length() - (fileName.length() / 2) - i;
             trunc = fileName.substring(0, leftLen) + "..." + fileName.substring(fileName.length() - rightLen);
-            
+
             display.getTextBounds(trunc.c_str(), 0, 0, &x1, &y1, &w, &h);
             if (w <= maxWidth) {
                 fileName = trunc;
@@ -1547,19 +1498,17 @@ void DisplayService::drawBambuScreen(const BambuData& data) {
             }
         }
     }
-    
+
     display.getTextBounds(fileName.c_str(), 0, 0, &x1, &y1, &w, &h);
     int cursorX = (128 - w) / 2;
-    
+
     display.setCursor(cursorX, 31);
     display.print(fileName);
 
-    // 5. Progress Bar
     display.drawRect(4, 43, 120, 6, 1);
     int fillW = (int)((constrain(data.progress, 0, 100) / 100.0) * 116);
     if (fillW > 0) display.fillRect(6, 45, fillW, 2, 1);
 
-    // 6. Stats
     String progStr = String(data.progress) + "%";
     String layerStr = String(data.layer) + "/" + String(data.total_layers);
     String timeStr = String(data.time_left) + "m";
@@ -1576,24 +1525,21 @@ void DisplayService::drawBambuScreen(const BambuData& data) {
     display.print(timeStr);
 }
 
-void DisplayService::drawFlightScreen(const Config& config, const FlightData& data) {
+void drawFlightScreen(const Config& config, const FlightData& data) {
     const float kmPerNauticalMile = 1.852f;
 
-    // Altitude string in the configured units
     auto formatAltitude = [&](float altitudeFt) -> String {
         if (isnan(altitudeFt)) return "--";
         if (config.flight_units == "metric") return String((int)round(altitudeFt * 0.3048)) + " m";
         return String((int)round(altitudeFt)) + " ft";
     };
 
-    // Velocity string in the configured units
     auto formatVelocity = [&](float velocityKt) -> String {
         if (isnan(velocityKt)) return "--";
         if (config.flight_units == "metric") return String((int)round(velocityKt * kmPerNauticalMile)) + " km/h";
         return String((int)round(velocityKt)) + " kt";
     };
 
-    // Accented Latin codepoint -> closest plain-ASCII letter
     auto mapAccentedChar = [](uint32_t cp) -> String {
         switch (cp) {
             case 0xC0: case 0xC1: case 0xC2: case 0xC3: case 0xC4: case 0xC5:
@@ -1647,7 +1593,6 @@ void DisplayService::drawFlightScreen(const Config& config, const FlightData& da
         }
     };
 
-    // Strips/transliterates non-ASCII text (city names etc.) to what the OLED font can render
     auto sanitizeAscii = [&](const String& input) -> String {
         String out;
         out.reserve(input.length());
@@ -1666,7 +1611,7 @@ void DisplayService::drawFlightScreen(const Config& config, const FlightData& da
             if ((c & 0xE0) == 0xC0) { codepoint = c & 0x1F; extraBytes = 1; }
             else if ((c & 0xF0) == 0xE0) { codepoint = c & 0x0F; extraBytes = 2; }
             else if ((c & 0xF8) == 0xF0) { codepoint = c & 0x07; extraBytes = 3; }
-            else { i++; continue; }  // stray continuation byte on its own
+            else { i++; continue; }
 
             size_t seqLen = 1;
             bool valid = true;
@@ -1679,14 +1624,13 @@ void DisplayService::drawFlightScreen(const Config& config, const FlightData& da
             }
             if (!valid) { i++; continue; }
 
-            out += mapAccentedChar(codepoint);  // "" for anything with no ASCII fallback
+            out += mapAccentedChar(codepoint);
             i += seqLen;
         }
 
         return out;
     };
 
-    // Nudges apart colliding radar badges (index 0 = fixed center dot), drops what still doesn't fit
     auto resolveRadarOverlaps = [](int* xs, int* ys, const int* boxW, const int* topOffset, const int* bottomOffset, bool* dropped, int count, int screenMinX, int screenMaxX, int screenMinY, int screenMaxY) {
         const int passes = 4;
         for (int pass = 0; pass < passes; pass++) {
@@ -1699,6 +1643,7 @@ void DisplayService::drawFlightScreen(const Config& config, const FlightData& da
                     float centerI = (topI + bottomI) / 2.0f, centerJ = (topJ + bottomJ) / 2.0f;
 
                     if (fabs(dx) < 0.01 && fabs(centerI - centerJ) < 0.01) {
+
                         dx = (i % 2 == 0) ? 1.0f : -1.0f;
                     }
 
@@ -1706,6 +1651,7 @@ void DisplayService::drawFlightScreen(const Config& config, const FlightData& da
                     float overlapX = (boxW[i] + boxW[j]) / 2.0f - fabs(dx);
 
                     if (overlapX > 0 && overlapY > 0) {
+
                         if (overlapX < overlapY) {
                             xs[i] += (int)round((dx >= 0 ? 1.0f : -1.0f) * (overlapX + 1));
                         } else {
@@ -1741,6 +1687,7 @@ void DisplayService::drawFlightScreen(const Config& config, const FlightData& da
     };
 
     if (config.flight_mode == "closest") {
+
         if (data.closest.callsign.length() == 0) {
             drawInfoScreen(icon_error, "No Aircraft");
             return;
@@ -1755,7 +1702,6 @@ void DisplayService::drawFlightScreen(const Config& config, const FlightData& da
 
         int16_t x1, y1; uint16_t w, h;
 
-        // 1. Header
         String originCode = ac.has_route ? ac.origin_code : "N/A";
         String destCode = ac.has_route ? ac.destination_code : "N/A";
 
@@ -1769,7 +1715,6 @@ void DisplayService::drawFlightScreen(const Config& config, const FlightData& da
 
         display.setTextSize(1);
 
-        // Trims text (+ icon_dots ellipsis) to fit half the screen width
         auto trimToHalfScreen = [&](String text) -> String {
             const int maxWidth = 64;
             display.getTextBounds(text.c_str(), 0, 0, &x1, &y1, &w, &h);
@@ -1783,7 +1728,6 @@ void DisplayService::drawFlightScreen(const Config& config, const FlightData& da
             return "";
         };
 
-        // 2. City names
         if (ac.has_route && data.origin_city.length() > 0) {
             String origin = sanitizeAscii(data.origin_city);
             String trimmed = trimToHalfScreen(origin);
@@ -1806,10 +1750,8 @@ void DisplayService::drawFlightScreen(const Config& config, const FlightData& da
             }
         }
 
-        // 3. Plane icon
         display.drawBitmap(58, 2, icon_plane, 12, 12, SSD1306_WHITE);
 
-        // Draws one icon + value + identifier row
         auto drawRow = [&](int y, const unsigned char* icon, int iw, int ih, const String& leftVal, const String& rightVal, bool appendDegree = false) {
             display.drawBitmap(3, y, icon, iw, ih, SSD1306_WHITE);
             display.setCursor(11, y);
@@ -1849,7 +1791,6 @@ void DisplayService::drawFlightScreen(const Config& config, const FlightData& da
         destCountry.toUpperCase();
         String squawk = ac.squawk;
 
-        // 4. Field grid
         String rightItems[8];
         int itemCount = 0;
         if (ac.has_route && originCountry.length() > 0 && destCountry.length() > 0) {
@@ -1888,7 +1829,6 @@ void DisplayService::drawFlightScreen(const Config& config, const FlightData& da
     const int radarRight = 124;
     const int centerY = (radarTop + radarBottom) / 2;
 
-    // 1. Radius scale bar
     display.setFont(&Picopixel);
     String radiusLabel = (config.flight_units == "metric")
         ? String((int)floor(config.flight_radius_nm * kmPerNauticalMile)) + "km"
@@ -1905,7 +1845,6 @@ void DisplayService::drawFlightScreen(const Config& config, const FlightData& da
     display.setCursor(centerX - w / 2, -y1);
     display.print(radiusLabel);
 
-    // 2. Center dot
     const int centerDotHalf = 2;
     display.fillCircle(centerX, centerY, 1, SSD1306_WHITE);
 
@@ -1914,7 +1853,6 @@ void DisplayService::drawFlightScreen(const Config& config, const FlightData& da
         return;
     }
 
-    // Badge text for a given info option
     auto textFor = [&](const String& info, const FlightAircraft& ac) -> String {
         if (info == "callsign") {
             return ac.callsign;
@@ -1935,7 +1873,6 @@ void DisplayService::drawFlightScreen(const Config& config, const FlightData& da
         return "";
     };
 
-    // 3. Aircraft badge positions + collision boxes
     const int maxSlots = MAX_RADAR_AIRCRAFT + 1;
     int xs[maxSlots];
     int ys[maxSlots];
@@ -2019,7 +1956,6 @@ void DisplayService::drawFlightScreen(const Config& config, const FlightData& da
 
     resolveRadarOverlaps(xs, ys, boxW, topOffset, bottomOffset, dropped, slotCount, radarLeft, radarRight, radarTop, radarBottom);
 
-    // 4. Badges: heading marker, callsign, optional secondary line
     for (int i = 0; i < data.aircraft_count; i++) {
         int slot = i + 1;
         if (dropped[slot]) continue;
@@ -2069,42 +2005,7 @@ void DisplayService::drawFlightScreen(const Config& config, const FlightData& da
     display.setFont();
 }
 
-void DisplayService::drawInfoScreen(const unsigned char* image, String text) {
-    display.clearDisplay();
-
-    display.setTextColor(SSD1306_WHITE);
-    display.setTextWrap(false);
-    display.setTextSize(1);
-    display.setFont(); 
-    
-    display.drawRect(1, 1, 126, 62, 1);
-    display.drawRect(3, 3, 122, 58, 1);
-    
-    int16_t x1, y1; 
-    uint16_t w, h;
-
-    if (image != nullptr) {
-        display.setTextSize(1);
-        
-        display.getTextBounds(text.c_str(), 0, 0, &x1, &y1, &w, &h);
-        int textX = (128 - w) / 2;
-        
-        display.drawBitmap(48, 10, image, 32, 32, 1);
-        display.setCursor(textX, 46); 
-        display.print(text);
-    } else {
-        display.setTextSize(2);
-        
-        display.getTextBounds(text.c_str(), 0, 0, &x1, &y1, &w, &h);
-        int textX = (128 - w) / 2;
-        int textY = (64 - h) / 2;
-        
-        display.setCursor(textX, textY);
-        display.print(text);
-    }
-}
-
-bool DisplayService::isScreenEnabled(const AppState& state, int screenIndex) {
+bool isScreenEnabled(const AppState& state, int screenIndex) {
     const Config& config = state.config;
 
     switch (screenIndex) {
@@ -2129,7 +2030,7 @@ bool DisplayService::isScreenEnabled(const AppState& state, int screenIndex) {
         case SCREEN_PC_MONITOR: {
             if (!config.show_pc) return false;
             if (config.hide_empty_pc) {
-                bool isInvalid = (isnan(state.pc.cpu_percent) || state.pc.cpu_percent == 0) && (isnan(state.pc.mem_percent) || state.pc.mem_percent == 0); 
+                bool isInvalid = (isnan(state.pc.cpu_percent) || state.pc.cpu_percent == 0) && (isnan(state.pc.mem_percent) || state.pc.mem_percent == 0);
                 if (isInvalid) return false;
             }
             return true;
@@ -2154,30 +2055,30 @@ bool DisplayService::isScreenEnabled(const AppState& state, int screenIndex) {
     }
 }
 
-void DisplayService::drawScreen(int screenIndex, const AppState& state, int subIndex) {
-  switch(screenIndex) {
-    case SCREEN_TIME: drawTimeScreen(state.config, TimeService::getCurrentTimeShort(state.config.time_format), TimeService::getFullDate()); break;
-    case SCREEN_CALENDAR: drawCalendarScreen(state.config, state.calendar); break;
-    case SCREEN_WEATHER: drawWeatherScreen(state.config, state.weather, TimeService::getCurrentTimeShort(state.config.time_format)); break;
-    case SCREEN_AIR_QUALITY: drawAQIScreen(state.config, state.aqi, TimeService::getCurrentTimeShort(state.config.time_format)); break;
-    case SCREEN_DAYLIGHT: drawDaylightScreen(state.config, state.daylight); break;
-    case SCREEN_MOON: drawMoonScreen(state.config, state.moon); break;
-    case SCREEN_POPULATION: drawPopulationScreen(state.config, state.population); break;
-    case SCREEN_FLIGHT: drawFlightScreen(state.config, state.flight); break;
-    case SCREEN_STOCK: drawStockScreen(state.config, state.stocks[subIndex]); break;
-    case SCREEN_CRYPTO: drawCryptoScreen(state.config, state.cryptos[subIndex]); break;
-    case SCREEN_CURRENCY: drawCurrencyScreen(state.config, state.currencies[subIndex], state.config.currency_multipliers[subIndex]); break;
-    case SCREEN_PC_MONITOR: drawPcScreen(state.pc); break;
-    case SCREEN_PC_MEDIA: drawMediaScreen(state.media); break;
-    case SCREEN_BAMBU: drawBambuScreen(state.bambu); break;
-  }
+void drawScreen(int screenIndex, const AppState& state, int subIndex = 0) {
+    switch (screenIndex) {
+        case SCREEN_TIME: drawTimeScreen(state.config, getCurrentTimeShort(state.config.time_format), getFullDate()); break;
+        case SCREEN_CALENDAR: drawCalendarScreen(state.config, state.calendar); break;
+        case SCREEN_WEATHER: drawWeatherScreen(state.config, state.weather, getCurrentTimeShort(state.config.time_format)); break;
+        case SCREEN_AIR_QUALITY: drawAQIScreen(state.config, state.aqi, getCurrentTimeShort(state.config.time_format)); break;
+        case SCREEN_DAYLIGHT: drawDaylightScreen(state.config, state.daylight); break;
+        case SCREEN_MOON: drawMoonScreen(state.config, state.moon); break;
+        case SCREEN_POPULATION: drawPopulationScreen(state.config, state.population); break;
+        case SCREEN_FLIGHT: drawFlightScreen(state.config, state.flight); break;
+        case SCREEN_STOCK: drawStockScreen(state.config, state.stocks[subIndex]); break;
+        case SCREEN_CRYPTO: drawCryptoScreen(state.config, state.cryptos[subIndex]); break;
+        case SCREEN_CURRENCY: drawCurrencyScreen(state.config, state.currencies[subIndex], state.config.currency_multipliers[subIndex]); break;
+        case SCREEN_PC_MONITOR: drawPcScreen(state.pc); break;
+        case SCREEN_PC_MEDIA: drawMediaScreen(state.media); break;
+        case SCREEN_BAMBU: drawBambuScreen(state.bambu); break;
+    }
 }
 
-void DisplayService::drawCurrentScreen(const AppState& state) {
+void drawCurrentScreen(const AppState& state) {
     drawScreen(currentScreen, state, currentSubScreen);
 }
 
-int DisplayService::getFirstEnabledScreen(const AppState& state) {
+int getFirstEnabledScreen(const AppState& state) {
     for (int i = 0; i < NUM_SCREENS; i++) {
         int screenId = state.config.screen_order[i];
         if (isScreenEnabled(state, screenId)) {
@@ -2187,15 +2088,117 @@ int DisplayService::getFirstEnabledScreen(const AppState& state) {
     return state.config.screen_order[0];
 }
 
-void DisplayService::jumpToFirstEnabledScreen(const AppState& state) {
+void jumpToFirstEnabledScreen(const AppState& state) {
     currentScreen = getFirstEnabledScreen(state);
 }
 
-bool DisplayService::isOnFirstEnabledScreen(const AppState& state) {
-    return currentScreen == getFirstEnabledScreen(state);
+void setContrast(bool dim) {
+    display.ssd1306_command(SSD1306_SETCONTRAST);
+    display.ssd1306_command(dim ? CONTRAST_DIM : CONTRAST_MAX);
 }
 
-void DisplayService::switchToNextScreen(const AppState& state) {
+int getNextAnimationEffect(uint16_t mask) {
+    int enabledAnims[10]; int count = 0;
+    for (int i = 1; i <= 5; i++) { if (mask & (1 << i)) enabledAnims[count++] = i; }
+    if (count == 0) return 0;
+    return enabledAnims[random(0, count)];
+}
+
+void animateHorizontal(int prev, int pSub, int next, int nSub, const AppState& state) {
+    display.clearDisplay(); drawScreen(prev, state, pSub); memcpy(screenBufferOld, display.getBuffer(), 1024);
+    display.clearDisplay(); drawScreen(next, state, nSub); memcpy(screenBufferNew, display.getBuffer(), 1024);
+    int step = 8;
+    for (int offset = 0; offset <= 128; offset += step) {
+        uint8_t* displayBuf = display.getBuffer();
+        for (int page = 0; page < 8; page++) {
+            int start = page * 128;
+            if (offset < 128) memcpy(&displayBuf[start], &screenBufferOld[start + offset], 128 - offset);
+            if (offset > 0) memcpy(&displayBuf[start + (128 - offset)], &screenBufferNew[start], offset);
+        }
+        display.display();
+    }
+}
+
+void animateVertical(int prev, int pSub, int next, int nSub, const AppState& state) {
+    display.clearDisplay(); drawScreen(prev, state, pSub); memcpy(screenBufferOld, display.getBuffer(), 1024);
+    display.clearDisplay(); drawScreen(next, state, nSub); memcpy(screenBufferNew, display.getBuffer(), 1024);
+    for (int step = 0; step <= 8; step++) {
+        uint8_t* displayBuf = display.getBuffer();
+        for (int page = 0; page < 8; page++) {
+            int oldPageIdx = page + step; int newPageIdx = page - (8 - step); int destIndex = page * 128;
+            if (oldPageIdx < 8) memcpy(&displayBuf[destIndex], &screenBufferOld[oldPageIdx * 128], 128);
+            else if (newPageIdx >= 0) memcpy(&displayBuf[destIndex], &screenBufferNew[newPageIdx * 128], 128);
+        }
+        display.display(); delay(10);
+    }
+}
+
+void animateDissolve(int prev, int pSub, int next, int nSub, const AppState& state) {
+    display.clearDisplay(); drawScreen(prev, state, pSub); memcpy(screenBufferOld, display.getBuffer(), 1024);
+    display.clearDisplay(); drawScreen(next, state, nSub); memcpy(screenBufferNew, display.getBuffer(), 1024);
+    uint8_t* displayBuf = display.getBuffer();
+    for (int step = 0; step < 8; step++) {
+        uint8_t mask = 0;
+        switch (step) {
+            case 0: mask = 0b10000000; break; case 1: mask = 0b11000000; break; case 2: mask = 0b11100000; break; case 3: mask = 0b11100100; break;
+            case 4: mask = 0b11110100; break; case 5: mask = 0b11111100; break; case 6: mask = 0b11111110; break; case 7: mask = 0b11111111; break;
+        }
+        for (int i = 0; i < 1024; i++) displayBuf[i] = (screenBufferNew[i] & mask) | (screenBufferOld[i] & ~mask);
+        display.display(); delay(10);
+    }
+}
+
+void animateCurtain(int prev, int pSub, int next, int nSub, const AppState& state) {
+    display.clearDisplay(); drawScreen(prev, state, pSub); memcpy(screenBufferOld, display.getBuffer(), 1024);
+    display.clearDisplay(); drawScreen(next, state, nSub); memcpy(screenBufferNew, display.getBuffer(), 1024);
+    int maxRadius = 80; int step = 4; uint8_t* displayBuf = display.getBuffer();
+    for (int r = 0; r <= maxRadius; r += step) {
+        int startX = 64 - r; if (startX < 0) startX = 0;
+        int endX = 64 + r; if (endX > 128) endX = 128;
+        for (int x = 0; x < 128; x++) {
+            bool insideCurtain = (x >= startX && x < endX);
+            for (int page = 0; page < 8; page++) {
+                int idx = x + (page * 128); displayBuf[idx] = insideCurtain ? screenBufferNew[idx] : screenBufferOld[idx];
+            }
+        }
+        display.display();
+    }
+}
+
+void animateBlinds(int prev, int pSub, int next, int nSub, const AppState& state) {
+    display.clearDisplay(); drawScreen(prev, state, pSub); memcpy(screenBufferOld, display.getBuffer(), 1024);
+    display.clearDisplay(); drawScreen(next, state, nSub); memcpy(screenBufferNew, display.getBuffer(), 1024);
+    uint8_t* displayBuf = display.getBuffer();
+    memcpy(displayBuf, screenBufferOld, 1024); display.display();
+    int blindWidth = 16; int numBlinds = 8; int stepSize = 2;
+    for (int progress = 0; progress < blindWidth; progress += stepSize) {
+        for (int blind = 0; blind < numBlinds; blind++) {
+            int blindStartX = blind * blindWidth;
+            for (int i = 0; i < stepSize; i++) {
+                int currentX = blindStartX + progress + i; if (currentX >= 128) continue;
+                for (int page = 0; page < 8; page++) {
+                    int idx = currentX + (page * 128); displayBuf[idx] = screenBufferNew[idx];
+                }
+            }
+        }
+        display.display(); delay(5);
+    }
+}
+
+void animateTransition(int prevScreen, int prevSub, int nextScreen, int nextSub, const AppState& state) {
+    int selectedEffect = getNextAnimationEffect(state.config.anim_mask);
+    switch (selectedEffect) {
+        case ANIM_SLIDE_HORIZONTAL: animateHorizontal(prevScreen, prevSub, nextScreen, nextSub, state); break;
+        case ANIM_SLIDE_VERTICAL: animateVertical(prevScreen, prevSub, nextScreen, nextSub, state); break;
+        case ANIM_DISSOLVE: animateDissolve(prevScreen, prevSub, nextScreen, nextSub, state); break;
+        case ANIM_CURTAIN: animateCurtain(prevScreen, prevSub, nextScreen, nextSub, state); break;
+        case ANIM_BLINDS: animateBlinds(prevScreen, prevSub, nextScreen, nextSub, state); break;
+        default:
+            display.clearDisplay(); drawScreen(nextScreen, state, nextSub); display.display(); break;
+    }
+}
+
+void switchToNextScreen(const AppState& state) {
     const Config& config = state.config;
 
     if (currentScreen == SCREEN_STOCK && currentSubScreen + 1 < config.stock_count) {
@@ -2243,7 +2246,7 @@ void DisplayService::switchToNextScreen(const AppState& state) {
     currentScreen = nextScreenCandidate;
 }
 
-void DisplayService::switchToPreviousScreen(const AppState& state) {
+void switchToPreviousScreen(const AppState& state) {
     const Config& config = state.config;
 
     if (currentScreen == SCREEN_STOCK && currentSubScreen > 0) {
@@ -2291,108 +2294,92 @@ void DisplayService::switchToPreviousScreen(const AppState& state) {
     currentSubScreen = 0;
 }
 
-void DisplayService::setContrast(bool dim) {
-    display.ssd1306_command(SSD1306_SETCONTRAST);
-    display.ssd1306_command(dim ? CONTRAST_DIM : CONTRAST_MAX);
-}
-
-int DisplayService::getNextAnimationEffect(uint16_t mask) {
-    int enabledAnims[10]; int count = 0;
-    for (int i = 1; i <= 5; i++) { if (mask & (1 << i)) enabledAnims[count++] = i; }
-    if (count == 0) return 0;
-    return enabledAnims[random(0, count)];
-}
-
-void DisplayService::animateTransition(int prevScreen, int prevSub, int nextScreen, int nextSub, const AppState& state) {
-    int selectedEffect = getNextAnimationEffect(state.config.anim_mask);
-    switch(selectedEffect) {
-        case ANIM_SLIDE_HORIZONTAL: animateHorizontal(prevScreen, prevSub, nextScreen, nextSub, state); break;
-        case ANIM_SLIDE_VERTICAL: animateVertical(prevScreen, prevSub, nextScreen, nextSub, state); break;
-        case ANIM_DISSOLVE: animateDissolve(prevScreen, prevSub, nextScreen, nextSub, state); break;
-        case ANIM_CURTAIN: animateCurtain(prevScreen, prevSub, nextScreen, nextSub, state); break;
-        case ANIM_BLINDS: animateBlinds(prevScreen, prevSub, nextScreen, nextSub, state); break;
-        default:
-            display.clearDisplay(); drawScreen(nextScreen, state, nextSub); display.display(); break;
+void handleScreenNavigation(bool goToPrevious) {
+    if (goToPrevious) {
+        Serial.println("Double Click: Switching to Previous Screen");
+        switchToPreviousScreen(appState);
+    } else {
+        Serial.println("Single Click: Switching to Next Screen");
+        switchToNextScreen(appState);
     }
+    lastScreenSwitch = millis();
 }
 
-void DisplayService::animateHorizontal(int prev, int pSub, int next, int nSub, const AppState& state) {
-  display.clearDisplay(); drawScreen(prev, state, pSub); memcpy(screenBufferOld, display.getBuffer(), 1024);
-  display.clearDisplay(); drawScreen(next, state, nSub); memcpy(screenBufferNew, display.getBuffer(), 1024);
-  int step = 8;
-  for (int offset = 0; offset <= 128; offset += step) {
-    uint8_t* displayBuf = display.getBuffer();
-    for (int page = 0; page < 8; page++) {
-      int start = page * 128; 
-      if (offset < 128) memcpy(&displayBuf[start], &screenBufferOld[start + offset], 128 - offset);
-      if (offset > 0) memcpy(&displayBuf[start + (128 - offset)], &screenBufferNew[start], offset);
+void handleSingleClick() {
+    handleScreenNavigation(false);
+}
+
+void handleDoubleClick() {
+    handleScreenNavigation(true);
+}
+
+void handleLongPress() {
+    appState.config.screen_auto_cycle = !appState.config.screen_auto_cycle;
+
+    if (appState.config.screen_auto_cycle) {
+        Serial.println("Auto Cycle: ENABLED");
+        drawInfoScreen(icon_unlock, "Auto Cycle On");
+    } else {
+        Serial.println("Auto Cycle: DISABLED (Screen Locked)");
+        drawInfoScreen(icon_lock, "Auto Cycle Off");
     }
     display.display();
-  }
+    delay(1000);
+
+    display.clearDisplay();
+    drawCurrentScreen(appState);
+    display.display();
+
+    lastScreenSwitch = millis();
 }
 
-void DisplayService::animateVertical(int prev, int pSub, int next, int nSub, const AppState& state) {
-  display.clearDisplay(); drawScreen(prev, state, pSub); memcpy(screenBufferOld, display.getBuffer(), 1024);
-  display.clearDisplay(); drawScreen(next, state, nSub); memcpy(screenBufferNew, display.getBuffer(), 1024);
-  for (int step = 0; step <= 8; step++) {
-    uint8_t* displayBuf = display.getBuffer();
-    for (int page = 0; page < 8; page++) {
-        int oldPageIdx = page + step; int newPageIdx = page - (8 - step); int destIndex = page * 128;
-        if (oldPageIdx < 8) memcpy(&displayBuf[destIndex], &screenBufferOld[oldPageIdx * 128], 128);
-        else if (newPageIdx >= 0) memcpy(&displayBuf[destIndex], &screenBufferNew[newPageIdx * 128], 128);
+void setup() {
+    Serial.begin(115200);
+    delay(100);
+
+    struct tm seedTime = {};
+    seedTime.tm_year = 2026 - 1900;
+    seedTime.tm_mon = 8;
+    seedTime.tm_mday = 11;
+    seedTime.tm_hour = 12;
+    time_t seedEpoch = mktime(&seedTime);
+    struct timeval tv = { seedEpoch, 0 };
+    settimeofday(&tv, nullptr);
+
+    Wire.begin(appState.config.sda_pin, appState.config.scl_pin);
+    if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
+        Serial.println("SSD1306 allocation failed");
+        for (;;);
     }
-    display.display(); delay(10); 
-  }
-}
 
-void DisplayService::animateDissolve(int prev, int pSub, int next, int nSub, const AppState& state) {
-  display.clearDisplay(); drawScreen(prev, state, pSub); memcpy(screenBufferOld, display.getBuffer(), 1024);
-  display.clearDisplay(); drawScreen(next, state, nSub); memcpy(screenBufferNew, display.getBuffer(), 1024);
-  uint8_t* displayBuf = display.getBuffer();
-  for (int step = 0; step < 8; step++) {
-    uint8_t mask = 0;
-    switch(step) {
-        case 0: mask = 0b10000000; break; case 1: mask = 0b11000000; break; case 2: mask = 0b11100000; break; case 3: mask = 0b11100100; break;
-        case 4: mask = 0b11110100; break; case 5: mask = 0b11111100; break; case 6: mask = 0b11111110; break; case 7: mask = 0b11111111; break;
+    if (appState.config.button_type == "switch") {
+        button.setup(appState.config.button_pin, INPUT_PULLUP, true);
+    } else {
+        button.setup(appState.config.button_pin, INPUT, false);
     }
-    for (int i = 0; i < 1024; i++) displayBuf[i] = (screenBufferNew[i] & mask) | (screenBufferOld[i] & ~mask);
-    display.display(); delay(10);
-  }
+    button.attachClick(handleSingleClick);
+    button.attachDoubleClick(handleDoubleClick);
+    button.attachLongPressStart(handleLongPress);
+    button.setDebounceTicks(50);
+    button.setClickTicks(150);
+    button.setPressTicks(500);
+    button.reset();
+
+    jumpToFirstEnabledScreen(appState);
+    display.clearDisplay();
+    drawCurrentScreen(appState);
+    display.display();
+    lastScreenSwitch = millis();
 }
 
-void DisplayService::animateCurtain(int prev, int pSub, int next, int nSub, const AppState& state) {
-  display.clearDisplay(); drawScreen(prev, state, pSub); memcpy(screenBufferOld, display.getBuffer(), 1024);
-  display.clearDisplay(); drawScreen(next, state, nSub); memcpy(screenBufferNew, display.getBuffer(), 1024);
-  int maxRadius = 80; int step = 4; uint8_t* displayBuf = display.getBuffer();
-  for (int r = 0; r <= maxRadius; r += step) {
-      int startX = 64 - r; if (startX < 0) startX = 0;
-      int endX = 64 + r; if (endX > 128) endX = 128;
-      for (int x = 0; x < 128; x++) {
-          bool insideCurtain = (x >= startX && x < endX);
-          for (int page = 0; page < 8; page++) {
-              int idx = x + (page * 128); displayBuf[idx] = insideCurtain ? screenBufferNew[idx] : screenBufferOld[idx];
-          }
-      }
-      display.display();
-  }
-}
+void loop() {
+    button.tick();
 
-void DisplayService::animateBlinds(int prev, int pSub, int next, int nSub, const AppState& state) {
-  display.clearDisplay(); drawScreen(prev, state, pSub); memcpy(screenBufferOld, display.getBuffer(), 1024);
-  display.clearDisplay(); drawScreen(next, state, nSub); memcpy(screenBufferNew, display.getBuffer(), 1024);
-  uint8_t* displayBuf = display.getBuffer();
-  memcpy(displayBuf, screenBufferOld, 1024); display.display();
-  int blindWidth = 16; int numBlinds = 8; int stepSize = 2; 
-  for (int progress = 0; progress < blindWidth; progress += stepSize) {
-      for (int blind = 0; blind < numBlinds; blind++) {
-          int blindStartX = blind * blindWidth;
-          for (int i = 0; i < stepSize; i++) {
-              int currentX = blindStartX + progress + i; if (currentX >= 128) continue;
-              for (int page = 0; page < 8; page++) {
-                  int idx = currentX + (page * 128); displayBuf[idx] = screenBufferNew[idx];
-              }
-          }
-      }
-      display.display(); delay(5);
-  }
+    if (appState.config.screen_auto_cycle) {
+        unsigned long intervalMs = (unsigned long)appState.config.screen_interval_sec * 1000;
+        if (millis() - lastScreenSwitch >= intervalMs) {
+            switchToNextScreen(appState);
+            lastScreenSwitch = millis();
+        }
+    }
 }

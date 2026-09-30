@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "author": "Uri Shaked",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "board-xiao-esp32-c3", "id": "esp", "top": 10.17, "left": -5.42, "attrs": {} },
+    {
+      "type": "board-ssd1306",
+      "id": "oled1",
+      "top": 41.54,
+      "left": 96.23,
+      "attrs": { "i2cAddress": "0x3c" }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btn1",
+      "top": 115.6,
+      "left": -5.6,
+      "rotate": 90,
+      "attrs": { "color": "green", "xray": "", "bounce": "0" }
+    }
+  ],
+  "connections": [
+    [ "esp:3V3", "oled1:VCC", "red", [ "v-57.6", "h67.67" ] ],
+    [ "esp:GND", "oled1:GND", "black", [ "h19.82", "v-38.4", "h57.6" ] ],
+    [ "esp:D4", "oled1:SDA", "blue", [ "v-96", "h143.93" ] ],
+    [ "oled1:SCL", "esp:D5", "green", [ "h0.3", "v-67.2", "h-163.2", "v96" ] ],
+    [ "esp:D10", "btn1:2.r", "gold", [ "h10.22", "v124.8", "h-47.8" ] ],
+    [ "btn1:1.l", "esp:GND", "black", [ "h38.4", "v-67.2", "h-19.82" ] ]
+  ],
+  "dependencies": {}
+}

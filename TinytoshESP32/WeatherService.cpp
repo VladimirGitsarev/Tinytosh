@@ -31,58 +31,80 @@ bool WeatherService::isWeatherValid(const WeatherData& data) {
     return !isnan(data.temp) && data.weather_code != -1;
 }
 
+bool WeatherService::weatherValueSelected(const Config& config, const char* key) {
+    for (int i = 0; i < 6; i++) {
+        if (config.weather_values[i] == key) return true;
+    }
+    return false;
+}
+
 bool WeatherService::fetchWeather(const Config& config, WeatherData& data, const String& updateTime) {
   HTTPClient http;
+
+  String current = "temperature_2m,weather_code,is_day";
+  bool wantFeels = weatherValueSelected(config, "feels");
+  bool wantHumidity = weatherValueSelected(config, "humidity");
+  bool wantWind = weatherValueSelected(config, "wind");
+  bool wantPrecipitation = weatherValueSelected(config, "precipitation");
+  bool wantPressure = weatherValueSelected(config, "pressure");
+  bool wantVisibility = weatherValueSelected(config, "visibility");
+  if (wantFeels) current += ",apparent_temperature";
+  if (wantHumidity) current += ",relative_humidity_2m";
+  if (wantWind) current += ",wind_speed_10m";
+  if (wantPrecipitation) current += ",precipitation_probability";
+  if (wantPressure) current += ",surface_pressure";
+  if (wantVisibility) current += ",visibility";
+
   String url = String(WEATHER_API_BASE) + "?latitude=" + String(config.latitude, 4) +
                 "&longitude=" + String(config.longitude, 4) +
-                "&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,apparent_temperature,is_day";
-                
+                "&current=" + current;
+
   Serial.println("WeatherService: Fetching weather data from Open-Meteo -> " + url);
 
   http.setReuse(false);
   http.begin(url);
-  http.setConnectTimeout(5000); 
+  http.setConnectTimeout(5000);
   http.setTimeout(5000);
   int httpCode = http.GET();
 
   if (httpCode == HTTP_CODE_OK) {
     String payload = http.getString();
-    DynamicJsonDocument doc(4096); 
+    DynamicJsonDocument doc(4096);
     DeserializationError error = deserializeJson(doc, payload);
 
     if (!error) {
-      float temp_c = doc["current"]["temperature_2m"].as<float>();
-      float apparent_temp_c = doc["current"]["apparent_temperature"].as<float>();
+      JsonObject cur = doc["current"];
+      float temp_c = cur["temperature_2m"].as<float>();
+      data.temp = (config.temp_unit == "F") ? temp_c * 1.8 + 32 : temp_c;
 
-      if (config.temp_unit == "F") {
-          data.temp = temp_c * 1.8 + 32;
-          data.apparent_temperature = apparent_temp_c * 1.8 + 32;
+      if (wantFeels) {
+          float apparent_temp_c = cur["apparent_temperature"].as<float>();
+          data.apparent_temperature = (config.temp_unit == "F") ? apparent_temp_c * 1.8 + 32 : apparent_temp_c;
       } else {
-          data.temp = temp_c;
-          data.apparent_temperature = apparent_temp_c;
+          data.apparent_temperature = NAN;
       }
-      
-      data.wind_speed = doc["current"]["wind_speed_10m"].as<float>();
-      data.humidity = doc["current"]["relative_humidity_2m"].as<int>();
-      data.weather_code = doc["current"]["weather_code"].as<int>();
-      data.is_day = doc["current"]["is_day"].as<bool>();
+      data.humidity = wantHumidity ? cur["relative_humidity_2m"].as<int>() : 0;
+      data.wind_speed = wantWind ? cur["wind_speed_10m"].as<float>() : NAN;
+      data.precipitation_probability = wantPrecipitation ? cur["precipitation_probability"].as<float>() : NAN;
+      data.pressure = wantPressure ? cur["surface_pressure"].as<float>() : NAN;
+      data.visibility = wantVisibility ? cur["visibility"].as<float>() : NAN;
+
+      data.weather_code = cur["weather_code"].as<int>();
+      data.is_day = cur["is_day"].as<bool>();
       data.update_time = updateTime;
-      
-      Serial.printf("WeatherService: Success! Temp: %.1f%s, Feels Like: %.1f%s, Humidity: %d%%, Wind: %.1f km/h, Code: %d\n", 
-                    data.temp, config.temp_unit.c_str(), 
-                    data.apparent_temperature, config.temp_unit.c_str(), 
-                    data.humidity, data.wind_speed, data.weather_code);
-                    
+
+      Serial.printf("WeatherService: Success! Temp: %.1f%s, Code: %d\n", data.temp, config.temp_unit.c_str(), data.weather_code);
+
       http.end();
       return true;
-      
+
     } else {
-      Serial.printf("WeatherService: JSON parsing failed: %s\n", error.c_str()); 
+      Serial.printf("WeatherService: JSON parsing failed: %s\n", error.c_str());
       http.end();
       return false;
     }
   } else {
-    Serial.printf("WeatherService: Open-Meteo HTTP GET failed, code: %d\n", httpCode); 
+    Serial.printf("WeatherService: Open-Meteo HTTP GET failed, code: %d\n", httpCode);
     http.end();
     return false;
   }

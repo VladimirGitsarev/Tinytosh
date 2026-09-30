@@ -32,6 +32,7 @@
                         <li>☀️ <a href="#screen-daylight"><strong>Daylight Info:</strong></a> Tracks sunrise, sunset, solar noon, and day length.</li>
                         <li>🌑 <a href="#screen-moon"><strong>Moon Info:</strong></a> Tracks the current lunar phase, illumination, and moonrise/moonset times.</li>
                         <li>🌍 <a href="#screen-population"><strong>Population Info:</strong></a> A live, second-by-second population ticker for the world and your country.</li>
+                        <li>🛩️ <a href="#screen-flight"><strong>Flight Radar:</strong></a> Track nearby aircraft by callsign, altitude, speed, and route, either as a live multi-aircraft radar or a single closest-aircraft dashboard.</li>
                         <li>📊 <a href="#screen-stock"><strong>Stock Tracker:</strong></a> Track market data for up to 5 global assets and ETFs at once.</li>
                         <li>📈 <a href="#screen-crypto"><strong>Crypto Tracker:</strong></a> Track up to 5 top global cryptos with price and trend indicators.</li>
                         <li>💱 <a href="#screen-currency"><strong>Currency Tracker:</strong></a> Track exchange rates for up to 5 fiat currency pairs with custom multipliers.</li>
@@ -39,6 +40,15 @@
                         <li>🎵 <a href="#screen-media"><strong>PC Media:</strong></a> Displays currently playing track, artist, album, and playback status from your connected computer.</li>
                         <li>🖨️ <a href="#screen-bambu"><strong>Bambu 3D Printer:</strong></a> Local network telemetry for your Bambu Lab printer (progress, temperatures, fans, and print status).</li>
                     </ul>
+                </div>
+
+                <div class="info-box" style="text-align: center;">
+                    <strong>🛰️ Not ready to solder anything yet?</strong><br>
+                    <span class="small-desc">Try Tinytosh right in your browser first — no soldering, no printing, no assembly.</span>
+                    <img src="img/simulator.png" alt="Tinytosh Simulator Screenshot" style="max-width: 100%; width: 480px; border-radius: 8px; display: block; margin: 15px auto;">
+                    <a href="https://wokwi.com/projects/452257384760576001" target="_blank" class="btn">
+                        ▶️ Try the Simulator
+                    </a>
                 </div>
             </header>
 
@@ -50,7 +60,7 @@
                         <li><strong>ESP32-C3 SuperMini</strong> (Microcontroller)</li>
                         <li><strong>0.96" OLED Display</strong> (I2C 128x64)</li>
                         <li><strong>Silicone Wires</strong> (30AWG recommended) or Jumper Wires</li>
-                        <li><strong>TTP223 Touch Sensor</strong> (Optional, for button)</li>
+                        <li><strong>TTP223 Touch Sensor</strong> or a momentary <strong>Switch/Button</strong> (Optional, for navigation)</li>
                     </ul>
 
                     <div class="hardware-grid">
@@ -387,7 +397,7 @@
                         <p>Customize your pinout without touching the code!</p>
                         <ul>
                             <li><strong>Custom I2C Pins:</strong> Assign the SDA and SCL pins to match your specific ESP32 board version or custom PCB.</li>
-                            <li><strong>Touch Pin:</strong> Assign the GPIO pin used for your touch button.</li>
+                            <li><strong>Button Type & Pin:</strong> Choose whether you wired a Touch Sensor or a physical Switch, and assign the GPIO pin used for it.</li>
                             <li><strong>Safety Net:</strong> The firmware automatically validates pin assignments to prevent accidental short-circuits.</li>
                         </ul>
                     </div>
@@ -473,8 +483,8 @@
                     </div>
                     
                     <div class="feature-item">
-                        <div class="feature-header">👆 Touch Button Controls</div>
-                        <p>If you installed the optional TTP223 touch sensor, you can control Tinytosh directly:</p>
+                        <div class="feature-header">👆 Button Controls</div>
+                        <p>Whether you wired the TTP223 touch sensor or a physical switch (just set the matching Button Type in Hardware Setup), you can control Tinytosh directly:</p>
                         <ul>
                             <li><strong>Single Tap:</strong> Instantly skips to the next active screen in your rotation. If the display was turned off by Night Mode, this temporarily wakes it up.</li>
                             <li><strong>Double Tap:</strong> Jumps back to the previous active screen, so you can navigate your rotation in either direction.</li>
@@ -566,10 +576,15 @@
                         <ul>
                             <li><strong>Temperature Unit:</strong> Toggle between Celsius (°C) and Fahrenheit (°F).</li>
                             <li><strong>Round Values:</strong> Choose between rounded integers (22°) or precise decimals (21.8°).</li>
+                            <li><strong>Layout:</strong> "With Header" keeps the City/Time bar and up to 3 extra values. "No Header" drops the bar for a bigger centered temperature and up to 6 extra values.</li>
+                            <li><strong>Extra Values:</strong> Pick which readings fill the footer (or grid, in No Header mode): Feels Like, Humidity, Wind Speed, Precipitation Chance, Pressure, and Visibility.</li>
                             <li><strong>Custom Sync Interval:</strong> Optionally set a refresh rate for this screen that's independent of the global Data Sync Interval.</li>
                         </ul>
                         <div class="feature-section-title">Layout</div>
-                        <p>Top: City and Time. Center: Big Temperature and condition icon/desc. Bottom: Feels like, Humidity (%), and Wind Speed (km/h).</p>
+                        <p>
+                            <strong>With Header:</strong> Top: City and Time. Center: Big Temperature and condition icon/desc. Bottom: your 3 chosen values.<br>
+                            <strong>No Header:</strong> Temperature, icon, and description centered on the left. Right: a vertical list of your chosen values (up to 6), evenly spaced.
+                        </p>
                         <span class="api-tag">Source: api.open-meteo.com</span>
 
                         <details open>
@@ -580,13 +595,25 @@
                                         <div class="assembly-img-wrapper">
                                             <img src="img/render_weather.png" alt="Weather Layout Render">
                                         </div>
-                                        <div class="assembly-caption">Layout Render</div>
+                                        <div class="assembly-caption">With Header - Layout Render</div>
                                     </div>
                                     <div class="assembly-item">
                                         <div class="assembly-img-wrapper">
                                             <img src="img/real_weather.jpg" alt="Weather Real Photo" class="real-photo">
                                         </div>
-                                        <div class="assembly-caption">Real Photo</div>
+                                        <div class="assembly-caption">With Header - Real Photo</div>
+                                    </div>
+                                    <div class="assembly-item">
+                                        <div class="assembly-img-wrapper">
+                                            <img src="img/render_weather_headless.png" alt="Weather No Header Layout Render">
+                                        </div>
+                                        <div class="assembly-caption">No Header - Layout Render</div>
+                                    </div>
+                                    <div class="assembly-item">
+                                        <div class="assembly-img-wrapper">
+                                            <img src="img/real_weather_headless.jpg" alt="Weather No Header Real Photo" class="real-photo">
+                                        </div>
+                                        <div class="assembly-caption">No Header - Real Photo</div>
                                     </div>
                                 </div>
                             </div>
@@ -603,10 +630,15 @@
                             <strong>Standard Difference:</strong> US AQI (0-500) focuses on health risk thresholds. European AQI (0-100+) tracks specific pollutant concentrations (PM2.5, PM10, NO2).
                         </div>
                         <ul>
+                            <li><strong>Layout:</strong> "With Header" keeps the City/Time bar and up to 3 extra values. "No Header" drops the bar for a bigger centered AQI value and up to 6 extra values.</li>
+                            <li><strong>Extra Values:</strong> Pick which pollutants fill the footer (or grid, in No Header mode): PM2.5, PM10, Nitrogen Dioxide, Carbon Monoxide, Carbon Dioxide, Sulphur Dioxide, Ozone, Dust, UV Index, and Methane.</li>
                             <li><strong>Custom Sync Interval:</strong> Optionally set a refresh rate for this screen that's independent of the global Data Sync Interval.</li>
                         </ul>
                         <div class="feature-section-title">Layout</div>
-                        <p>Top: City and Time. Center: AQI Value, Standard Type, and Status Icon. Bottom: Real-time PM2.5, PM10, and NO2 levels in µg/m³.</p>
+                        <p>
+                            <strong>With Header:</strong> Top: City and Time. Center: AQI Value, Standard Type, and Status Icon. Bottom: your 3 chosen pollutant readings.<br>
+                            <strong>No Header:</strong> AQI Value, type, and status centered on the left. Right: a vertical list of your chosen pollutants (up to 6), evenly spaced.
+                        </p>
                         <span class="api-tag">Source: air-quality-api.open-meteo.com</span>
 
                         <details open>
@@ -617,13 +649,25 @@
                                         <div class="assembly-img-wrapper">
                                             <img src="img/render_aqi.png" alt="AQI Layout Render">
                                         </div>
-                                        <div class="assembly-caption">Layout Render</div>
+                                        <div class="assembly-caption">With Header - Layout Render</div>
                                     </div>
                                     <div class="assembly-item">
                                         <div class="assembly-img-wrapper">
                                             <img src="img/real_aqi.jpg" alt="AQI Real Photo" class="real-photo">
                                         </div>
-                                        <div class="assembly-caption">Real Photo</div>
+                                        <div class="assembly-caption">With Header - Real Photo</div>
+                                    </div>
+                                    <div class="assembly-item">
+                                        <div class="assembly-img-wrapper">
+                                            <img src="img/render_aqi_headless.png" alt="AQI No Header Layout Render">
+                                        </div>
+                                        <div class="assembly-caption">No Header - Layout Render</div>
+                                    </div>
+                                    <div class="assembly-item">
+                                        <div class="assembly-img-wrapper">
+                                            <img src="img/real_aqi_headless.jpg" alt="AQI No Header Real Photo" class="real-photo">
+                                        </div>
+                                        <div class="assembly-caption">No Header - Real Photo</div>
                                     </div>
                                 </div>
                             </div>
@@ -726,6 +770,62 @@
                                             <img src="img/real_population.jpg" alt="Population Real Photo" class="real-photo">
                                         </div>
                                         <div class="assembly-caption">Real Photo</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </details>
+                    </div>
+
+                    <div class="feature-item" id="screen-flight">
+                        <div class="feature-header">🛩️ Flight Radar</div>
+                        <div class="feature-section-title">Function</div>
+                        <p>Tracks live aircraft flying near your location, either as a multi-aircraft radar view or a single closest-aircraft dashboard.</p>
+                        <div class="info-box">
+                            <strong>Tip:</strong> This screen is only as good as your coordinates. For the most accurate radar and distance readings, head into <strong>Global Settings &rarr; Location & Timezone</strong> and enter your precise Latitude/Longitude manually instead of relying on Auto-Detect.
+                        </div>
+                        <div class="feature-section-title">Settings</div>
+                        <ul>
+                            <li><strong>Radar Mode:</strong> Displays every aircraft within your search radius on a live radar, each labeled with your choice of info.</li>
+                            <li><strong>Closest Aircraft Mode:</strong> Dedicates the full screen to a dashboard for the single nearest aircraft, including its route when available.</li>
+                            <li><strong>Search Radius:</strong> How far out (in nautical miles) to look for aircraft.</li>
+                            <li><strong>Display Units:</strong> Aviation (knots / feet) or Metric (km/h / meters).</li>
+                            <li><strong>Primary & Secondary Info:</strong> In Radar Mode, choose what's shown under each aircraft: Callsign, Altitude, Velocity, Distance, Track, Type, or Route.</li>
+                            <li><strong>Custom Sync Interval:</strong> Optionally set a refresh rate for this screen that's independent of the global Data Sync Interval.</li>
+                        </ul>
+                        <div class="feature-section-title">Layout</div>
+                        <p>
+                            <strong>Radar:</strong> A scaled top-down view centered on you, with a heading arrow, badge, and label for each aircraft, and a distance scale bar along the top.<br>
+                            <strong>Closest Aircraft:</strong> A large callsign and route readout alongside altitude, speed, distance, and track.
+                        </p>
+                        <span class="api-tag">Source: api.adsb.lol</span>
+
+                        <details open>
+                            <summary>📸 Screen Preview</summary>
+                            <div class="assembly-container">
+                                <div class="assembly-grid">
+                                    <div class="assembly-item">
+                                        <div class="assembly-img-wrapper">
+                                            <img src="img/render_flight_radar.png" alt="Flight Radar Layout Render">
+                                        </div>
+                                        <div class="assembly-caption">Radar Mode - Layout Render</div>
+                                    </div>
+                                    <div class="assembly-item">
+                                        <div class="assembly-img-wrapper">
+                                            <img src="img/real_flight_radar.jpg" alt="Flight Radar Real Photo" class="real-photo">
+                                        </div>
+                                        <div class="assembly-caption">Radar Mode - Real Photo</div>
+                                    </div>
+                                    <div class="assembly-item">
+                                        <div class="assembly-img-wrapper">
+                                            <img src="img/render_flight_closest.png" alt="Flight Closest Layout Render">
+                                        </div>
+                                        <div class="assembly-caption">Closest Aircraft - Layout Render</div>
+                                    </div>
+                                    <div class="assembly-item">
+                                        <div class="assembly-img-wrapper">
+                                            <img src="img/real_flight_closest.jpg" alt="Flight Closest Real Photo" class="real-photo">
+                                        </div>
+                                        <div class="assembly-caption">Closest Aircraft - Real Photo</div>
                                     </div>
                                 </div>
                             </div>

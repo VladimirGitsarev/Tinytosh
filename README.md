@@ -17,6 +17,8 @@
 [👉 **Launch Setup Guide & Web Flasher**](https://vladimirgitsarev.github.io/Tinytosh/)  
 *(Click above to view the assembly guide, wiring diagrams, and configure your device)*
 
+**🛰️ Not ready to solder anything yet?** Try Tinytosh right in your browser first — no soldering, no printing, no assembly required. [Open the live Wokwi simulator](https://wokwi.com/projects/452257384760576001) and click ▶️ Play.
+
 ---
 
 ## 🧐 What is this?
@@ -26,11 +28,12 @@
 ### Available Screens & Services
 * 🕒 **Internet Clock:** Auto-syncs time and date based on your location.
 * 📅 **Calendar & Holidays:** Displays the current date, a full monthly grid, and tracks national public holidays based on your country.
-* 🌤️ **Weather Station:** Live Temperature, Humidity, and Forecasts (via Open-Meteo).
-* 🍃 **Air Quality:** Monitor local AQI levels (US & EU Standards).
+* 🌤️ **Weather Station:** Live Temperature, Humidity, and Forecasts (via Open-Meteo). Choose a "With Header" or "No Header" layout, each with its own set of up to 3 or 6 selectable extra values (Feels Like, Humidity, Wind, Precipitation, Pressure, Visibility).
+* 🍃 **Air Quality:** Monitor local AQI levels (US & EU Standards), with the same "With/No Header" layout choice and up to 3 or 6 selectable pollutant readings (PM2.5, PM10, NO2, CO, CO2, SO2, Ozone, Dust, UV Index, Methane).
 * ☀️ **Daylight Info:** Tracks sunrise, sunset, solar noon, and day length.
 * 🌑 **Moon Info:** Tracks the current lunar phase, illumination percentage, and precise moonrise/moonset times with dynamically rendered graphics.
 * 🌍 **Population Info:** Live dashboard displaying a second-by-second calculated world and country population ticker with annual growth rates.
+* 🛩️ **Flight Radar:** Track nearby aircraft by callsign, altitude, speed, distance, track, type, or route. Switch between a live multi-aircraft **Radar** view or a dedicated **Closest Aircraft** dashboard, in Aviation (kt/ft) or Metric (km/h/m) units.
 * 📊 **Stock Tracker:** Track market data for **up to 5** global assets, ETFs, and Mega-Cap Tech at once with daily trend indicators.
 * 📈 **Crypto Tracker:** Watch **up to 5** of your favorite coins (from top 75 global cryptos) with price and trend indicators.
 * 💱 **Currency Tracker:** Track exchange rates for **up to 5** fiat currency pairs with custom scaling multipliers.
@@ -39,14 +42,14 @@
 * 🖨️ **Bambu 3D Printer:** Local network telemetry for your Bambu Lab printer (progress, temperatures, fans, and print status) featuring smart layouts for IDLE and PRINTING modes.
 
 ### ✨ Key Features
-* **🧩 Modular Dashboard:** The heart of Tinytosh. Enable or disable any of the screens above to build exactly the device you want — a full 13-screen rotation, a dedicated crypto ticker, or anything in between. Toggle screens on/off instantly via the Web Panel or PC App, no reflashing required.
-* **🎛️ Per-Screen Configuration:** It's not just *which* screens you show — it's *how* they look. Every screen has its own dedicated settings (units, minimal vs. full layouts, hidden top bars, full names vs. compact tickers, and more), so each one behaves exactly the way you prefer.
+* **🧩 Modular Dashboard:** The heart of Tinytosh. Enable or disable any of the screens above to build exactly the device you want — a full 14-screen rotation, a dedicated crypto ticker, or anything in between. Toggle screens on/off instantly via the Web Panel or PC App, no reflashing required.
+* **🎛️ Per-Screen Configuration:** It's not just *which* screens you show — it's *how* they look. Every screen has its own dedicated settings (units, minimal vs. full layouts, with/without header modes, full names vs. compact tickers, and more), so each one behaves exactly the way you prefer.
 * **🎨 OLED Theme Engine:** Procedural design system. Pick 4 base colors, and the engine automatically calculates all hover states, UI borders, and muted text tones for both the Web Panel and PC app!
-* **🔌 Hardware Setup:** Customize your I2C and Touch pinout directly from the Web Panel without touching the code.
+* **🔌 Hardware Setup:** Customize your I2C pinout, and choose whether your button is a Touch Sensor or a physical Switch (plus its GPIO pin), directly from the Web Panel without touching the code.
 * **⚡ Instant Live Sync:** Change a setting on the Web Panel or PC App and watch it apply on the OLED right away — no reboots, no waiting, no manual refresh.
-* **📍 Smart Location:** Auto-detect your location via IP or manually set your exact coordinates, country, and native timezone.
+* **📍 Smart Location:** Auto-detect your location via IP or manually set your exact coordinates, country, and native timezone. *(Tip: for the most accurate Flight Radar results, enter your precise coordinates manually instead of relying on auto-detect.)*
 * **🔀 Drag & Drop Reordering:** Fully customize your display sequence. Grab and drag screens to change their order. The configuration UI dynamically rearranges itself to match your custom layout perfectly.
-* **👆 Touch Button Controls:** Supports an optional TTP223 touch sensor. **Single Tap** to advance to the next screen (or wake the display), **Double Tap** to jump back to the previous one, and **Long Press** to lock/unlock auto-rotation to keep your favorite screen visible indefinitely.
+* **👆 Button Controls:** Supports an optional TTP223 touch sensor *or* a physical momentary switch — just pick which one you wired in Hardware Setup. **Single Tap** to advance to the next screen (or wake the display), **Double Tap** to jump back to the previous one, and **Long Press** to lock/unlock auto-rotation to keep your favorite screen visible indefinitely.
 * **👻 Smart Auto-Hide:** PC Monitor and PC Media screens can intelligently hide themselves and skip rotation when your PC is off, disconnected, or no media is playing.
 * **⏱️ Custom Data Sync Intervals:** Override the global refresh rate on a per-screen basis. Set Weather, Air Quality, Stocks, Crypto, or Currency to sync more (or less) often than the rest of your dashboard.
 * **🌙 Night Mode & Power Saving:** Set a quiet schedule to minimize sleep distractions. Choose between *Dim Display*, *Turn Display Off*, or *Dim then Turn Off* (featuring an extra time picker for gradual dimming). Features "Smart Latching" (waits for the primary screen before sleeping), 10x slower background API fetching to save power, and a temporary 30-second wake feature via the physical button.
@@ -59,7 +62,7 @@
 
 ## 🛠️ The Software Stack
 
-For developers, makers, and the curious, here is how the magic happens. The project consists of two distinct software parts:
+For developers, makers, and the curious, here is how the magic happens. The project consists of three distinct software parts:
 
 ### 1. Firmware (ESP32-C3)
 *Written in C++ using the Arduino Framework.*
@@ -145,6 +148,13 @@ npm install
 npm run tauri build
 ```
 
+### 3. Browser Simulator (Wokwi)
+*A standalone, hardware-free build of the display logic.*
+
+The [`TinytoshSimulator`](TinytoshSimulator/) folder is a simplified [Wokwi](https://wokwi.com/) simulation — no WiFi, no API calls, no settings panel, just realistic mock data driving the exact same `Config` struct and screen-drawing code as the real firmware. It's the fastest way to see every screen, layout option, and button gesture in action without owning any hardware.
+
+[**🛰️ Try it on Wokwi**](https://wokwi.com/projects/452257384760576001) or run it locally — see [`TinytoshSimulator/README.md`](TinytoshSimulator/README.md) for setup.
+
 ---
 
 ## 🖨️ Hardware & 3D Files
@@ -153,7 +163,7 @@ The case is designed to be **screwless**—everything snaps together.
 
 * **Microcontroller:** ESP32-C3 SuperMini
 * **Display:** 0.96" OLED (I2C)
-* **Optional:** TTP223 Touch Sensor (for manual screen switching)
+* **Optional:** TTP223 Touch Sensor *or* a physical momentary Switch (for manual screen switching)
 
 You can download the STL/3MF files and view the full bill of materials on MakerWorld:
 
@@ -195,6 +205,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 | Version | Date | Key Changes |
 | :--- | :--- | :--- |
+| **v1.1.4** | *Oct 2026* | 🛩️ Added **Flight Radar** screen: live multi-aircraft radar view or a dedicated Closest Aircraft dashboard, with configurable search radius, Aviation/Metric units, and per-badge Primary/Secondary info. 🌤️🍃 **Weather & Air Quality Overhaul:** replaced the single "Hide Top Bar" toggle with a "With/No Header" layout choice and up to 3 or 6 selectable extra readings. 🔘 Added a **Switch Button** hardware option alongside the Touch Sensor. 🛰️ Added the **Tinytosh Simulator** — a browser-based Wokwi build you can try with zero hardware. |
 | **v1.1.3** | *Sep 2026* | ⏱️ Added **Custom Data Sync Intervals** for Weather, AQI, Stocks, Crypto, and Currency — override the global refresh rate independently per screen. 👆👆 Added **Double-Click Navigation**: single tap moves to the next screen, double tap now jumps back to the previous one. ⚙️ Internal firmware refactor for cleaner, more maintainable code. |
 | **v1.1.2** | *Sep 2026* | 🌍 Added **Population Info** screen featuring a live calculated, second-by-second world and country population ticker. |
 | **v1.1.1** | *Aug 2026* | 🌑 Added **Moon Info** screen with dynamically rendered moon phases, illumination %, and rise/set times. |

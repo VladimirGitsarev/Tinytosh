@@ -16,6 +16,8 @@ public:
 
 private:
     static constexpr const char* WEATHER_API_BASE = "https://api.open-meteo.com/v1/forecast";
+
+    static bool weatherValueSelected(const Config& config, const char* key);
 };
 
 #endif
