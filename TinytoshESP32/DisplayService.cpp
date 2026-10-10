@@ -5,6 +5,7 @@
 #include <time.h>
 
 #include "images.h"
+#include "IssService.h"
 #include "PopulationService.h"
 #include "TimeService.h"
 #include "WeatherService.h"
@@ -896,6 +897,182 @@ void DisplayService::drawMoonScreen(const Config& config, const MoonData& data) 
     display.drawCircle(cx, cy, r, SSD1306_WHITE);
 }
 
+void DisplayService::drawIssScreen(const Config& config, const IssData& data) {
+    static const int maxTrackPoints = 256;
+    static uint8_t trackX[maxTrackPoints];
+    static uint8_t trackY[maxTrackPoints];
+    static int trackCount = 0;
+    static long trackStartTs = 0;
+    static long trackEndTs = 0;
+
+    if (!IssService::isValid(data)) {
+        trackCount = 0;
+        drawInfoScreen(icon_error, "No ISS Data");
+        return;
+    }
+
+    display.clearDisplay();
+    display.setTextColor(SSD1306_WHITE);
+    display.setTextWrap(false);
+    display.setTextSize(1);
+    display.setFont(&Picopixel);
+
+    int16_t x1, y1; uint16_t w, h;
+
+    float issLat, issLon;
+    IssService::getCurrentPosition(data, issLat, issLon);
+    String latStr = String(issLat, 2);
+    String lonStr = String(issLon, 2);
+
+    String location = IssService::getLocationName(data);
+    location.toUpperCase();
+
+    bool isMiles = (data.units == "miles");
+    String labels[3] = {
+        isMiles ? "ALT MI" : "ALT KM",
+        isMiles ? "SPD MPH" : "SPD KM/H",
+        isMiles ? "DIST MI" : "DIST KM"
+    };
+    String values[3] = {
+        String((int)round(data.altitude)),
+        String((int)round(data.velocity)),
+        String((int)round(IssService::distanceFrom(data, config.latitude, config.longitude)))
+    };
+
+    auto trimToWidth = [&](String& text, int maxW) -> bool {
+        display.getTextBounds(text.c_str(), 0, 0, &x1, &y1, &w, &h);
+        if ((int)w <= maxW) return false;
+        while (text.length() > 0) {
+            text = text.substring(0, text.length() - 1);
+            text.trim();
+            display.getTextBounds(text.c_str(), 0, 0, &x1, &y1, &w, &h);
+            if ((int)w + 8 <= maxW) break;
+        }
+        return true;
+    };
+
+    auto printCentered = [&](const String& text, int centerX, int y) {
+        display.getTextBounds(text.c_str(), 0, 0, &x1, &y1, &w, &h);
+        display.setCursor(centerX - (int)w / 2 - x1, y);
+        display.print(text);
+    };
+
+    if (config.iss_mode == "text") {
+        const int columnX[3] = {26, 64, 102};
+
+        // 1. Country/ocean headline
+        const int nameY = 6;
+        display.setFont();
+        String name = location.length() > 0 ? location : "ISS TRACKER";
+        bool nameTrimmed = trimToWidth(name, 124);
+        display.getTextBounds(name.c_str(), 0, 0, &x1, &y1, &w, &h);
+        int nameX = (128 - ((int)w + (nameTrimmed ? 8 : 0))) / 2;
+        display.setCursor(nameX, nameY);
+        display.print(name);
+        if (nameTrimmed) display.drawBitmap(nameX + w, nameY, icon_dots, 8, 8, SSD1306_WHITE);
+
+        // 2. Coordinates
+        printCentered(latStr, columnX[0], 24);
+        printCentered(lonStr, columnX[2], 24);
+        display.setFont(&Picopixel);
+        printCentered("LAT", columnX[0], 38);
+        printCentered("LON", columnX[2], 38);
+        display.drawBitmap(columnX[1] - 8, 23, icon_iss, 16, 16, SSD1306_WHITE);
+
+        // 3. Altitude, speed, distance
+        for (int i = 0; i < 3; i++) {
+            display.setFont();
+            printCentered(values[i], columnX[i], 47);
+            display.setFont(&Picopixel);
+            printCentered(labels[i], columnX[i], 61);
+        }
+        return;
+    }
+
+    const int mapX = 1;
+    const int mapY = 11;
+    const int mapW = 84;
+    const int mapH = 42;
+    const int headerBaseline = 6;
+    const int coordsBaseline = 61;
+    const int statsX = 92;
+
+    auto toMapX = [&](float lon) { return mapX + constrain((int)((lon + 180.0f) / 360.0f * mapW), 0, mapW - 1); };
+    auto toMapY = [&](float lat) { return mapY + constrain((int)((90.0f - lat) / 180.0f * mapH), 0, mapH - 1); };
+
+    // 1. Country/ocean header
+    String header = location.length() > 0 ? location : "ISS TRACKER";
+    const int headerMaxW = mapW + 2;
+    bool headerTrimmed = trimToWidth(header, headerMaxW);
+    display.getTextBounds(header.c_str(), 0, 0, &x1, &y1, &w, &h);
+    int headerW = w + (headerTrimmed ? 8 : 0);
+    int headerX = mapX - 1 + (headerMaxW - headerW) / 2;
+    display.setCursor(headerX - x1, headerBaseline);
+    display.print(header);
+    if (headerTrimmed) display.drawBitmap(headerX + w, headerBaseline - 6, icon_dots, 8, 8, SSD1306_WHITE);
+
+    // 2. World map
+    display.drawRect(mapX - 1, mapY - 1, mapW + 2, mapH + 2, SSD1306_WHITE);
+    display.drawBitmap(mapX, mapY, img_world_map, mapW, mapH, SSD1306_WHITE);
+
+    // 3. Ground track (current pass)
+    float elapsedMin = min((millis() - data.fetched_at_ms) / 60000.0f, 15.0f);
+    long nowTs = data.timestamp + (long)(elapsedMin * 60.0f);
+    if (trackCount == 0 || nowTs < trackStartTs || nowTs >= trackEndTs) {
+        trackCount = 0;
+        float startMin, endMin;
+        if (IssService::getPassWindow(data, elapsedMin, startMin, endMin)) {
+            float trackLat, trackLon;
+            for (float t = startMin; t <= endMin && trackCount < maxTrackPoints; t += IssService::PASS_STEP_MIN) {
+                IssService::predictPosition(data, t, trackLat, trackLon);
+                uint8_t px = toMapX(trackLon);
+                uint8_t py = toMapY(trackLat);
+                if (trackCount > 0 && trackX[trackCount - 1] == px && trackY[trackCount - 1] == py) continue;
+                trackX[trackCount] = px;
+                trackY[trackCount] = py;
+                trackCount++;
+            }
+            trackStartTs = data.timestamp + (long)(startMin * 60.0f);
+            trackEndTs = data.timestamp + (long)((endMin + IssService::PASS_STEP_MIN) * 60.0f);
+        }
+    }
+    for (int i = 0; i < trackCount; i++) {
+        display.drawPixel(trackX[i], trackY[i], SSD1306_INVERSE);
+    }
+
+    // 4. ISS marker
+    int ix = toMapX(issLon);
+    int iy = toMapY(issLat);
+    display.fillCircle(ix, iy, 4, SSD1306_BLACK);
+    display.drawCircle(ix, iy, 3, SSD1306_WHITE);
+    if (data.is_daylight) display.fillCircle(ix, iy, 1, SSD1306_WHITE);
+
+    // 5. Coordinates
+    const int coordsGap = 6;
+    display.getTextBounds(latStr.c_str(), 0, 0, &x1, &y1, &w, &h);
+    int latW = w;
+    display.getTextBounds(lonStr.c_str(), 0, 0, &x1, &y1, &w, &h);
+    int lonW = w;
+    int coordsX = mapX + (mapW - (latW + coordsGap + lonW)) / 2;
+    display.setCursor(coordsX, coordsBaseline);
+    display.print(latStr);
+    display.setCursor(coordsX + latW + coordsGap, coordsBaseline);
+    display.print(lonStr);
+
+    // 6. Stats column: altitude, speed, distance
+    for (int i = 0; i < 3; i++) {
+        int rowY = 3 + i * 21;
+
+        display.setFont(&Picopixel);
+        display.setCursor(statsX, rowY + 5);
+        display.print(labels[i]);
+
+        display.setFont();
+        display.setCursor(statsX, rowY + 8);
+        display.print(values[i]);
+    }
+}
+
 void DisplayService::drawPopulationScreen(const Config& config, const PopulationData& data) {
     if (data.world_pop_base == -1 && data.country_pop_base == -1) {
         drawInfoScreen(icon_error, "No Populace Data");
@@ -1718,15 +1895,20 @@ void DisplayService::drawFlightScreen(const Config& config, const FlightData& da
         }
 
         for (int i = 1; i < count; i++) {
+            // Nudge badges that poke out of the radar frame back inside instead of dropping them
             int left = xs[i] - boxW[i] / 2;
             int right = xs[i] + boxW[i] / 2;
+            if (left < screenMinX) xs[i] += screenMinX - left;
+            else if (right > screenMaxX) xs[i] -= right - screenMaxX;
             int top = ys[i] + topOffset[i];
             int bottom = ys[i] + bottomOffset[i];
+            if (top < screenMinY) ys[i] += screenMinY - top;
+            else if (bottom > screenMaxY) ys[i] -= bottom - screenMaxY;
+            top = ys[i] + topOffset[i];
+            bottom = ys[i] + bottomOffset[i];
 
-            if (left < screenMinX || right > screenMaxX || top < screenMinY || bottom > screenMaxY) {
-                dropped[i] = true;
-                continue;
-            }
+            // The closest aircraft always stays, so a non-empty radar never renders blank
+            if (i == 1) continue;
 
             for (int j = 0; j < i; j++) {
                 if (dropped[j]) continue;
@@ -2114,7 +2296,7 @@ bool DisplayService::isScreenEnabled(const AppState& state, int screenIndex) {
         case SCREEN_AIR_QUALITY:    return config.show_aqi;
         case SCREEN_DAYLIGHT:       return config.show_daylight;
         case SCREEN_MOON:           return config.show_moon;
-        case SCREEN_POPULATION:     return config.show_population;
+        case SCREEN_ISS:            return config.show_iss;
         case SCREEN_FLIGHT: {
             if (!config.show_flight) return false;
             if (config.hide_empty_flight) {
@@ -2123,6 +2305,7 @@ bool DisplayService::isScreenEnabled(const AppState& state, int screenIndex) {
             }
             return true;
         }
+        case SCREEN_POPULATION:     return config.show_population;
         case SCREEN_STOCK:          return config.show_stock;
         case SCREEN_CRYPTO:         return config.show_crypto;
         case SCREEN_CURRENCY:       return config.show_currency;
@@ -2162,8 +2345,9 @@ void DisplayService::drawScreen(int screenIndex, const AppState& state, int subI
     case SCREEN_AIR_QUALITY: drawAQIScreen(state.config, state.aqi, TimeService::getCurrentTimeShort(state.config.time_format)); break;
     case SCREEN_DAYLIGHT: drawDaylightScreen(state.config, state.daylight); break;
     case SCREEN_MOON: drawMoonScreen(state.config, state.moon); break;
-    case SCREEN_POPULATION: drawPopulationScreen(state.config, state.population); break;
+    case SCREEN_ISS: drawIssScreen(state.config, state.iss); break;
     case SCREEN_FLIGHT: drawFlightScreen(state.config, state.flight); break;
+    case SCREEN_POPULATION: drawPopulationScreen(state.config, state.population); break;
     case SCREEN_STOCK: drawStockScreen(state.config, state.stocks[subIndex]); break;
     case SCREEN_CRYPTO: drawCryptoScreen(state.config, state.cryptos[subIndex]); break;
     case SCREEN_CURRENCY: drawCurrencyScreen(state.config, state.currencies[subIndex], state.config.currency_multipliers[subIndex]); break;

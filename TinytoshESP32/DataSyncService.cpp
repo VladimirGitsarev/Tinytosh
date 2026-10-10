@@ -12,6 +12,7 @@
 #include "DaylightService.h"
 #include "DisplayService.h"
 #include "FlightService.h"
+#include "IssService.h"
 #include "MoonService.h"
 #include "PopulationService.h"
 #include "StockService.h"
@@ -27,11 +28,12 @@ extern WeatherService weatherService;
 extern AirQualityService airQualityService;
 extern DaylightService daylightService;
 extern MoonService moonService;
+extern IssService issService;
+extern FlightService flightService;
 extern PopulationService populationService;
 extern StockService stockService;
 extern CryptoService cryptoService;
 extern CurrencyService currencyService;
-extern FlightService flightService;
 
 unsigned long DataSyncService::getGlobalIntervalMs(const Config& config, bool nightModeLatched) const {
     unsigned long multiplier = nightModeLatched ? NIGHT_INTERVAL_MULTIPLIER : 1;
@@ -62,6 +64,8 @@ bool DataSyncService::isDue(ScreenType screen, const Config& config, bool nightM
             return config.show_weather && isFetchDue(trackers.lastWeatherFetch, config.custom_weather_int_min, config, nightModeLatched);
         case SCREEN_AIR_QUALITY:
             return config.show_aqi && isFetchDue(trackers.lastAqiFetch, config.custom_aqi_int_min, config, nightModeLatched);
+        case SCREEN_ISS:
+            return config.show_iss && isFetchDue(trackers.lastIssFetch, config.custom_iss_int_min, config, nightModeLatched);
         case SCREEN_FLIGHT:
             return config.show_flight && isFetchDue(trackers.lastFlightFetch, config.custom_flight_int_min, config, nightModeLatched);
         case SCREEN_STOCK:
@@ -80,6 +84,7 @@ void DataSyncService::markFetched(ScreenType screen) {
     switch (screen) {
         case SCREEN_WEATHER: trackers.lastWeatherFetch = now; break;
         case SCREEN_AIR_QUALITY: trackers.lastAqiFetch = now; break;
+        case SCREEN_ISS: trackers.lastIssFetch = now; break;
         case SCREEN_FLIGHT: trackers.lastFlightFetch = now; break;
         case SCREEN_STOCK: trackers.lastStockFetch = now; break;
         case SCREEN_CRYPTO: trackers.lastCryptoFetch = now; break;
@@ -141,11 +146,11 @@ void DataSyncService::runFullSync(AppState& state) {
         moonService.fetchMoon(config, state.moon);
     }
 
-    // 8. Fetch Population (Depends on Country Code)
-    if (config.show_population && state.population.last_fetch_yday != current_yday) {
-        String popLoc = (config.pop_show_world && config.pop_show_country && config.country_code != "") ? ("World + " + config.country_code) : (config.pop_show_world ? "World" : config.country_code);
-        displayService.showOLEDStatus({"\n", "\n", "Updating Populace...", "\n", "Location:", popLoc}, true);
-        populationService.fetchPopulation(config, state.population);
+    // 8. Fetch ISS (Independent)
+    if (config.show_iss) {
+        displayService.showOLEDStatus({"\n", "\n", "Updating ISS...", "\n", "Tracking:", "Space Station"}, true);
+        issService.fetchIss(config, state.iss, true);
+        markFetched(SCREEN_ISS);
     }
 
     // 9. Fetch Flight Radar (Depends on Lat/Lon)
@@ -155,7 +160,14 @@ void DataSyncService::runFullSync(AppState& state) {
         markFetched(SCREEN_FLIGHT);
     }
 
-    // 10. Fetch Stocks (Independent)
+    // 10. Fetch Population (Depends on Country Code)
+    if (config.show_population && state.population.last_fetch_yday != current_yday) {
+        String popLoc = (config.pop_show_world && config.pop_show_country && config.country_code != "") ? ("World + " + config.country_code) : (config.pop_show_world ? "World" : config.country_code);
+        displayService.showOLEDStatus({"\n", "\n", "Updating Populace...", "\n", "Location:", popLoc}, true);
+        populationService.fetchPopulation(config, state.population);
+    }
+
+    // 11. Fetch Stocks (Independent)
     if (config.show_stock) {
         for (int i = 0; i < config.stock_count; i++) {
             displayService.showOLEDStatus({"\n", "\n", "Updating Stocks...", "\n", "Stock:", config.stock_symbols[i]}, true);
@@ -164,7 +176,7 @@ void DataSyncService::runFullSync(AppState& state) {
         markFetched(SCREEN_STOCK);
     }
 
-    // 11. Fetch Crypto (Independent)
+    // 12. Fetch Crypto (Independent)
     if (config.show_crypto) {
         for (int i = 0; i < config.crypto_count; i++) {
             displayService.showOLEDStatus({"\n", "\n", "Updating Crypto...", "\n", "Ticker ID:", String(config.crypto_ids[i])}, true);
@@ -173,7 +185,7 @@ void DataSyncService::runFullSync(AppState& state) {
         markFetched(SCREEN_CRYPTO);
     }
 
-    // 12. Fetch Currency (Independent)
+    // 13. Fetch Currency (Independent)
     if (config.show_currency) {
         for (int i = 0; i < config.currency_count; i++) {
             String baseUpper = String(config.currency_bases[i]);
@@ -189,7 +201,7 @@ void DataSyncService::runFullSync(AppState& state) {
 
     displayService.showOLEDStatus({"\n", "\n", "Data Updated", "\n", "\n", "Tinytosh is Ready", "\n", "\n", "Welcome!"}, true);
 
-    // 13. Save Everything
+    // 14. Save Everything
     configManager.saveConfig(config);
 
     markGlobalSynced();
@@ -200,6 +212,7 @@ void DataSyncService::maybeStartBackgroundSync(AppState& state, bool nightModeLa
     bool anyScreenDue = dueGlobal
         || isDue(SCREEN_WEATHER, state.config, nightModeLatched)
         || isDue(SCREEN_AIR_QUALITY, state.config, nightModeLatched)
+        || isDue(SCREEN_ISS, state.config, nightModeLatched)
         || isDue(SCREEN_FLIGHT, state.config, nightModeLatched)
         || isDue(SCREEN_STOCK, state.config, nightModeLatched)
         || isDue(SCREEN_CRYPTO, state.config, nightModeLatched)
@@ -266,6 +279,10 @@ void DataSyncService::runBackgroundSyncBody() {
     if (isDue(SCREEN_AIR_QUALITY, config, nightModeLatched)) {
         airQualityService.fetchAirQuality(config, state.aqi);
         markFetched(SCREEN_AIR_QUALITY);
+    }
+    if (isDue(SCREEN_ISS, config, nightModeLatched)) {
+        issService.fetchIss(config, state.iss);
+        markFetched(SCREEN_ISS);
     }
     if (isDue(SCREEN_FLIGHT, config, nightModeLatched)) {
         flightService.fetchFlights(config, state.flight);

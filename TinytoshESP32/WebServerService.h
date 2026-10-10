@@ -18,6 +18,7 @@ public:
     void handleSave();
     void handleUpdate();
     void handlePcStats();
+    void handleUsbReconnect();
     
 private:
     static const unsigned long PC_DATA_TIMEOUT_MS = 10000;

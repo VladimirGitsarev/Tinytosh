@@ -3,6 +3,24 @@
 #include <HardwareSerial.h>
 
 #include "JsonSerializer.h"
+#include "soc/usb_serial_jtag_struct.h"
+
+void PcMonitorService::begin() {
+    Serial.setRxBufferSize(USB_RX_BUFFER_SIZE);
+    Serial.setTxBufferSize(USB_TX_BUFFER_SIZE);
+    Serial.begin(115200);
+    Serial.setTxTimeoutMs(0);
+}
+
+void PcMonitorService::reconnectUsb() {
+    Serial.println("PcMonitorService: Re-connecting USB (soft replug)...");
+    Serial.flush();
+    USB_SERIAL_JTAG.conf0.pad_pull_override = 1;
+    USB_SERIAL_JTAG.conf0.dp_pullup = 0;
+    delay(USB_RECONNECT_DETACH_MS);
+    USB_SERIAL_JTAG.conf0.dp_pullup = 1;
+    USB_SERIAL_JTAG.conf0.pad_pull_override = 0;
+}
 
 bool PcMonitorService::handleSerial(AppState &state) {
     bool configUpdated = false;

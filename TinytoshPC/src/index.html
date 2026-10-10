@@ -205,14 +205,15 @@
               <li class="sortable-item" data-id="3" data-target="showAQI"><div class="order-ctrl"><span class="move-btn move-up">▲</span><span class="move-btn move-down">▼</span></div>Air Quality</li>
               <li class="sortable-item" data-id="4" data-target="showDaylight"><div class="order-ctrl"><span class="move-btn move-up">▲</span><span class="move-btn move-down">▼</span></div>Daylight Info</li>
               <li class="sortable-item" data-id="5" data-target="showMoon"><div class="order-ctrl"><span class="move-btn move-up">▲</span><span class="move-btn move-down">▼</span></div>Moon Info</li>
-              <li class="sortable-item" data-id="6" data-target="showPopulation"><div class="order-ctrl"><span class="move-btn move-up">▲</span><span class="move-btn move-down">▼</span></div>Population Info</li>
+              <li class="sortable-item" data-id="6" data-target="showIss"><div class="order-ctrl"><span class="move-btn move-up">▲</span><span class="move-btn move-down">▼</span></div>ISS Tracker</li>
               <li class="sortable-item" data-id="7" data-target="showFlight"><div class="order-ctrl"><span class="move-btn move-up">▲</span><span class="move-btn move-down">▼</span></div>Flight Radar</li>
-              <li class="sortable-item" data-id="8" data-target="showStock"><div class="order-ctrl"><span class="move-btn move-up">▲</span><span class="move-btn move-down">▼</span></div>Stock Tracking</li>
-              <li class="sortable-item" data-id="9" data-target="showCrypto"><div class="order-ctrl"><span class="move-btn move-up">▲</span><span class="move-btn move-down">▼</span></div>Crypto Tracking</li>
-              <li class="sortable-item" data-id="10" data-target="showCurrency"><div class="order-ctrl"><span class="move-btn move-up">▲</span><span class="move-btn move-down">▼</span></div>Currency Exchange</li>
-              <li class="sortable-item" data-id="11" data-target="showPc"><div class="order-ctrl"><span class="move-btn move-up">▲</span><span class="move-btn move-down">▼</span></div>PC Monitor</li>
-              <li class="sortable-item" data-id="12" data-target="showMedia"><div class="order-ctrl"><span class="move-btn move-up">▲</span><span class="move-btn move-down">▼</span></div>PC Media</li>
-              <li class="sortable-item" data-id="13" data-target="showBambu"><div class="order-ctrl"><span class="move-btn move-up">▲</span><span class="move-btn move-down">▼</span></div>Printer Info</li>
+              <li class="sortable-item" data-id="8" data-target="showPopulation"><div class="order-ctrl"><span class="move-btn move-up">▲</span><span class="move-btn move-down">▼</span></div>Population Info</li>
+              <li class="sortable-item" data-id="9" data-target="showStock"><div class="order-ctrl"><span class="move-btn move-up">▲</span><span class="move-btn move-down">▼</span></div>Stock Tracking</li>
+              <li class="sortable-item" data-id="10" data-target="showCrypto"><div class="order-ctrl"><span class="move-btn move-up">▲</span><span class="move-btn move-down">▼</span></div>Crypto Tracking</li>
+              <li class="sortable-item" data-id="11" data-target="showCurrency"><div class="order-ctrl"><span class="move-btn move-up">▲</span><span class="move-btn move-down">▼</span></div>Currency Exchange</li>
+              <li class="sortable-item" data-id="12" data-target="showPc"><div class="order-ctrl"><span class="move-btn move-up">▲</span><span class="move-btn move-down">▼</span></div>PC Monitor</li>
+              <li class="sortable-item" data-id="13" data-target="showMedia"><div class="order-ctrl"><span class="move-btn move-up">▲</span><span class="move-btn move-down">▼</span></div>PC Media</li>
+              <li class="sortable-item" data-id="14" data-target="showBambu"><div class="order-ctrl"><span class="move-btn move-up">▲</span><span class="move-btn move-down">▼</span></div>Printer Info</li>
             </ul>
             <input type="hidden" name="screen_order" id="screenOrderInput">
           </div>
@@ -379,19 +380,34 @@
             </div>
 
             <div class="panel" id="panel-6">
-              <label class="checkbox-label mt-0"><input type="checkbox" id="showPopulation" name="show_population"> Population Screen</label>
-              <div id="popContent" class="collapsible">
-                <div id="pop-no-data" class="no-data-tile">🌍 Population data will be available after sync</div>
-                <div id="pop-grid" class="hidden">
+              <label class="checkbox-label mt-0"><input type="checkbox" id="showIss" name="show_iss"> ISS Tracker Screen</label>
+              <div id="issContent" class="collapsible">
+                <div id="iss-no-data" class="no-data-tile">🛰️ ISS data will be available after sync</div>
+                <div id="iss-grid" class="hidden">
                     <div class="dashboard-grid">
-                      <div class="tile pop-wld-tile"><div class="tile-icon">🌍</div><div class="tile-value" id="val-pop-wld" style="font-size:1.4rem">--</div><div class="tile-label" id="lbl-pop-wld">World Population</div></div>
-                      <div class="tile pop-wld-tile"><div class="tile-icon">📈</div><div class="tile-value" id="val-pop-wld-gr" style="font-size:1.4rem">--</div><div class="tile-label">World Growth</div></div>
-                      <div class="tile pop-ctr-tile"><div class="tile-icon">📍</div><div class="tile-value" id="val-pop-ctr" style="font-size:1.4rem">--</div><div class="tile-label" id="lbl-pop-ctr">CTR Population</div></div>
-                      <div class="tile pop-ctr-tile"><div class="tile-icon">📈</div><div class="tile-value" id="val-pop-ctr-gr" style="font-size:1.4rem">--</div><div class="tile-label" id="lbl-pop-ctr-gr">CTR Growth</div></div>
+                      <div class="tile"><div class="tile-icon">🌍</div><div class="tile-value" id="val-iss-over" style="font-size:1.1rem; line-height:1.2;">--</div><div class="tile-label">Currently Over</div></div>
+                      <div class="tile"><div class="tile-icon">🚀</div><div class="tile-value" id="val-iss-alt">--</div><div class="tile-label">Altitude</div></div>
+                      <div class="tile"><div class="tile-icon">⚡</div><div class="tile-value" id="val-iss-speed">--</div><div class="tile-label">Speed</div></div>
+                      <div class="tile"><div class="tile-icon">📏</div><div class="tile-value" id="val-iss-dist">--</div><div class="tile-label">Distance From You</div></div>
                     </div>
                 </div>
-                <label class="checkbox-label"><input type="checkbox" id="popWldChk" name="pop_show_world"> Track World Population</label>
-                <label class="checkbox-label"><input type="checkbox" id="popCtrChk" name="pop_show_country"> Track Country Population</label>
+                <label>Display Mode:</label>
+                <div class="radio-group">
+                  <label class="radio-label"><input type="radio" name="iss_mode" value="map"> Map (world map with orbit)</label>
+                  <label class="radio-label"><input type="radio" name="iss_mode" value="text"> Text (minimalistic)</label>
+                </div>
+                <label>Display Units:</label>
+                <div class="radio-group">
+                  <label class="radio-label"><input type="radio" name="iss_units" value="kilometers"> Kilometers (km, km/h)</label>
+                  <label class="radio-label"><input type="radio" name="iss_units" value="miles"> Miles (mi, mph)</label>
+                </div>
+                <p class="help-text mt-0">The position keeps moving along the predicted orbit between syncs.</p>
+                <hr>
+                <label class="checkbox-label"><input type="checkbox" id="customIssSyncChk"> Custom Data Sync</label>
+                <div id="customIssSyncFields" class="collapsible">
+                  <label class="mt-0">Custom Data Sync Interval (Mins):</label>
+                  <input type="number" min="1" id="customIssSyncInt" name="custom_iss_int_min">
+                </div>
               </div>
             </div>
 
@@ -452,6 +468,23 @@
             </div>
 
             <div class="panel" id="panel-8">
+              <label class="checkbox-label mt-0"><input type="checkbox" id="showPopulation" name="show_population"> Population Screen</label>
+              <div id="popContent" class="collapsible">
+                <div id="pop-no-data" class="no-data-tile">🌍 Population data will be available after sync</div>
+                <div id="pop-grid" class="hidden">
+                    <div class="dashboard-grid">
+                      <div class="tile pop-wld-tile"><div class="tile-icon">🌍</div><div class="tile-value" id="val-pop-wld" style="font-size:1.4rem">--</div><div class="tile-label" id="lbl-pop-wld">World Population</div></div>
+                      <div class="tile pop-wld-tile"><div class="tile-icon">📈</div><div class="tile-value" id="val-pop-wld-gr" style="font-size:1.4rem">--</div><div class="tile-label">World Growth</div></div>
+                      <div class="tile pop-ctr-tile"><div class="tile-icon">📍</div><div class="tile-value" id="val-pop-ctr" style="font-size:1.4rem">--</div><div class="tile-label" id="lbl-pop-ctr">CTR Population</div></div>
+                      <div class="tile pop-ctr-tile"><div class="tile-icon">📈</div><div class="tile-value" id="val-pop-ctr-gr" style="font-size:1.4rem">--</div><div class="tile-label" id="lbl-pop-ctr-gr">CTR Growth</div></div>
+                    </div>
+                </div>
+                <label class="checkbox-label"><input type="checkbox" id="popWldChk" name="pop_show_world"> Track World Population</label>
+                <label class="checkbox-label"><input type="checkbox" id="popCtrChk" name="pop_show_country"> Track Country Population</label>
+              </div>
+            </div>
+
+            <div class="panel" id="panel-9">
               <label class="checkbox-label mt-0"><input type="checkbox" id="showStock" name="show_stock"> Stock Tracking Screen</label>
               <div id="stockContent" class="collapsible">
                 <div id="stock-no-data" class="no-data-tile">📈 Stock data will be available after sync</div>
@@ -474,7 +507,7 @@
               </div>
             </div>
 
-            <div class="panel" id="panel-9">
+            <div class="panel" id="panel-10">
               <label class="checkbox-label mt-0"><input type="checkbox" id="showCrypto" name="show_crypto"> Crypto Tracking Screen</label>
               <div id="cryptoContent" class="collapsible">
                 <div id="crypto-no-data" class="no-data-tile">💰 Crypto data will be available after sync</div>
@@ -497,7 +530,7 @@
               </div>
             </div>
 
-            <div class="panel" id="panel-10">
+            <div class="panel" id="panel-11">
               <label class="checkbox-label mt-0"><input type="checkbox" id="showCurrency" name="show_currency"> Currency Exchange Screen</label>
               <div id="currencyContent" class="collapsible">
                 <div id="currency-no-data" class="no-data-tile">💱 Currency data will be available after sync</div>
@@ -520,7 +553,7 @@
               </div>
             </div>
 
-            <div class="panel" id="panel-11">
+            <div class="panel" id="panel-12">
               <label class="checkbox-label mt-0"><input type="checkbox" id="showPc" name="show_pc"> PC Monitoring Screen</label>
               <div id="pcContent" class="collapsible">
                 <div id="pc-no-data" class="no-data-tile">🖥️ PC data will be available after sync</div>
@@ -537,7 +570,7 @@
               </div>
             </div>
 
-            <div class="panel" id="panel-12">
+            <div class="panel" id="panel-13">
               <label class="checkbox-label mt-0"><input type="checkbox" id="showMedia" name="show_media"> PC Media Screen</label>
               <div id="mediaContent" class="collapsible">
                 <div id="media-no-data" class="no-data-tile">🎵 Media data will be available after sync and/or when media is played</div>
@@ -554,7 +587,7 @@
               </div>
             </div>
 
-            <div class="panel" id="panel-13">
+            <div class="panel" id="panel-14">
               <label class="checkbox-label mt-0"><input type="checkbox" id="showBambu" name="show_bambu"> Bambu 3D Printer Screen</label>
               <div id="bambuContent" class="collapsible">
                 <div id="bambu-no-data" class="no-data-tile">🖨️ Printer data will be available after connection is established</div>

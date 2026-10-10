@@ -19,9 +19,11 @@ private:
     static constexpr const char* HEADER_REFERER = "https://api.adsb.lol/docs";
 
     static constexpr float EARTH_RADIUS_KM = 6371.0;
+    static constexpr float KM_PER_DEGREE = 111.32;
+    static constexpr float KM_PER_NAUTICAL_MILE = 1.852;
     static constexpr int HTTP_TIMEOUT_MS = 10000;
 
-    bool fetchNearbyAircraft(const Config& config, FlightAircraft* out, int maxOut, int& outCount, int& outTotalCount);
+    bool fetchNearbyAircraft(const Config& config, FlightAircraft* out, int maxOut, int& outCount, int& outTotalCount, bool radarViewOnly = false);
     void fetchRoutes(FlightAircraft* aircraft, int count, String* outOriginCity, String* outDestCity);
     void fetchAircraftDetails(const String& icao24, String& outManufacturer, String& outType);
 

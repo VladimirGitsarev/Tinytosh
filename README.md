@@ -17,7 +17,9 @@
 [👉 **Launch Setup Guide & Web Flasher**](https://vladimirgitsarev.github.io/Tinytosh/)  
 *(Click above to view the assembly guide, wiring diagrams, and configure your device)*
 
-**🛰️ Not ready to solder anything yet?** Try Tinytosh right in your browser first — no soldering, no printing, no assembly required. [Open the live Wokwi simulator](https://wokwi.com/projects/452257384760576001) and click ▶️ Play.
+**🕹️ Not ready to build one yet?** Try Tinytosh right in your browser first — no wiring, no printing, no assembly required. [Open the live Wokwi simulator](https://wokwi.com/projects/452257384760576001) and click ▶️ Play.
+
+> ⚠️ **The simulator is a preview, not firmware for your device.** Everything it shows is mock data: there's no Wi-Fi, no location detection, no live APIs, no settings panel, and no PC connection. Don't flash the simulator build onto a real Tinytosh — use the [Web Installer](https://vladimirgitsarev.github.io/Tinytosh/) or build `TinytoshESP32/` to get the complete firmware.
 
 ---
 
@@ -32,8 +34,9 @@
 * 🍃 **Air Quality:** Monitor local AQI levels (US & EU Standards), with the same "With/No Header" layout choice and up to 3 or 6 selectable pollutant readings (PM2.5, PM10, NO2, CO, CO2, SO2, Ozone, Dust, UV Index, Methane).
 * ☀️ **Daylight Info:** Tracks sunrise, sunset, solar noon, and day length.
 * 🌑 **Moon Info:** Tracks the current lunar phase, illumination percentage, and precise moonrise/moonset times with dynamically rendered graphics.
-* 🌍 **Population Info:** Live dashboard displaying a second-by-second calculated world and country population ticker with annual growth rates.
+* 🛰️ **ISS Tracker:** Follow the International Space Station live on a world map with its orbit path, the country (or ocean) it's currently over, altitude, speed, and distance from you, in kilometers or miles.
 * 🛩️ **Flight Radar:** Track nearby aircraft by callsign, altitude, speed, distance, track, type, or route. Switch between a live multi-aircraft **Radar** view or a dedicated **Closest Aircraft** dashboard, in Aviation (kt/ft) or Metric (km/h/m) units.
+* 🌍 **Population Info:** Live dashboard displaying a second-by-second calculated world and country population ticker with annual growth rates.
 * 📊 **Stock Tracker:** Track market data for **up to 5** global assets, ETFs, and Mega-Cap Tech at once with daily trend indicators.
 * 📈 **Crypto Tracker:** Watch **up to 5** of your favorite coins (from top 75 global cryptos) with price and trend indicators.
 * 💱 **Currency Tracker:** Track exchange rates for **up to 5** fiat currency pairs with custom scaling multipliers.
@@ -88,15 +91,21 @@ This is the fastest way to get started. You do not need to install VS Code, Ardu
 
 You can build this project using **PlatformIO** (VS Code) or the **Arduino IDE**.
 
-**Option A: PlatformIO** This is the "Gold Standard" as it manages dependencies automatically. Simply open the project in VS Code and copy the following into your `platformio.ini`:
+**Option A: PlatformIO** This is the "Gold Standard" as it manages dependencies and board settings automatically. The firmware folder already ships with a ready-to-use [`platformio.ini`](TinytoshESP32/platformio.ini) — simply open `TinytoshESP32/` in VS Code and hit **Build** (requires PlatformIO Core 6.2.0 or newer). For reference, it looks like this:
 
 ```ini
+[platformio]
+src_dir = .
+
 [env:esp32-c3-supermini]
-platform = espressif32
+; pioarduino platform: Arduino core 3.3.12 (official espressif32 platform is stuck on core 2.x)
+platform = https://github.com/pioarduino/platform-espressif32/releases/download/55.03.312-1/platform-espressif32.zip
 board = esp32-c3-devkitm-1
 framework = arduino
 monitor_speed = 115200
-build_flags = 
+board_build.partitions = huge_app.csv
+build_src_filter = +<*> -<build/> -<.pio/>
+build_flags =
     -D ARDUINO_USB_MODE=1
     -D ARDUINO_USB_CDC_ON_BOOT=1
 lib_deps =
@@ -121,6 +130,16 @@ lib_deps =
 | **PubSubClient** | *Nick O'Leary* | MQTT client for Bambu Lab printer telemetry |
 
 > ⚠️ **Important:** When installing `Adafruit SSD1306`, the IDE may ask if you want to install dependencies like **"Adafruit BusIO"**. Click **"Install All"** to ensure the screen works correctly.
+
+**Board Settings:** Install the latest **esp32** board package by *Espressif Systems* (v3.3.12 or newer) via the Boards Manager, then set these options under the `Tools` menu before compiling:
+
+| Setting | Value | Why |
+| :--- | :--- | :--- |
+| **Board** | `ESP32C3 Dev Module` | Matches the ESP32-C3 SuperMini |
+| **USB CDC On Boot** | `Enabled` | Logs and the PC app's USB connection go through the native USB port. The firmware won't compile with it disabled. |
+| **Partition Scheme** | `Huge APP (3MB No OTA/1MB SPIFFS)` | The firmware is too big for the default 1.2MB app partition |
+
+> 💡 PlatformIO users can skip this: the included `platformio.ini` already sets all of the above.
 
 **Note on Built-in Libraries:** The following libraries are required but **do not** need to be installed separately. They are included in the ESP32 Board Package:
 * `WiFi.h` & `WiFiServer.h`
@@ -153,7 +172,9 @@ npm run tauri build
 
 The [`TinytoshSimulator`](TinytoshSimulator/) folder is a simplified [Wokwi](https://wokwi.com/) simulation — no WiFi, no API calls, no settings panel, just realistic mock data driving the exact same `Config` struct and screen-drawing code as the real firmware. It's the fastest way to see every screen, layout option, and button gesture in action without owning any hardware.
 
-[**🛰️ Try it on Wokwi**](https://wokwi.com/projects/452257384760576001) or run it locally — see [`TinytoshSimulator/README.md`](TinytoshSimulator/README.md) for setup.
+[**🕹️ Try it on Wokwi**](https://wokwi.com/projects/452257384760576001) or run it locally — see [`TinytoshSimulator/README.md`](TinytoshSimulator/README.md) for setup.
+
+> ⚠️ **The simulator is a preview, not firmware for your device.** Everything it shows is mock data: there's no Wi-Fi, no location detection, no live APIs, no settings panel, and no PC connection. Don't flash the simulator build onto a real Tinytosh — use the [Web Installer](https://vladimirgitsarev.github.io/Tinytosh/) or build `TinytoshESP32/` to get the complete firmware.
 
 ---
 
@@ -189,15 +210,17 @@ If you encounter bugs or have feature suggestions, please [Open an Issue](https:
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-* Weather and AQI data provided by [Open-Meteo](https://open-meteo.com/).
-* Crypto data provided by [CoinLore](https://www.coinlore.com/cryptocurrency-data-api).
-* Stock data provided by [Yahoo Finance](https://finance.yahoo.com/).
 * IP Geolocation by [ip-api](https://ip-api.com/).
-* Fiat Currency data provided by [fawazahmed0/currency-api](https://github.com/fawazahmed0/exchange-api).
 * Public Holidays data provided by [Nager.Date](https://date.nager.at/).
+* Weather and AQI data provided by [Open-Meteo](https://open-meteo.com/).
 * Daylight data provided by [Sunrise-Sunset](https://sunrise-sunset.org/).
 * Moon Phase data provided by [US Naval Observatory](https://aa.usno.navy.mil/).
+* ISS position data provided by [Where the ISS at?](https://wheretheiss.at/).
+* Flight data provided by [adsb.lol](https://adsb.lol/), aircraft details by [adsbdb](https://www.adsbdb.com/).
 * Population data provided by [The World Bank](https://data.worldbank.org/).
+* Stock data provided by [Yahoo Finance](https://finance.yahoo.com/).
+* Crypto data provided by [CoinLore](https://www.coinlore.com/cryptocurrency-data-api).
+* Fiat Currency data provided by [fawazahmed0/currency-api](https://github.com/fawazahmed0/exchange-api).
 
 ---
 
@@ -205,7 +228,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 | Version | Date | Key Changes |
 | :--- | :--- | :--- |
-| **v1.1.4** | *Oct 2026* | 🛩️ Added **Flight Radar** screen: live multi-aircraft radar view or a dedicated Closest Aircraft dashboard, with configurable search radius, Aviation/Metric units, and per-badge Primary/Secondary info. 🌤️🍃 **Weather & Air Quality Overhaul:** replaced the single "Hide Top Bar" toggle with a "With/No Header" layout choice and up to 3 or 6 selectable extra readings. 🔘 Added a **Switch Button** hardware option alongside the Touch Sensor. 🛰️ Added the **Tinytosh Simulator** — a browser-based Wokwi build you can try with zero hardware. |
+| **v1.1.5** | *Oct 2026* | 🛰️ Added **ISS Tracker** screen with live Map and minimalistic Text modes. 🔌 Improved PC app connectivity (smarter USB/Wi-Fi switching and recovery). 🐛 Small fixes and improvements. |
+| **v1.1.4** | *Oct 2026* | 🛩️ Added **Flight Radar** screen: live multi-aircraft radar view or a dedicated Closest Aircraft dashboard, with configurable search radius, Aviation/Metric units, and per-badge Primary/Secondary info. 🌤️🍃 **Weather & Air Quality Overhaul:** replaced the single "Hide Top Bar" toggle with a "With/No Header" layout choice and up to 3 or 6 selectable extra readings. 🔘 Added a **Switch Button** hardware option alongside the Touch Sensor. 🕹️ Added the **Tinytosh Simulator** — a browser-based Wokwi build you can try with zero hardware. |
 | **v1.1.3** | *Sep 2026* | ⏱️ Added **Custom Data Sync Intervals** for Weather, AQI, Stocks, Crypto, and Currency — override the global refresh rate independently per screen. 👆👆 Added **Double-Click Navigation**: single tap moves to the next screen, double tap now jumps back to the previous one. ⚙️ Internal firmware refactor for cleaner, more maintainable code. |
 | **v1.1.2** | *Sep 2026* | 🌍 Added **Population Info** screen featuring a live calculated, second-by-second world and country population ticker. |
 | **v1.1.1** | *Aug 2026* | 🌑 Added **Moon Info** screen with dynamically rendered moon phases, illumination %, and rise/set times. |

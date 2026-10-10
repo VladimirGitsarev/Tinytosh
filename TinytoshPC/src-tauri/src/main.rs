@@ -1,7 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use std::sync::Mutex; 
 use std::env; 
 use std::collections::HashMap;
@@ -25,7 +25,13 @@ const LOOP_INTERVAL_MS: u64 = 1000;          // Base speed of the main backgroun
 // Wi-Fi Telemetry & Connection
 const WIFI_THROTTLE_TICKS: i32 = 3;         // 3 ticks * 1000ms = 3 seconds. Prevents overloading the ESP32's sync web server
 const MAX_WIFI_FAILURES: i32 = 5;           // Consecutive failed HTTP requests before dropping connection and rescanning
-const HTTP_REQUEST_TIMEOUT_MS: u64 = 500;   
+const HTTP_REQUEST_TIMEOUT_MS: u64 = 500;
+const PAIRED_RETRY_COOLDOWN_SEC: u64 = 15;
+const USB_PROBE_INTERVAL_TICKS: i32 = 10;   // While on Wi-Fi, look for a Tinytosh on USB every 10 seconds and switch to it
+const USB_PROBE_TIMEOUT_TICKS: i32 = 5;     // How long a USB probe waits for the SYS_UPDATE handshake
+const USB_PROBE_RETRY_SEC: u64 = 30;        // Don't re-probe a port that didn't answer for this long
+const USB_RECONNECT_COOLDOWN_SEC: u64 = 60; // Ask a silent Tinytosh to re-connect its USB at most once a minute per port
+const ESPRESSIF_USB_VID: u16 = 0x303A;  // Skip auto-connecting to a device paired to another PC for this long (ESP releases pairing after 10s of silence)
 
 // Global Delays & Timeouts
 const FETCH_CONFIG_TIMEOUT_SEC: u64 = 2;    
@@ -225,6 +231,42 @@ async fn save_device_settings(state: tauri::State<'_, AppState>, json_payload: S
     } else {
         Err("Not connected".into())
     }
+}
+
+fn find_usb_candidates() -> Vec<String> {
+    let mut candidates = Vec::new();
+    for p in serialport::available_ports().unwrap_or(vec![]) {
+        let name = p.port_name.to_lowercase();
+        if name.contains("bluetooth") || name.contains("bt-") || name.contains("incoming") || name.contains("wlan") { continue; }
+        let product = match &p.port_type { SerialPortType::UsbPort(info) => info.product.clone().unwrap_or_default().to_lowercase(), _ => String::new() };
+        if name.contains("usb") || name.contains("acm") || name.contains("serial") || name.contains("jtag") || name.starts_with("com") ||
+           product.contains("cp210") || product.contains("ch340") || product.contains("ch910") || product.contains("esp") {
+            candidates.push(p.port_name.clone());
+        }
+    }
+    candidates
+}
+
+fn wifi_ip_for_usb_port(port_name: &str, state: &AppState) -> Option<String> {
+    let ports = serialport::available_ports().ok()?;
+    let port = ports.into_iter().find(|p| p.port_name == port_name)?;
+    let serial = match port.port_type {
+        SerialPortType::UsbPort(info) if info.vid == ESPRESSIF_USB_VID => info.serial_number?,
+        _ => return None,
+    };
+    let mac: String = serial.chars().filter(|c| c.is_ascii_hexdigit()).collect::<String>().to_lowercase();
+    if mac.len() < 4 { return None; }
+    let suffix = format!("-{}", &mac[mac.len() - 4..]);
+    let wifi = state.discovered_wifi.lock().unwrap();
+    wifi.iter().find(|(_, name)| name.ends_with(&suffix)).map(|(ip, _)| ip.clone())
+}
+
+fn request_usb_reconnect(port_name: &str, state: &AppState, agent: &ureq::Agent, requested: &mut HashMap<String, Instant>) -> bool {
+    requested.retain(|_, t| t.elapsed() < Duration::from_secs(USB_RECONNECT_COOLDOWN_SEC));
+    if requested.contains_key(port_name) { return false; }
+    let Some(ip) = wifi_ip_for_usb_port(port_name, state) else { return false; };
+    requested.insert(port_name.to_string(), Instant::now());
+    agent.post(&format!("http://{}/usb-reconnect", ip)).call().is_ok()
 }
 
 fn show_window_safely(app_handle: &tauri::AppHandle, window: tauri::WebviewWindow) {
@@ -475,17 +517,26 @@ fn main() {
                 let state = app_handle_mdns.state::<AppState>();
 
                 while let Ok(event) = receiver.recv() {
-                    if let ServiceEvent::ServiceResolved(info) = event {
-                        let name = info.get_fullname().to_lowercase();
-                        if name.contains("tinytosh") {
-                            if let Some(ip) = info.get_addresses().iter().next() {
-                                let ip_str = ip.to_string();
-                                let display_name = name.replace("._http._tcp.local.", ""); 
-                                state.discovered_wifi.lock().unwrap().insert(ip_str.clone(), display_name);
-                                let mut target = state.target_wifi_ip.lock().unwrap();
-                                if target.is_empty() { *target = ip_str; }
+                    match event {
+                        ServiceEvent::ServiceResolved(info) => {
+                            let name = info.get_fullname().to_lowercase();
+                            if name.contains("tinytosh") {
+                                if let Some(ip) = info.get_addresses().iter().next() {
+                                    let ip_str = ip.to_string();
+                                    let display_name = name.replace("._http._tcp.local.", "");
+                                    let mut wifi_map = state.discovered_wifi.lock().unwrap();
+                                    wifi_map.retain(|_, n| *n != display_name);
+                                    wifi_map.insert(ip_str.clone(), display_name);
+                                    let mut target = state.target_wifi_ip.lock().unwrap();
+                                    if target.is_empty() { *target = ip_str; }
+                                }
                             }
                         }
+                        ServiceEvent::ServiceRemoved(_, fullname) => {
+                            let display_name = fullname.to_lowercase().replace("._http._tcp.local.", "");
+                            state.discovered_wifi.lock().unwrap().retain(|_, n| *n != display_name);
+                        }
+                        _ => {}
                     }
                 }
             });
@@ -519,9 +570,16 @@ fn main() {
                 let mut usb_candidates: Vec<String> = Vec::new();
                 let mut wifi_candidates: Vec<String> = Vec::new();
                 let mut candidate_idx = 0;
-                
+                let mut paired_elsewhere: HashMap<String, Instant> = HashMap::new();
+
                 let mut test_ticks = 0;
                 let mut wifi_failures = 0;
+
+                let mut usb_probe: Option<(String, Box<dyn SerialPort>, i32)> = None;
+                let mut usb_probe_ticks = 0;
+                let mut usb_probe_failed: HashMap<String, Instant> = HashMap::new();
+                let mut usb_reconnect_requested: HashMap<String, Instant> = HashMap::new();
+                let mut wifi_chosen_manually = false;
 
                 loop {
                     sys.refresh_cpu_usage(); 
@@ -587,6 +645,8 @@ fn main() {
                         candidate_idx = 0;
                         test_ticks = 0;
                         wifi_failures = 0;
+                        usb_probe = None;
+                        wifi_chosen_manually = req_port.starts_with("WiFi:");
 
                         if req_port.starts_with("WiFi:") {
                             let ip = if let Some(start) = req_port.rfind('(') {
@@ -614,23 +674,17 @@ fn main() {
                             *state.target_wifi_ip.lock().unwrap() = String::new();
                             if state.port.lock().unwrap().is_some() { *state.port.lock().unwrap() = None; }
 
-                            usb_candidates.clear();
-                            let available = serialport::available_ports().unwrap_or(vec![]);
-                            for p in &available {
-                                let name = p.port_name.to_lowercase();
-                                if name.contains("bluetooth") || name.contains("bt-") || name.contains("incoming") || name.contains("wlan") { continue; }
-                                let product = match &p.port_type { SerialPortType::UsbPort(info) => info.product.clone().unwrap_or_default().to_lowercase(), _ => String::new() };
-                                if name.contains("usb") || name.contains("acm") || name.contains("serial") || name.contains("jtag") || name.starts_with("com") ||
-                                   product.contains("cp210") || product.contains("ch340") || product.contains("ch910") || product.contains("esp") {
-                                    usb_candidates.push(p.port_name.clone());
-                                }
-                            }
+                            usb_candidates = find_usb_candidates();
+                            usb_probe = None;
+                            wifi_chosen_manually = false;
 
+                            paired_elsewhere.retain(|_, t| t.elapsed() < Duration::from_secs(PAIRED_RETRY_COOLDOWN_SEC));
                             wifi_candidates.clear();
                             let wifi_map = state.discovered_wifi.lock().unwrap();
-                            for ip in wifi_map.keys() { 
-                                wifi_candidates.push(ip.clone()); 
+                            for ip in wifi_map.keys() {
+                                if !paired_elsewhere.contains_key(ip) { wifi_candidates.push(ip.clone()); }
                             }
+                            drop(wifi_map);
 
                             candidate_idx = 0;
                             if !usb_candidates.is_empty() {
@@ -687,6 +741,7 @@ fn main() {
                                 phase = AppPhase::ConnectedUsb;
                             } else if test_ticks > 4 { 
                                 *state.port.lock().unwrap() = None;
+                                request_usb_reconnect(port_name, &state, &agent, &mut usb_reconnect_requested);
                                 candidate_idx += 1;
                                 
                                 if candidate_idx < usb_candidates.len() {
@@ -696,8 +751,8 @@ fn main() {
                                     candidate_idx = 0;
 
                                     wifi_candidates.clear();
-                                    for ip in state.discovered_wifi.lock().unwrap().keys() { 
-                                        wifi_candidates.push(ip.clone()); 
+                                    for ip in state.discovered_wifi.lock().unwrap().keys() {
+                                        if !paired_elsewhere.contains_key(ip) { wifi_candidates.push(ip.clone()); }
                                     }
 
                                     if !wifi_candidates.is_empty() {
@@ -727,8 +782,8 @@ fn main() {
                                 }
                                 Err(ureq::Error::Status(403, _)) => {
                                     *state.status_msg.lock().unwrap() = "❌ Device already paired".to_string();
-                                    state.discovered_wifi.lock().unwrap().remove(ip);
-                                    test_ticks = 99; 
+                                    paired_elsewhere.insert(ip.clone(), Instant::now());
+                                    test_ticks = 99;
                                 }
                                 Err(_) => { 
                                     test_ticks = 99; 
@@ -824,6 +879,67 @@ fn main() {
                                 test_ticks = 0;
                             } else {
                                 test_ticks += 1;
+                            }
+
+                            if phase == AppPhase::ConnectedWifi && !wifi_chosen_manually {
+                                let mut switched_port: Option<(String, Box<dyn SerialPort>)> = None;
+
+                                if let Some((port_name, mut port, ticks)) = usb_probe.take() {
+                                    let mut handshake_success = false;
+                                    let mut temp_buf: Vec<u8> = vec![0; SERIAL_READ_BUFFER_SIZE];
+                                    while let Ok(bytes_read) = port.read(&mut temp_buf) {
+                                        if bytes_read == 0 { break; }
+                                        state.serial_buffer.lock().unwrap().push_str(&String::from_utf8_lossy(&temp_buf[..bytes_read]));
+                                    }
+                                    let mut buf = state.serial_buffer.lock().unwrap();
+                                    while let Some(newline_offset) = buf.find('\n') {
+                                        let line = buf[..newline_offset].trim().to_string();
+                                        if line.starts_with("SYS_UPDATE:") {
+                                            *state.latest_config.lock().unwrap() = line[11..].to_string();
+                                            handshake_success = true;
+                                        }
+                                        *buf = buf[newline_offset + 1..].to_string();
+                                    }
+                                    if buf.len() > MAX_SERIAL_BUFFER_SIZE { buf.clear(); }
+                                    drop(buf);
+
+                                    if handshake_success {
+                                        switched_port = Some((port_name, port));
+                                    } else if ticks + 1 >= USB_PROBE_TIMEOUT_TICKS {
+                                        drop(port);
+                                        if !request_usb_reconnect(&port_name, &state, &agent, &mut usb_reconnect_requested) {
+                                            usb_probe_failed.insert(port_name, Instant::now());
+                                        }
+                                    } else {
+                                        usb_probe = Some((port_name, port, ticks + 1));
+                                    }
+                                } else {
+                                    usb_probe_ticks += 1;
+                                    if usb_probe_ticks >= USB_PROBE_INTERVAL_TICKS {
+                                        usb_probe_ticks = 0;
+                                        usb_probe_failed.retain(|_, t| t.elapsed() < Duration::from_secs(USB_PROBE_RETRY_SEC));
+                                        let candidate = find_usb_candidates().into_iter().find(|p| !usb_probe_failed.contains_key(p));
+                                        if let Some(port_name) = candidate {
+                                            match serialport::new(port_name.clone(), SERIAL_BAUD_RATE).timeout(Duration::from_millis(SERIAL_TIMEOUT_MS)).open() {
+                                                Ok(mut port) => {
+                                                    let _ = port.write(b"GET_UPDATE\n");
+                                                    state.serial_buffer.lock().unwrap().clear();
+                                                    usb_probe = Some((port_name, port, 0));
+                                                }
+                                                Err(_) => { usb_probe_failed.insert(port_name, Instant::now()); }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                if let Some((port_name, port)) = switched_port {
+                                    *state.port.lock().unwrap() = Some(port);
+                                    *state.target_wifi_ip.lock().unwrap() = String::new();
+                                    *state.active_port_name.lock().unwrap() = format!("Serial: {}", port_name);
+                                    *state.status_msg.lock().unwrap() = "🔌 Connected via USB".to_string();
+                                    test_ticks = 0;
+                                    phase = AppPhase::ConnectedUsb;
+                                }
                             }
                         }
                     }

@@ -13,6 +13,7 @@
 #include "FlightService.h"
 #include "HardwareService.h"
 #include "images.h"
+#include "IssService.h"
 #include "MoonService.h"
 #include "NightModeService.h"
 #include "PcMonitorService.h"
@@ -50,11 +51,12 @@ WeatherService weatherService;
 AirQualityService airQualityService;
 DaylightService daylightService;
 MoonService moonService;
+IssService issService;
+FlightService flightService;
 PopulationService populationService;
 CryptoService cryptoService;
 CurrencyService currencyService;
 StockService stockService;
-FlightService flightService;
 PcMonitorService pcMonitorService;
 BambuService bambuService;
 DataSyncService dataSyncService;
@@ -132,8 +134,7 @@ void updateAllDataCallback() {
 }
 
 void setup() {
-  Serial.setRxBufferSize(1024);
-  Serial.begin(115200);
+  pcMonitorService.begin();
   delay(100);
 
   configManager.loadConfig(appState.config);

@@ -1,5 +1,6 @@
 #include "JsonSerializer.h"
 
+#include "IssService.h"
 #include "PopulationService.h"
 #include "TimeService.h"
 
@@ -49,6 +50,8 @@ void JsonSerializer::populateConfigDoc(const Config& config, JsonObject configOb
     screens["show_aqi"] = config.show_aqi ? 1 : 0;
     screens["show_daylight"] = config.show_daylight ? 1 : 0;
     screens["show_moon"] = config.show_moon ? 1 : 0;
+    screens["show_iss"] = config.show_iss ? 1 : 0;
+    screens["show_flight"] = config.show_flight ? 1 : 0;
     screens["show_population"] = config.show_population ? 1 : 0;
     screens["show_pc"] = config.show_pc ? 1 : 0;
     screens["show_media"] = config.show_media ? 1 : 0;
@@ -56,7 +59,6 @@ void JsonSerializer::populateConfigDoc(const Config& config, JsonObject configOb
     screens["show_crypto"] = config.show_crypto ? 1 : 0;
     screens["show_currency"] = config.show_currency ? 1 : 0;
     screens["show_bambu"] = config.show_bambu ? 1 : 0;
-    screens["show_flight"] = config.show_flight ? 1 : 0;
     screens["hide_empty_pc"] = config.hide_empty_pc ? 1 : 0;
     screens["hide_empty_media"] = config.hide_empty_media ? 1 : 0;
     screens["hide_empty_bambu"] = config.hide_empty_bambu ? 1 : 0;
@@ -94,6 +96,19 @@ void JsonSerializer::populateConfigDoc(const Config& config, JsonObject configOb
     JsonObject moon = configObj.createNestedObject("moon");
     moon["minimal"] = config.moon_minimal ? 1 : 0;
 
+    JsonObject iss = configObj.createNestedObject("iss");
+    iss["mode"] = config.iss_mode;
+    iss["units"] = config.iss_units;
+    iss["custom_sync_min"] = config.custom_iss_int_min;
+
+    JsonObject flight = configObj.createNestedObject("flight");
+    flight["mode"] = config.flight_mode;
+    flight["radius_nm"] = config.flight_radius_nm;
+    flight["units"] = config.flight_units;
+    flight["primary_info"] = config.flight_primary_info;
+    flight["secondary_info"] = config.flight_secondary_info;
+    flight["custom_sync_min"] = config.custom_flight_int_min;
+
     JsonObject population = configObj.createNestedObject("population");
     population["show_world"] = config.pop_show_world ? 1 : 0;
     population["show_country"] = config.pop_show_country ? 1 : 0;
@@ -125,13 +140,6 @@ void JsonSerializer::populateConfigDoc(const Config& config, JsonObject configOb
     printer["sn"] = config.bambu_sn;
     printer["code"] = config.bambu_code;
 
-    JsonObject flight = configObj.createNestedObject("flight");
-    flight["mode"] = config.flight_mode;
-    flight["radius_nm"] = config.flight_radius_nm;
-    flight["units"] = config.flight_units;
-    flight["primary_info"] = config.flight_primary_info;
-    flight["secondary_info"] = config.flight_secondary_info;
-    flight["custom_sync_min"] = config.custom_flight_int_min;
 }
 
 String JsonSerializer::buildConfigJson(const Config& config) {
@@ -203,6 +211,32 @@ String JsonSerializer::buildAppStateJson(const AppState& state) {
         moon["set"] = state.moon.set_mins != -1 ? TimeService::formatMinsFromMidnight(state.moon.set_mins, state.config.time_format) : "--:--";
         moon["phase"] = state.moon.curphase;
         moon["illum"] = state.moon.fracillum;
+    }
+
+    if (IssService::isValid(state.iss)) {
+        bool isMiles = (state.iss.units == "miles");
+        float issLat, issLon;
+        IssService::getCurrentPosition(state.iss, issLat, issLon);
+
+        JsonObject iss = status.createNestedObject("iss");
+        iss["over"] = IssService::getLocationName(state.iss);
+        iss["lat"] = String(issLat, 2);
+        iss["lon"] = String(issLon, 2);
+        iss["altitude"] = String((int)round(state.iss.altitude)) + (isMiles ? " mi" : " km");
+        iss["velocity"] = String((int)round(state.iss.velocity)) + (isMiles ? " mph" : " km/h");
+        iss["distance"] = String((int)round(IssService::distanceFrom(state.iss, state.config.latitude, state.config.longitude))) + (isMiles ? " mi" : " km");
+        iss["visibility"] = state.iss.is_daylight ? "daylight" : "eclipsed";
+    }
+
+    bool flightValid = (state.config.flight_mode == "closest") ? (state.flight.closest.callsign.length() > 0) : (state.flight.aircraft_count > 0);
+    if (flightValid) {
+        const FlightAircraft& c = (state.config.flight_mode == "closest") ? state.flight.closest : state.flight.aircraft[0];
+        JsonObject flight = status.createNestedObject("flight");
+        flight["count"] = state.flight.aircraft_count;
+        flight["callsign"] = c.callsign;
+        if (state.config.flight_mode == "closest") {
+            flight["route"] = c.has_route ? (c.origin_code + " &rarr; " + c.destination_code) : "N/A";
+        }
     }
 
     if ((state.config.pop_show_world && state.population.world_pop_base != -1) ||
@@ -288,16 +322,6 @@ String JsonSerializer::buildAppStateJson(const AppState& state) {
         printer["fan_aux"] = state.bambu.fan_aux;
     }
 
-    bool flightValid = (state.config.flight_mode == "closest") ? (state.flight.closest.callsign.length() > 0) : (state.flight.aircraft_count > 0);
-    if (flightValid) {
-        const FlightAircraft& c = (state.config.flight_mode == "closest") ? state.flight.closest : state.flight.aircraft[0];
-        JsonObject flight = status.createNestedObject("flight");
-        flight["count"] = state.flight.aircraft_count;
-        flight["callsign"] = c.callsign;
-        if (state.config.flight_mode == "closest") {
-            flight["route"] = c.has_route ? (c.origin_code + " &rarr; " + c.destination_code) : "N/A";
-        }
-    }
 
     String output;
     serializeJson(doc, output);
@@ -305,7 +329,7 @@ String JsonSerializer::buildAppStateJson(const AppState& state) {
 }
 
 bool JsonSerializer::parseConfig(const char* jsonString, AppState& state) {
-    DynamicJsonDocument doc(4096);
+    DynamicJsonDocument doc(5120);
     DeserializationError error = deserializeJson(doc, jsonString);
     if (error) return false;
 
@@ -369,6 +393,8 @@ bool JsonSerializer::parseConfig(const char* jsonString, AppState& state) {
         if (g.containsKey("show_aqi")) config.show_aqi = g["show_aqi"] == 1;
         if (g.containsKey("show_daylight")) config.show_daylight = g["show_daylight"] == 1;
         if (g.containsKey("show_moon")) config.show_moon = g["show_moon"] == 1;
+        if (g.containsKey("show_iss")) config.show_iss = g["show_iss"] == 1;
+        if (g.containsKey("show_flight")) config.show_flight = g["show_flight"] == 1;
         if (g.containsKey("show_population")) config.show_population = g["show_population"] == 1;
         if (g.containsKey("show_pc")) config.show_pc = g["show_pc"] == 1;
         if (g.containsKey("show_media")) config.show_media = g["show_media"] == 1;
@@ -376,7 +402,6 @@ bool JsonSerializer::parseConfig(const char* jsonString, AppState& state) {
         if (g.containsKey("show_crypto")) config.show_crypto = g["show_crypto"] == 1;
         if (g.containsKey("show_currency")) config.show_currency = g["show_currency"] == 1;
         if (g.containsKey("show_bambu")) config.show_bambu = g["show_bambu"] == 1;
-        if (g.containsKey("show_flight")) config.show_flight = g["show_flight"] == 1;
         if (g.containsKey("hide_empty_pc")) config.hide_empty_pc = g["hide_empty_pc"] == 1;
         if (g.containsKey("hide_empty_media")) config.hide_empty_media = g["hide_empty_media"] == 1;
         if (g.containsKey("hide_empty_bambu")) config.hide_empty_bambu = g["hide_empty_bambu"] == 1;
@@ -439,6 +464,23 @@ bool JsonSerializer::parseConfig(const char* jsonString, AppState& state) {
         if (g.containsKey("minimal")) config.moon_minimal = g["minimal"] == 1;
     }
 
+    if (doc.containsKey("iss")) {
+        JsonObject g = doc["iss"];
+        if (g.containsKey("mode")) config.iss_mode = g["mode"].as<String>();
+        if (g.containsKey("units")) config.iss_units = g["units"].as<String>();
+        if (g.containsKey("custom_sync_min")) config.custom_iss_int_min = g["custom_sync_min"];
+    }
+
+    if (doc.containsKey("flight")) {
+        JsonObject g = doc["flight"];
+        if (g.containsKey("mode")) config.flight_mode = g["mode"].as<String>();
+        if (g.containsKey("radius_nm")) config.flight_radius_nm = g["radius_nm"];
+        if (g.containsKey("units")) config.flight_units = g["units"].as<String>();
+        if (g.containsKey("primary_info")) config.flight_primary_info = g["primary_info"].as<String>();
+        if (g.containsKey("secondary_info")) config.flight_secondary_info = g["secondary_info"].as<String>();
+        if (g.containsKey("custom_sync_min")) config.custom_flight_int_min = g["custom_sync_min"];
+    }
+
     if (doc.containsKey("population")) {
         JsonObject g = doc["population"];
         if (g.containsKey("show_world")) config.pop_show_world = g["show_world"] == 1;
@@ -497,16 +539,6 @@ bool JsonSerializer::parseConfig(const char* jsonString, AppState& state) {
         if (g.containsKey("code")) config.bambu_code = g["code"].as<String>();
     }
 
-    if (doc.containsKey("flight")) {
-        JsonObject g = doc["flight"];
-        if (g.containsKey("mode")) config.flight_mode = g["mode"].as<String>();
-        if (g.containsKey("radius_nm")) config.flight_radius_nm = g["radius_nm"];
-        if (g.containsKey("units")) config.flight_units = g["units"].as<String>();
-        if (g.containsKey("primary_info")) config.flight_primary_info = g["primary_info"].as<String>();
-        if (g.containsKey("secondary_info")) config.flight_secondary_info = g["secondary_info"].as<String>();
-        if (g.containsKey("custom_sync_min")) config.custom_flight_int_min = g["custom_sync_min"];
-    }
-
     // Dynamic State Wipes (Triggers data reload)
     state.calendar.last_fetch_year = -1;
     state.calendar.count = 0;
@@ -516,8 +548,10 @@ bool JsonSerializer::parseConfig(const char* jsonString, AppState& state) {
     state.moon.last_fetch_yday = -1;
     state.population.last_fetch_yday = -1;
 
-    if (!config.show_weather) { state.weather.temp = NAN; state.weather.humidity = NAN; state.weather.apparent_temperature = NAN; state.weather.wind_speed = NAN; }
-    if (!config.show_aqi) { state.aqi.aqi = NAN; state.aqi.pm25 = NAN; state.aqi.pm10 = NAN; state.aqi.no2 = NAN; }
+    if (!config.show_iss || state.iss.units != config.iss_units) state.iss = IssData();
+
+    if (!config.show_weather) { state.weather.temp = NAN; state.weather.humidity = 0; state.weather.apparent_temperature = NAN; state.weather.wind_speed = NAN; }
+    if (!config.show_aqi) { state.aqi.aqi = -1; state.aqi.pm25 = NAN; state.aqi.pm10 = NAN; state.aqi.no2 = NAN; }
     if (!config.show_daylight) { state.daylight.sunrise_mins = -1; state.daylight.sunset_mins = -1; state.daylight.noon_mins = -1; state.daylight.length_mins = -1; state.daylight.last_fetch_yday = -1; }
     if (!config.show_moon) { state.moon.rise_mins = -1; state.moon.set_mins = -1; state.moon.curphase = "N/A"; state.moon.fracillum = -1; state.moon.last_fetch_yday = -1; }
     if (!config.show_population) { state.population.world_pop_base = -1; state.population.country_pop_base = -1; state.population.last_fetch_yday = -1; }

@@ -227,25 +227,27 @@ const CONFIG_FIELD_MAP = {
   night_mode: ['night','mode'], night_start: ['night','start'], night_end: ['night','end'], night_action: ['night','action'], night_dim_start: ['night','dim_start'],
   auto_cycle: ['screens','auto_cycle'], screen_int: ['screens','interval_sec'], anim_mask: ['screens','anim_mask'], screen_order: ['screens','order'],
   show_time: ['screens','show_time'], show_calendar: ['screens','show_calendar'], show_weather: ['screens','show_weather'], show_aqi: ['screens','show_aqi'],
-  show_daylight: ['screens','show_daylight'], show_moon: ['screens','show_moon'], show_population: ['screens','show_population'], show_pc: ['screens','show_pc'],
+  show_daylight: ['screens','show_daylight'], show_moon: ['screens','show_moon'], show_iss: ['screens','show_iss'], show_flight: ['screens','show_flight'], show_population: ['screens','show_population'], show_pc: ['screens','show_pc'],
   show_media: ['screens','show_media'], show_stock: ['screens','show_stock'], show_crypto: ['screens','show_crypto'], show_currency: ['screens','show_currency'],
-  show_bambu: ['screens','show_bambu'], show_flight: ['screens','show_flight'],
+  show_bambu: ['screens','show_bambu'],
   hide_empty_pc: ['screens','hide_empty_pc'], hide_empty_media: ['screens','hide_empty_media'], hide_empty_bambu: ['screens','hide_empty_bambu'], hide_empty_flight: ['screens','hide_empty_flight'],
   cal_start: ['calendar','start_day'], cal_hol: ['calendar','show_holidays'], cal_min: ['calendar','minimal'],
   temp_unit: ['weather','temp_unit'], round_temps: ['weather','round_temps'], weather_show_header: ['weather','show_header'], custom_weather_int_min: ['weather','custom_sync_min'], weather_values: ['weather','values'],
   aqi_type: ['aqi','type'], aqi_show_header: ['aqi','show_header'], custom_aqi_int_min: ['aqi','custom_sync_min'], aqi_values: ['aqi','values'],
   daylight_min: ['daylight','minimal'],
   moon_min: ['moon','minimal'],
+  iss_mode: ['iss','mode'], iss_units: ['iss','units'], custom_iss_int_min: ['iss','custom_sync_min'],
+  flight_mode: ['flight','mode'], flight_radius_nm: ['flight','radius_nm'], flight_units: ['flight','units'], flight_primary_info: ['flight','primary_info'], flight_secondary_info: ['flight','secondary_info'], custom_flight_int_min: ['flight','custom_sync_min'],
   pop_show_world: ['population','show_world'], pop_show_country: ['population','show_country'],
   stock_fn: ['stocks','fn'], custom_stock_int_min: ['stocks','custom_sync_min'], stock_symbols: ['stocks','symbols'],
   crypto_fn: ['crypto','fn'], custom_crypto_int_min: ['crypto','custom_sync_min'], crypto_ids: ['crypto','ids'],
   currency_fn: ['currency','fn'], custom_currency_int_min: ['currency','custom_sync_min'], currency_bases: ['currency','bases'], currency_targets: ['currency','targets'], currency_multipliers: ['currency','multipliers'],
   bambu_ip: ['printer','ip'], bambu_sn: ['printer','sn'], bambu_code: ['printer','code'],
-  flight_mode: ['flight','mode'], flight_radius_nm: ['flight','radius_nm'], flight_units: ['flight','units'], flight_primary_info: ['flight','primary_info'], flight_secondary_info: ['flight','secondary_info'], custom_flight_int_min: ['flight','custom_sync_min'],
 };
 
 // State variables
 let isConnected = false;
+let connectedTo = "";
 let isConfigLoaded = false;
 let formDirty = false;
 let currentDeviceId = "";
@@ -512,8 +514,13 @@ async function loadPorts() {
                 if(ph && !isConfigLoaded) { ph.innerText = "Connection established - waiting for configuration data..."; }
 
                 setTimeout(fetchDeviceData, POST_CONNECT_SYNC_DELAY_MS);
+            } else if (statusObj.connected !== connectedTo) {
+                // Connection moved (e.g. Wi-Fi -> USB once the device answered on USB), reload from the new link
+                setTimeout(fetchDeviceData, POST_CONNECT_SYNC_DELAY_MS);
             }
+            connectedTo = statusObj.connected;
         } else {
+            connectedTo = "";
             if (isConnected) {
                 isConnected = false;
                 if(btn) { btn.innerText = "Connect"; btn.className = "btn-secondary"; btn.disabled = false; }
@@ -648,13 +655,15 @@ function updateVisibility() {
       ['showTime', 'timeContent',false], ['showCalendar', 'calendarContent',false],
       ['showWeather','weatherContent',false], ['showAQI','aqiContent',false],
       ['showDaylight', 'daylightContent', false], ['showMoon', 'moonContent', false],
-      ['showPopulation', 'popContent', false], ['showFlight', 'flightContent', false],
+      ['showIss', 'issContent', false], ['showFlight', 'flightContent', false],
+      ['showPopulation', 'popContent', false],
       ['showStock','stockContent',false], ['showCrypto','cryptoContent',false],
       ['showCurrency','currencyContent',false], ['showPc','pcContent',false],
       ['showMedia', 'mediaContent', false], ['showBambu', 'bambuContent', false],
       ['customWeatherSyncChk','customWeatherSyncFields',false], ['customAqiSyncChk','customAqiSyncFields',false],
       ['customStockSyncChk','customStockSyncFields',false], ['customCryptoSyncChk','customCryptoSyncFields',false],
-      ['customCurrencySyncChk','customCurrencySyncFields',false], ['customFlightSyncChk','customFlightSyncFields',false]
+      ['customCurrencySyncChk','customCurrencySyncFields',false], ['customIssSyncChk','customIssSyncFields',false],
+      ['customFlightSyncChk','customFlightSyncFields',false]
   ];
   pairs.forEach(p => {
     var ch = document.getElementById(p[0]); if(!ch) return;
@@ -902,9 +911,13 @@ async function fetchDeviceData() {
             setCb('showMoon', c.screens.show_moon);
             setCb('moon_min', c.moon.minimal, true);
 
-            setCb('showPopulation', c.screens.show_population);
-            setCb('popWldChk', c.population.show_world);
-            setCb('popCtrChk', c.population.show_country);
+            setCb('showIss', c.screens.show_iss);
+            if (c.iss) {
+                setRadio('iss_mode', c.iss.mode);
+                setRadio('iss_units', c.iss.units);
+                setCb('customIssSyncChk', c.iss.custom_sync_min > 0 ? 1 : 0);
+                setVal('custom_iss_int_min', c.iss.custom_sync_min > 0 ? c.iss.custom_sync_min : c.general.refresh_min);
+            }
 
             setCb('showFlight', c.screens.show_flight);
             setRadio('flight_mode', c.flight.mode);
@@ -915,6 +928,10 @@ async function fetchDeviceData() {
             setCb('customFlightSyncChk', c.flight.custom_sync_min > 0 ? 1 : 0);
             setVal('custom_flight_int_min', c.flight.custom_sync_min > 0 ? c.flight.custom_sync_min : c.general.refresh_min);
             setCb('hide_empty_flight', c.screens.hide_empty_flight, true);
+
+            setCb('showPopulation', c.screens.show_population);
+            setCb('popWldChk', c.population.show_world);
+            setCb('popCtrChk', c.population.show_country);
 
             setCb('showPc', c.screens.show_pc);
 
@@ -1055,6 +1072,19 @@ async function fetchDeviceData() {
         } else {
             let nd = document.getElementById('moon-no-data'); if(nd) nd.style.display = 'block';
             let gr = document.getElementById('moon-grid'); if(gr) gr.classList.add('hidden');
+        }
+
+        if (st.iss && st.iss.over !== undefined) {
+            let nd = document.getElementById('iss-no-data'); if(nd) nd.style.display = 'none';
+            let gr = document.getElementById('iss-grid'); if(gr) gr.classList.remove('hidden');
+
+            set('val-iss-over', st.iss.over || '--');
+            set('val-iss-alt', st.iss.altitude);
+            set('val-iss-speed', st.iss.velocity);
+            set('val-iss-dist', st.iss.distance);
+        } else {
+            let nd = document.getElementById('iss-no-data'); if(nd) nd.style.display = 'block';
+            let gr = document.getElementById('iss-grid'); if(gr) gr.classList.add('hidden');
         }
 
         if (st.population && (st.population.world_live !== undefined || st.population.country_live !== undefined)) {
@@ -1287,7 +1317,7 @@ window.addEventListener("DOMContentLoaded", () => {
     setInterval(fetchDeviceData, HARDWARE_SYNC_INTERVAL_MS); 
     setTimeout(fetchDeviceData, INITIAL_SYNC_DELAY_MS); 
 
-    ['autoDetect', 'nightMode', 'showTime', 'showCalendar', 'showWeather', 'showDaylight', 'showMoon', 'showPopulation', 'showFlight', 'showPc', 'showCrypto', 'showCurrency', 'showStock', 'showAQI', 'showMedia', 'showBambu', 'autoCycle', 'customWeatherSyncChk', 'customAqiSyncChk', 'customStockSyncChk', 'customCryptoSyncChk', 'customCurrencySyncChk', 'customFlightSyncChk'].forEach(id => {
+    ['autoDetect', 'nightMode', 'showTime', 'showCalendar', 'showWeather', 'showDaylight', 'showMoon', 'showIss', 'showFlight', 'showPopulation', 'showPc', 'showCrypto', 'showCurrency', 'showStock', 'showAQI', 'showMedia', 'showBambu', 'autoCycle', 'customWeatherSyncChk', 'customAqiSyncChk', 'customStockSyncChk', 'customCryptoSyncChk', 'customCurrencySyncChk', 'customIssSyncChk', 'customFlightSyncChk'].forEach(id => {
         var el = document.getElementById(id);
         if(el) el.addEventListener('change', () => { updateVisibility(); syncScreenOrder(true); });
     });
@@ -1389,6 +1419,7 @@ window.addEventListener("DOMContentLoaded", () => {
                 ['customStockSyncChk', 'customStockSyncInt', 'custom_stock_int_min'],
                 ['customCryptoSyncChk', 'customCryptoSyncInt', 'custom_crypto_int_min'],
                 ['customCurrencySyncChk', 'customCurrencySyncInt', 'custom_currency_int_min'],
+                ['customIssSyncChk', 'customIssSyncInt', 'custom_iss_int_min'],
                 ['customFlightSyncChk', 'customFlightSyncInt', 'custom_flight_int_min'],
             ];
             customSyncPairs.forEach(([chkId, intId, key]) => {

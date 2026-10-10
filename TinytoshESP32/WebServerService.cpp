@@ -3,7 +3,9 @@
 #include <ArduinoJson.h>
 #include <ESPmDNS.h>
 
+#include "IssService.h"
 #include "JsonSerializer.h"
+#include "PcMonitorService.h"
 #include "TimeService.h"
 #include "WeatherService.h"
 #include "zones.h"
@@ -20,6 +22,7 @@ void WebServerService::begin() {
   server.on("/save", HTTP_POST, [this](){ this->handleSave(); });
   server.on("/update", HTTP_GET, [this](){ this->handleUpdate(); }); 
   server.on("/pc-stats", HTTP_POST, [this](){ this->handlePcStats(); });
+  server.on("/usb-reconnect", HTTP_POST, [this](){ this->handleUsbReconnect(); });
   
   server.begin();
   Serial.println("WebServerService: HTTP Server started."); 
@@ -63,6 +66,7 @@ void WebServerService::handleRoot() {
   bool aqiValid = (aqi.aqi != -1);
   bool daylightValid = daylight.sunrise_mins != -1;
   bool moonValid = (moon.curphase != "N/A");
+  bool issValid = IssService::isValid(state->iss);
   bool popValid = (population.world_pop_base != -1 || population.country_pop_base != -1);
   bool pcValid = pc.cpu_percent > 0.1;
 
@@ -299,8 +303,9 @@ void WebServerService::handleRoot() {
       case SCREEN_AIR_QUALITY: targetId = "showAQI"; break;
       case SCREEN_DAYLIGHT: targetId = "showDaylight"; break;
       case SCREEN_MOON: targetId = "showMoon"; break;
-      case SCREEN_POPULATION: targetId = "showPopulation"; break;
+      case SCREEN_ISS: targetId = "showIss"; break;
       case SCREEN_FLIGHT: targetId = "showFlight"; break;
+      case SCREEN_POPULATION: targetId = "showPopulation"; break;
       case SCREEN_CRYPTO: targetId = "showCrypto"; break;
       case SCREEN_CURRENCY: targetId = "showCurrency"; break;
       case SCREEN_STOCK: targetId = "showStock"; break;
@@ -526,29 +531,36 @@ void WebServerService::handleRoot() {
             break;
           }
 
-          case SCREEN_POPULATION: {
+          case SCREEN_ISS: {
             add("<div class='panel' id='panel-" + String(screenId) + "'>");
-            add("<label class='checkbox-label mt-0'><input type='checkbox' id='showPopulation' name='show_population' value='1' " + String(config.show_population ? "checked" : "") + "> Population Screen</label>");
-            add("<div id='popContent' class='collapsible'>");
-            
-            if (!popValid) {
-              add("<div id='pop-no-data' class='no-data-tile'>🌍 Population data will be available after sync</div><div id='pop-grid' class='hidden'>");
+            add("<label class='checkbox-label mt-0'><input type='checkbox' id='showIss' name='show_iss' value='1' " + String(config.show_iss ? "checked" : "") + "> ISS Tracker Screen</label>");
+            add("<div id='issContent' class='collapsible'>");
+            if (!issValid) {
+              add("<div id='iss-no-data' class='no-data-tile'>🛰️ ISS data will be available after sync</div><div id='iss-grid' class='hidden'>");
             } else {
-              add("<div id='pop-no-data' class='no-data-tile hidden'>🌍 Population data will be available after sync</div><div id='pop-grid'>");
+              add("<div id='iss-no-data' class='no-data-tile hidden'>🛰️ ISS data will be available after sync</div><div id='iss-grid'>");
             }
-            
+
             add("<div class='dashboard-grid'>");
-            add("<div class='tile pop-wld-tile'><div class='tile-icon'>🌍</div><div class='tile-value' id='val-pop-wld' style='font-size:1.4rem'>--</div><div class='tile-label' id='lbl-pop-wld'>World Population</div></div>");
-            add("<div class='tile pop-wld-tile'><div class='tile-icon'>📈</div><div class='tile-value' id='val-pop-wld-gr' style='font-size:1.4rem'>--</div><div class='tile-label'>World Growth</div></div>");
-            
-            String ctrStr = config.country_code != "" ? config.country_code : "CTR";
-            ctrStr.toUpperCase();
-            add("<div class='tile pop-ctr-tile'><div class='tile-icon'>📍</div><div class='tile-value' id='val-pop-ctr' style='font-size:1.4rem'>--</div><div class='tile-label' id='lbl-pop-ctr'>" + ctrStr + " Population</div></div>");
-            add("<div class='tile pop-ctr-tile'><div class='tile-icon'>📈</div><div class='tile-value' id='val-pop-ctr-gr' style='font-size:1.4rem'>--</div><div class='tile-label'>" + ctrStr + " Growth</div></div>");
+            add("<div class='tile'><div class='tile-icon'>🌍</div><div class='tile-value' id='val-iss-over' style='font-size:1.1rem; line-height:1.2;'>--</div><div class='tile-label'>Currently Over</div></div>");
+            add("<div class='tile'><div class='tile-icon'>🚀</div><div class='tile-value' id='val-iss-alt'>--</div><div class='tile-label'>Altitude</div></div>");
+            add("<div class='tile'><div class='tile-icon'>⚡</div><div class='tile-value' id='val-iss-speed'>--</div><div class='tile-label'>Speed</div></div>");
+            add("<div class='tile'><div class='tile-icon'>📏</div><div class='tile-value' id='val-iss-dist'>--</div><div class='tile-label'>Distance From You</div></div>");
             add("</div></div>");
-            
-            add("<label class='checkbox-label'><input type='checkbox' id='popWldChk' name='pop_show_world' value='1' " + String(config.pop_show_world ? "checked" : "") + "> Track World Population</label>");
-            add("<label class='checkbox-label'><input type='checkbox' id='popCtrChk' name='pop_show_country' value='1' " + String(config.pop_show_country ? "checked" : "") + "> Track Country Population</label>");
+
+            add("<label>Display Mode:</label><div class='radio-group'>");
+            add("<label class='radio-label'><input type='radio' name='iss_mode' value='map' " + String(config.iss_mode != "text" ? "checked" : "") + "> Map (world map with orbit)</label>");
+            add("<label class='radio-label'><input type='radio' name='iss_mode' value='text' " + String(config.iss_mode == "text" ? "checked" : "") + "> Text (minimalistic)</label></div>");
+
+            add("<label>Display Units:</label><div class='radio-group'>");
+            add("<label class='radio-label'><input type='radio' name='iss_units' value='kilometers' " + String(config.iss_units != "miles" ? "checked" : "") + "> Kilometers (km, km/h)</label>");
+            add("<label class='radio-label'><input type='radio' name='iss_units' value='miles' " + String(config.iss_units == "miles" ? "checked" : "") + "> Miles (mi, mph)</label></div>");
+            add("<p class='help-text mt-0'>The position keeps moving along the predicted orbit between syncs.</p>");
+            add("<hr>");
+            add("<label class='checkbox-label' id='customIssSyncLbl'><input type='checkbox' id='customIssSyncChk' name='custom_iss_sync_ui' value='1' " + String(config.custom_iss_int_min > 0 ? "checked" : "") + "> Custom Data Sync</label>");
+            add("<div id='customIssSyncFields' class='collapsible" + String(config.custom_iss_int_min > 0 ? "" : " hidden") + "'>");
+            add("<label class='mt-0'>Custom Data Sync Interval (Mins):</label><input type='number' min='1' id='customIssSyncInt' name='custom_iss_int_min' value='" + String(config.custom_iss_int_min > 0 ? config.custom_iss_int_min : config.refresh_interval_min) + "'>");
+            add("</div>");
             add("</div></div>");
             break;
           }
@@ -617,6 +629,33 @@ void WebServerService::handleRoot() {
               add("</div>");
               add("</div></div>");
               break;
+          }
+
+          case SCREEN_POPULATION: {
+            add("<div class='panel' id='panel-" + String(screenId) + "'>");
+            add("<label class='checkbox-label mt-0'><input type='checkbox' id='showPopulation' name='show_population' value='1' " + String(config.show_population ? "checked" : "") + "> Population Screen</label>");
+            add("<div id='popContent' class='collapsible'>");
+            
+            if (!popValid) {
+              add("<div id='pop-no-data' class='no-data-tile'>🌍 Population data will be available after sync</div><div id='pop-grid' class='hidden'>");
+            } else {
+              add("<div id='pop-no-data' class='no-data-tile hidden'>🌍 Population data will be available after sync</div><div id='pop-grid'>");
+            }
+            
+            add("<div class='dashboard-grid'>");
+            add("<div class='tile pop-wld-tile'><div class='tile-icon'>🌍</div><div class='tile-value' id='val-pop-wld' style='font-size:1.4rem'>--</div><div class='tile-label' id='lbl-pop-wld'>World Population</div></div>");
+            add("<div class='tile pop-wld-tile'><div class='tile-icon'>📈</div><div class='tile-value' id='val-pop-wld-gr' style='font-size:1.4rem'>--</div><div class='tile-label'>World Growth</div></div>");
+            
+            String ctrStr = config.country_code != "" ? config.country_code : "CTR";
+            ctrStr.toUpperCase();
+            add("<div class='tile pop-ctr-tile'><div class='tile-icon'>📍</div><div class='tile-value' id='val-pop-ctr' style='font-size:1.4rem'>--</div><div class='tile-label' id='lbl-pop-ctr'>" + ctrStr + " Population</div></div>");
+            add("<div class='tile pop-ctr-tile'><div class='tile-icon'>📈</div><div class='tile-value' id='val-pop-ctr-gr' style='font-size:1.4rem'>--</div><div class='tile-label'>" + ctrStr + " Growth</div></div>");
+            add("</div></div>");
+            
+            add("<label class='checkbox-label'><input type='checkbox' id='popWldChk' name='pop_show_world' value='1' " + String(config.pop_show_world ? "checked" : "") + "> Track World Population</label>");
+            add("<label class='checkbox-label'><input type='checkbox' id='popCtrChk' name='pop_show_country' value='1' " + String(config.pop_show_country ? "checked" : "") + "> Track Country Population</label>");
+            add("</div></div>");
+            break;
           }
 
           case SCREEN_STOCK: {
@@ -773,7 +812,7 @@ void WebServerService::handleRoot() {
   add("let formDirty = false;");
 
   add("function updateVisibility(){");
-  add("  var pairs = [['autoDetect','manualFields',true], ['nightMode','nightFields',false], ['showTime', 'timeContent',false], ['showCalendar', 'calendarContent',false], ['showWeather','weatherContent',false], ['showDaylight','daylightContent',false], ['showMoon','moonContent',false], ['showPopulation','popContent',false], ['showFlight','flightContent',false], ['showPc','pcContent',false], ['showCrypto','cryptoContent',false], ['showCurrency','currencyContent',false], ['showStock','stockContent',false], ['showAQI','aqiContent',false], ['showMedia','mediaContent',false], ['showBambu','bambuContent',false], ['customWeatherSyncChk','customWeatherSyncFields',false], ['customAqiSyncChk','customAqiSyncFields',false], ['customStockSyncChk','customStockSyncFields',false], ['customCryptoSyncChk','customCryptoSyncFields',false], ['customCurrencySyncChk','customCurrencySyncFields',false], ['customFlightSyncChk','customFlightSyncFields',false]];");
+  add("  var pairs = [['autoDetect','manualFields',true], ['nightMode','nightFields',false], ['showTime', 'timeContent',false], ['showCalendar', 'calendarContent',false], ['showWeather','weatherContent',false], ['showDaylight','daylightContent',false], ['showMoon','moonContent',false], ['showIss','issContent',false], ['showFlight','flightContent',false], ['showPopulation','popContent',false], ['showPc','pcContent',false], ['showCrypto','cryptoContent',false], ['showCurrency','currencyContent',false], ['showStock','stockContent',false], ['showAQI','aqiContent',false], ['showMedia','mediaContent',false], ['showBambu','bambuContent',false], ['customWeatherSyncChk','customWeatherSyncFields',false], ['customAqiSyncChk','customAqiSyncFields',false], ['customStockSyncChk','customStockSyncFields',false], ['customCryptoSyncChk','customCryptoSyncFields',false], ['customCurrencySyncChk','customCurrencySyncFields',false], ['customIssSyncChk','customIssSyncFields',false], ['customFlightSyncChk','customFlightSyncFields',false]];");
   add("  pairs.forEach(p => {");
   add("    var ch = document.getElementById(p[0]); if(!ch) return;");
   add("    var target = document.getElementById(p[1]);");
@@ -850,7 +889,7 @@ void WebServerService::handleRoot() {
   }
   add("div.innerHTML = `<div class='input-wrapper'><label class='mt-0'>Base:</label><select name='currency_bases[]'>${cOpts}</select></div><div class='input-wrapper'><label class='mt-0'>Target:</label><select name='currency_targets[]'>${cOpts}</select></div><div class='input-wrapper'><label class='mt-0'>Mult:</label><select name='currency_multipliers[]'><option value='1'>1</option><option value='10'>10</option><option value='100'>100</option><option value='1000'>1000</option></select></div><button type='button' class='btn-remove' onclick=\"removeRow(this, 'currency-list-container')\">-</button>`; container.appendChild(div); if (bVal) div.querySelector(\"select[name='currency_bases[]']\").value = bVal; if (tVal) div.querySelector(\"select[name='currency_targets[]']\").value = tVal; if (mVal) div.querySelector(\"select[name='currency_multipliers[]']\").value = mVal; formDirty = true; updateRowControls('currency-list-container', 5); };");
 
-  add("['autoDetect', 'nightMode', 'showTime', 'showCalendar', 'showWeather', 'showDaylight', 'showMoon', 'showPopulation', 'showFlight', 'showPc', 'showCrypto', 'showCurrency', 'showStock', 'showAQI', 'showMedia', 'showBambu', 'autoCycle', 'customWeatherSyncChk', 'customAqiSyncChk', 'customStockSyncChk', 'customCryptoSyncChk', 'customCurrencySyncChk', 'customFlightSyncChk', 'flightModeRadar', 'flightModeClosest'].forEach(id => { var el=document.getElementById(id); if(el) el.addEventListener('change', updateVisibility); });");
+  add("['autoDetect', 'nightMode', 'showTime', 'showCalendar', 'showWeather', 'showDaylight', 'showMoon', 'showIss', 'showFlight', 'showPopulation', 'showPc', 'showCrypto', 'showCurrency', 'showStock', 'showAQI', 'showMedia', 'showBambu', 'autoCycle', 'customWeatherSyncChk', 'customAqiSyncChk', 'customStockSyncChk', 'customCryptoSyncChk', 'customCurrencySyncChk', 'customIssSyncChk', 'customFlightSyncChk', 'flightModeRadar', 'flightModeClosest'].forEach(id => { var el=document.getElementById(id); if(el) el.addEventListener('change', updateVisibility); });");
   add("updateVisibility();");
 
   add("const countryGreetings = {");
@@ -957,7 +996,7 @@ void WebServerService::handleRoot() {
   add("  reorderPhysicalPanels(orderInput.value);");
   add("}");
 
-  add("const panelCheckboxes = ['showTime', 'showCalendar', 'showWeather', 'showAQI', 'showDaylight', 'showMoon', 'showPopulation', 'showCrypto', 'showCurrency', 'showStock', 'showPc', 'showMedia', 'showBambu'];");
+  add("const panelCheckboxes = ['showTime', 'showCalendar', 'showWeather', 'showAQI', 'showDaylight', 'showMoon', 'showIss', 'showFlight', 'showPopulation', 'showCrypto', 'showCurrency', 'showStock', 'showPc', 'showMedia', 'showBambu'];");
   add("panelCheckboxes.forEach(id => { const el = document.getElementById(id); if (el) el.addEventListener('change', syncScreenOrder); });");
 
   add("function getDragAfterEl(y) {");
@@ -1011,21 +1050,22 @@ void WebServerService::handleRoot() {
   add("  night_mode: ['night','mode'], night_start: ['night','start'], night_end: ['night','end'], night_action: ['night','action'], night_dim_start: ['night','dim_start'],");
   add("  auto_cycle: ['screens','auto_cycle'], screen_int: ['screens','interval_sec'], anim_mask: ['screens','anim_mask'], screen_order: ['screens','order'],");
   add("  show_time: ['screens','show_time'], show_calendar: ['screens','show_calendar'], show_weather: ['screens','show_weather'], show_aqi: ['screens','show_aqi'],");
-  add("  show_daylight: ['screens','show_daylight'], show_moon: ['screens','show_moon'], show_population: ['screens','show_population'], show_pc: ['screens','show_pc'],");
+  add("  show_daylight: ['screens','show_daylight'], show_moon: ['screens','show_moon'], show_iss: ['screens','show_iss'], show_flight: ['screens','show_flight'], show_population: ['screens','show_population'], show_pc: ['screens','show_pc'],");
   add("  show_media: ['screens','show_media'], show_stock: ['screens','show_stock'], show_crypto: ['screens','show_crypto'], show_currency: ['screens','show_currency'],");
-  add("  show_bambu: ['screens','show_bambu'], show_flight: ['screens','show_flight'],");
+  add("  show_bambu: ['screens','show_bambu'],");
   add("  hide_empty_pc: ['screens','hide_empty_pc'], hide_empty_media: ['screens','hide_empty_media'], hide_empty_bambu: ['screens','hide_empty_bambu'], hide_empty_flight: ['screens','hide_empty_flight'],");
   add("  cal_start: ['calendar','start_day'], cal_hol: ['calendar','show_holidays'], cal_min: ['calendar','minimal'],");
   add("  temp_unit: ['weather','temp_unit'], round_temps: ['weather','round_temps'], weather_show_header: ['weather','show_header'], custom_weather_int_min: ['weather','custom_sync_min'], weather_values: ['weather','values'],");
   add("  aqi_type: ['aqi','type'], aqi_show_header: ['aqi','show_header'], custom_aqi_int_min: ['aqi','custom_sync_min'], aqi_values: ['aqi','values'],");
   add("  daylight_min: ['daylight','minimal'],");
   add("  moon_min: ['moon','minimal'],");
+  add("  iss_mode: ['iss','mode'], iss_units: ['iss','units'], custom_iss_int_min: ['iss','custom_sync_min'],");
+  add("  flight_mode: ['flight','mode'], flight_radius_nm: ['flight','radius_nm'], flight_units: ['flight','units'], flight_primary_info: ['flight','primary_info'], flight_secondary_info: ['flight','secondary_info'], custom_flight_int_min: ['flight','custom_sync_min'],");
   add("  pop_show_world: ['population','show_world'], pop_show_country: ['population','show_country'],");
   add("  stock_fn: ['stocks','fn'], custom_stock_int_min: ['stocks','custom_sync_min'], stock_symbols: ['stocks','symbols'],");
   add("  crypto_fn: ['crypto','fn'], custom_crypto_int_min: ['crypto','custom_sync_min'], crypto_ids: ['crypto','ids'],");
   add("  currency_fn: ['currency','fn'], custom_currency_int_min: ['currency','custom_sync_min'], currency_bases: ['currency','bases'], currency_targets: ['currency','targets'], currency_multipliers: ['currency','multipliers'],");
   add("  bambu_ip: ['printer','ip'], bambu_sn: ['printer','sn'], bambu_code: ['printer','code'],");
-  add("  flight_mode: ['flight','mode'], flight_radius_nm: ['flight','radius_nm'], flight_units: ['flight','units'], flight_primary_info: ['flight','primary_info'], flight_secondary_info: ['flight','secondary_info'], custom_flight_int_min: ['flight','custom_sync_min'],");
   add("};");
 
   add("document.querySelector('form').addEventListener('submit', function(e) {");
@@ -1047,7 +1087,7 @@ void WebServerService::handleRoot() {
   add("  jsonObj['currency_multipliers'] = Array.from(e.target.querySelectorAll('select[name=\"currency_multipliers[]\"]')).map(s => Number(s.value));");
   add("  jsonObj['weather_values'] = Array.from(e.target.querySelectorAll('.weather-val-chk:checked')).map(cb => cb.dataset.key);");
   add("  jsonObj['aqi_values'] = Array.from(e.target.querySelectorAll('.aqi-val-chk:checked')).map(cb => cb.dataset.key);");
-  add("  const customSyncPairs = [['customWeatherSyncChk','customWeatherSyncInt','custom_weather_int_min'], ['customAqiSyncChk','customAqiSyncInt','custom_aqi_int_min'], ['customStockSyncChk','customStockSyncInt','custom_stock_int_min'], ['customCryptoSyncChk','customCryptoSyncInt','custom_crypto_int_min'], ['customCurrencySyncChk','customCurrencySyncInt','custom_currency_int_min'], ['customFlightSyncChk','customFlightSyncInt','custom_flight_int_min']];");
+  add("  const customSyncPairs = [['customWeatherSyncChk','customWeatherSyncInt','custom_weather_int_min'], ['customAqiSyncChk','customAqiSyncInt','custom_aqi_int_min'], ['customStockSyncChk','customStockSyncInt','custom_stock_int_min'], ['customCryptoSyncChk','customCryptoSyncInt','custom_crypto_int_min'], ['customCurrencySyncChk','customCurrencySyncInt','custom_currency_int_min'], ['customIssSyncChk','customIssSyncInt','custom_iss_int_min'], ['customFlightSyncChk','customFlightSyncInt','custom_flight_int_min']];");
   add("  customSyncPairs.forEach(([chkId, intId, key]) => { const chk = document.getElementById(chkId); const intEl = document.getElementById(intId); jsonObj[key] = (chk && chk.checked && intEl) ? Number(intEl.value) : -1; });");
   add("  jsonObj['anim_mask'] = mask;");
   add("  jsonObj['screen_order'] = document.getElementById('screenOrderInput').value;");
@@ -1159,9 +1199,11 @@ void WebServerService::handleRoot() {
   add("    setCb('showMoon', c.screens.show_moon);");
   add("    setCb('moon_min', c.moon.minimal, true);");
 
-  add("    setCb('showPopulation', c.screens.show_population);");
-  add("    setCb('pop_show_world', c.population.show_world, true);");
-  add("    setCb('pop_show_country', c.population.show_country, true);");
+  add("    setCb('showIss', c.screens.show_iss);");
+  add("    setRadio('iss_mode', c.iss.mode);");
+  add("    setRadio('iss_units', c.iss.units);");
+  add("    setCb('customIssSyncChk', c.iss.custom_sync_min > 0 ? 1 : 0);");
+  add("    setVal('custom_iss_int_min', c.iss.custom_sync_min > 0 ? c.iss.custom_sync_min : c.general.refresh_min);");
 
   add("    setCb('showFlight', c.screens.show_flight);");
   add("    setRadio('flight_mode', c.flight.mode);");
@@ -1171,6 +1213,10 @@ void WebServerService::handleRoot() {
   add("    setRadio('flight_secondary_info', c.flight.secondary_info);");
   add("    setCb('customFlightSyncChk', c.flight.custom_sync_min > 0 ? 1 : 0);");
   add("    setVal('custom_flight_int_min', c.flight.custom_sync_min > 0 ? c.flight.custom_sync_min : c.general.refresh_min);");
+
+  add("    setCb('showPopulation', c.screens.show_population);");
+  add("    setCb('pop_show_world', c.population.show_world, true);");
+  add("    setCb('pop_show_country', c.population.show_country, true);");
 
   add("    setCb('showPc', c.screens.show_pc);");
 
@@ -1263,6 +1309,14 @@ void WebServerService::handleRoot() {
   add("    set('val-moon-rise', st.moon.rise);");
   add("    set('val-moon-set', st.moon.set);");
   add("  } else { hide('moon-no-data', false); hide('moon-grid', true); }");
+
+  add("  if (st.iss && st.iss.over !== undefined) {");
+  add("    hide('iss-no-data', true); hide('iss-grid', false);");
+  add("    set('val-iss-over', st.iss.over || '--');");
+  add("    set('val-iss-alt', st.iss.altitude);");
+  add("    set('val-iss-speed', st.iss.velocity);");
+  add("    set('val-iss-dist', st.iss.distance);");
+  add("  } else { hide('iss-no-data', false); hide('iss-grid', true); }");
 
   add("  if (st.population && (st.population.world_live !== undefined || st.population.country_live !== undefined)) {");
   add("    hide('pop-no-data', true); hide('pop-grid', false);");
@@ -1407,4 +1461,9 @@ void WebServerService::handlePcStats() {
   } else {
     server.send(HTTP_FORBIDDEN, "application/json", "{\"status\":\"error\", \"message\":\"Device is already paired to another PC\"}");
   }
+}
+
+void WebServerService::handleUsbReconnect() {
+  server.send(HTTP_OK, "application/json", "{\"status\":\"ok\"}");
+  PcMonitorService::reconnectUsb();
 }

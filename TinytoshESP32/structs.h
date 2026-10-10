@@ -13,6 +13,7 @@ struct FetchTrackers {
   unsigned long lastStockFetch = 0;
   unsigned long lastCryptoFetch = 0;
   unsigned long lastCurrencyFetch = 0;
+  unsigned long lastIssFetch = 0;
   unsigned long lastFlightFetch = 0;
 };
 
@@ -23,8 +24,9 @@ enum ScreenType {
   SCREEN_AIR_QUALITY,
   SCREEN_DAYLIGHT,
   SCREEN_MOON,
-  SCREEN_POPULATION,
+  SCREEN_ISS,
   SCREEN_FLIGHT,
+  SCREEN_POPULATION,
   SCREEN_STOCK,
   SCREEN_CRYPTO,
   SCREEN_CURRENCY,
@@ -41,8 +43,9 @@ inline constexpr const char* SCREEN_NAMES[] = {
   "Air Quality",
   "Daylight Info",
   "Moon Info",
-  "Population Info",
+  "ISS Tracker",
   "Flight Radar",
+  "Population Info",
   "Stock Tracking",
   "Crypto Tracking",
   "Currency Exchange",
@@ -100,7 +103,7 @@ struct Config {
   // Screens Settings
   bool screen_auto_cycle = true;
   int screen_interval_sec = 15;
-  int screen_order[NUM_SCREENS] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13};
+  int screen_order[NUM_SCREENS] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14};
 
   bool show_time = true;
   bool show_calendar = true;
@@ -108,6 +111,8 @@ struct Config {
   bool show_aqi = true;
   bool show_daylight = true;
   bool show_moon = true;
+  bool show_iss = true;
+  bool show_flight = true;
   bool show_population = true;
   bool show_stock = true;
   bool show_crypto = true;
@@ -115,7 +120,6 @@ struct Config {
   bool show_pc = true;
   bool show_media = true;
   bool show_bambu = true;
-  bool show_flight = true;
 
   bool hide_empty_pc = true;
   bool hide_empty_media = true;
@@ -143,6 +147,11 @@ struct Config {
 
   // Moon Settings
   bool moon_minimal = false;
+
+  // ISS Settings
+  String iss_mode = "map";
+  String iss_units = "kilometers";
+  int custom_iss_int_min = 1;
 
   // Population Settings
   bool pop_show_world = true;
@@ -240,6 +249,20 @@ struct MoonData {
   int rise_mins = -1;
   int set_mins = -1;
   int last_fetch_yday = -1;
+};
+
+struct IssData {
+  float latitude = NAN;
+  float longitude = NAN;
+  float altitude = NAN;
+  float velocity = NAN;
+  bool is_daylight = true;
+  String country_code = "";
+  String units = "kilometers";
+  long timestamp = 0;
+  unsigned long fetched_at_ms = 0;
+  float prev_latitude = NAN;
+  long prev_timestamp = 0;
 };
 
 struct PopulationData {
@@ -572,6 +595,7 @@ struct AppState {
   AirQualityData aqi;
   DaylightData daylight;
   MoonData moon;
+  IssData iss;
   PopulationData population;
   CryptoData cryptos[MAX_MULTI_ENTRIES];
   CurrencyData currencies[MAX_MULTI_ENTRIES];

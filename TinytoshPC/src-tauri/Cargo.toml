@@ -1,6 +1,6 @@
 [package]
 name = "tinytosh-pc"
-version = "1.2.4"
+version = "1.2.5"
 description = "Tinytosh PC"
 authors = ["UladzimirHitsarau"]
 edition = "2021"

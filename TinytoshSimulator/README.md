@@ -1,8 +1,10 @@
-# 🛰️ Tinytosh Simulator
+# 🕹️ Tinytosh Simulator
 
 ![Tinytosh Simulator](../img/simulator.png)
 
 This is a [Wokwi](https://wokwi.com/) simulation of **[Tinytosh](https://github.com/VladimirGitsarev/Tinytosh)** — a way to try the device's screens, navigation, and button behavior without soldering a single wire, printing a case, or assembling any hardware. One click and you're looking at a live, ticking Tinytosh in your browser.
+
+> ⚠️ **The simulator is a preview, not firmware for your device.** Everything it shows is mock data: there's no Wi-Fi, no location detection, no live APIs, no settings panel, and no PC connection. Don't flash the simulator build onto a real Tinytosh — use the [Web Installer](https://vladimirgitsarev.github.io/Tinytosh/) or build `TinytoshESP32/` to get the complete firmware.
 
 ## 🧐 Why this exists
 

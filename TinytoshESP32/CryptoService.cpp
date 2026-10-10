@@ -17,8 +17,14 @@ bool CryptoService::fetchPrice(int id, CryptoData &data) {
 
     if (httpCode == 200) {
         String payload = http.getString();
-        StaticJsonDocument<512> doc;
-        DeserializationError error = deserializeJson(doc, payload);
+        DynamicJsonDocument filter(256);
+        filter[0]["name"] = true;
+        filter[0]["symbol"] = true;
+        filter[0]["price_usd"] = true;
+        filter[0]["percent_change_24h"] = true;
+
+        DynamicJsonDocument doc(512);
+        DeserializationError error = deserializeJson(doc, payload, DeserializationOption::Filter(filter));
 
         if (!error) {
             JsonObject obj = doc[0];

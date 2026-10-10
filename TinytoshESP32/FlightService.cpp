@@ -40,7 +40,7 @@ bool FlightService::fetchFlights(const Config& config, FlightData& data) {
     FlightAircraft buffer[MAX_RADAR_AIRCRAFT];
     int count = 0;
     int totalCount = 0;
-    if (!fetchNearbyAircraft(config, buffer, MAX_RADAR_AIRCRAFT, count, totalCount)) return false;
+    if (!fetchNearbyAircraft(config, buffer, MAX_RADAR_AIRCRAFT, count, totalCount, true)) return false;
 
     if ((config.flight_primary_info == "route" || config.flight_secondary_info == "route") && count > 0) {
         fetchRoutes(buffer, count, nullptr, nullptr);
@@ -52,9 +52,14 @@ bool FlightService::fetchFlights(const Config& config, FlightData& data) {
     return true;
 }
 
-bool FlightService::fetchNearbyAircraft(const Config& config, FlightAircraft* out, int maxOut, int& outCount, int& outTotalCount) {
+bool FlightService::fetchNearbyAircraft(const Config& config, FlightAircraft* out, int maxOut, int& outCount, int& outTotalCount, bool radarViewOnly) {
     outCount = 0;
     outTotalCount = 0;
+
+    const float radarHalfHeightKm = (config.flight_radius_nm * KM_PER_NAUTICAL_MILE) / sqrt(5.0f);
+    const float radarHalfWidthKm = radarHalfHeightKm * 2.0f;
+    float cosLat = cos(radians(config.latitude));
+    if (fabs(cosLat) < 0.01) cosLat = 0.01;
 
     String url = String(ADSBLOL_BASE_URL) + "/lat/" + String(config.latitude, 4) +
                  "/lon/" + String(config.longitude, 4) + "/dist/" + String(config.flight_radius_nm);
@@ -121,6 +126,12 @@ bool FlightService::fetchNearbyAircraft(const Config& config, FlightAircraft* ou
         float lon = state["lon"].as<float>();
         float distance = haversineKm(config.latitude, config.longitude, lat, lon);
 
+        if (radarViewOnly) {
+            float northKm = (lat - config.latitude) * KM_PER_DEGREE;
+            float eastKm = (lon - config.longitude) * KM_PER_DEGREE * cosLat;
+            if (fabs(northKm) > radarHalfHeightKm || fabs(eastKm) > radarHalfWidthKm) continue;
+        }
+
         int insertAt = outCount;
         while (insertAt > 0 && out[insertAt - 1].distance_km > distance) insertAt--;
         if (insertAt >= maxOut) continue;
@@ -149,7 +160,7 @@ bool FlightService::fetchNearbyAircraft(const Config& config, FlightAircraft* ou
         if (outCount < maxOut) outCount++;
     }
 
-    Serial.printf("FlightService: Success! %d aircraft kept after distance ranking.\n", outCount);
+    Serial.printf("FlightService: Success! %d aircraft kept after distance ranking%s.\n", outCount, radarViewOnly ? " (inside radar view)" : "");
     return true;
 }
 

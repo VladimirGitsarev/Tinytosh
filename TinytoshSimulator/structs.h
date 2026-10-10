@@ -22,8 +22,9 @@ enum ScreenType {
   SCREEN_AIR_QUALITY,
   SCREEN_DAYLIGHT,
   SCREEN_MOON,
-  SCREEN_POPULATION,
+  SCREEN_ISS,
   SCREEN_FLIGHT,
+  SCREEN_POPULATION,
   SCREEN_STOCK,
   SCREEN_CRYPTO,
   SCREEN_CURRENCY,
@@ -40,8 +41,9 @@ inline constexpr const char* SCREEN_NAMES[] = {
   "Air Quality",
   "Daylight Info",
   "Moon Info",
-  "Population Info",
+  "ISS Tracker",
   "Flight Radar",
+  "Population Info",
   "Stock Tracking",
   "Crypto Tracking",
   "Currency Exchange",
@@ -96,7 +98,7 @@ struct Config {
 
   bool screen_auto_cycle = true;
   int screen_interval_sec = 15;
-  int screen_order[NUM_SCREENS] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13};
+  int screen_order[NUM_SCREENS] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14};
 
   bool show_time = true;
   bool show_calendar = true;
@@ -104,8 +106,9 @@ struct Config {
   bool show_aqi = true;
   bool show_daylight = true;
   bool show_moon = true;
-  bool show_population = true;
+  bool show_iss = true;
   bool show_flight = true;
+  bool show_population = true;
   bool show_stock = true;
   bool show_crypto = true;
   bool show_currency = true;
@@ -135,6 +138,10 @@ struct Config {
   bool daylight_minimal = false;
 
   bool moon_minimal = false;
+
+  String iss_mode = "text";
+  String iss_units = "kilometers";
+  int custom_iss_int_min = 1;
 
   bool pop_show_world = true;
   bool pop_show_country = true;
@@ -230,6 +237,21 @@ struct MoonData {
   int rise_mins = 1212;
   int set_mins = 348;
   int last_fetch_yday = 0;
+};
+
+struct IssData {
+  float latitude = 47.21;
+  float longitude = 2.43;
+  float altitude = 418.6;
+  float velocity = 27583.0;
+  bool is_daylight = true;
+  String country_code = "FR";
+  String units = "kilometers";
+  long timestamp = 1791600060;
+  unsigned long fetched_at_ms = 0;
+
+  float prev_latitude = 46.52;
+  long prev_timestamp = 1791600000;
 };
 
 struct PopulationData {
@@ -549,6 +571,7 @@ struct AppState {
   AirQualityData aqi;
   DaylightData daylight;
   MoonData moon;
+  IssData iss;
   PopulationData population;
 
   CryptoData cryptos[MAX_MULTI_ENTRIES] = {

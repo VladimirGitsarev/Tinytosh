@@ -31,8 +31,9 @@
                         <li>🍃 <a href="#screen-aqi"><strong>Air Quality:</strong></a> Monitor local AQI levels (US & EU Standards).</li>
                         <li>☀️ <a href="#screen-daylight"><strong>Daylight Info:</strong></a> Tracks sunrise, sunset, solar noon, and day length.</li>
                         <li>🌑 <a href="#screen-moon"><strong>Moon Info:</strong></a> Tracks the current lunar phase, illumination, and moonrise/moonset times.</li>
-                        <li>🌍 <a href="#screen-population"><strong>Population Info:</strong></a> A live, second-by-second population ticker for the world and your country.</li>
+                        <li>🛰️ <a href="#screen-iss"><strong>ISS Tracker:</strong></a> Follow the International Space Station live on a world map with its orbit path, or as a minimalistic text dashboard.</li>
                         <li>🛩️ <a href="#screen-flight"><strong>Flight Radar:</strong></a> Track nearby aircraft by callsign, altitude, speed, and route, either as a live multi-aircraft radar or a single closest-aircraft dashboard.</li>
+                        <li>🌍 <a href="#screen-population"><strong>Population Info:</strong></a> A live, second-by-second population ticker for the world and your country.</li>
                         <li>📊 <a href="#screen-stock"><strong>Stock Tracker:</strong></a> Track market data for up to 5 global assets and ETFs at once.</li>
                         <li>📈 <a href="#screen-crypto"><strong>Crypto Tracker:</strong></a> Track up to 5 top global cryptos with price and trend indicators.</li>
                         <li>💱 <a href="#screen-currency"><strong>Currency Tracker:</strong></a> Track exchange rates for up to 5 fiat currency pairs with custom multipliers.</li>
@@ -43,9 +44,10 @@
                 </div>
 
                 <div class="info-box" style="text-align: center;">
-                    <strong>🛰️ Not ready to solder anything yet?</strong><br>
-                    <span class="small-desc">Try Tinytosh right in your browser first — no soldering, no printing, no assembly.</span>
+                    <strong>🕹️ Not ready to build one yet?</strong><br>
+                    <span class="small-desc">Try Tinytosh right in your browser first — no wiring, no printing, no assembly.</span>
                     <img src="img/simulator.png" alt="Tinytosh Simulator Screenshot" style="max-width: 100%; width: 480px; border-radius: 8px; display: block; margin: 15px auto;">
+                    <span class="small-desc" style="display: block; margin-bottom: 15px;">⚠️ <strong>Preview only:</strong> the simulator runs on mock data. There's no Wi-Fi, no location, no live APIs, no settings panel, and no PC connection — every value you see is hardcoded. It's a separate demo build, so don't flash it onto a real device: use the <strong>Web Installer</strong> below to get the complete firmware.</span>
                     <a href="https://wokwi.com/projects/452257384760576001" target="_blank" class="btn">
                         ▶️ Try the Simulator
                     </a>
@@ -740,20 +742,22 @@
                         </details>
                     </div>
 
-                    <div class="feature-item" id="screen-population">
-                        <div class="feature-header">🌍 Population Info</div>
+                    <div class="feature-item" id="screen-iss">
+                        <div class="feature-header">🛰️ ISS Tracker</div>
                         <div class="feature-section-title">Function</div>
-                        <p>Displays a live, second-by-second population ticker for the globe and your selected country, dynamically projected from official census data and annual growth rates.</p>
+                        <p>Tracks the International Space Station in real time: where it is right now, the country or ocean it's flying over, its altitude and speed, and how far away it is from you. Between syncs, the position keeps moving along the predicted orbit, so the station never sits still on screen.</p>
                         <div class="feature-section-title">Settings</div>
                         <ul>
-                            <li><strong>Trackers:</strong> Choose to track World Population, your Country's Population, or both simultaneously.</li>
+                            <li><strong>Display Mode:</strong> Map (world map with the live orbit path) or Text (a minimalistic dashboard).</li>
+                            <li><strong>Display Units:</strong> Kilometers (km / km/h) or Miles (mi / mph).</li>
+                            <li><strong>Custom Sync Interval:</strong> Defaults to every minute; optionally set your own refresh rate independent of the global Data Sync Interval.</li>
                         </ul>
                         <div class="feature-section-title">Layout</div>
                         <p>
-                            <strong>Split-Screen:</strong> When both are enabled, the screen divides horizontally to show world data on top and country data below.<br>
-                            <strong>Fullscreen:</strong> When only one is selected, it expands into a large, centered layout.
+                            <strong>Map:</strong> A world map with the ISS marker and one full pass of its orbit drawn across it, the country or ocean below as a header, coordinates underneath, and altitude, speed, and distance from you on the side. The marker shows a center cross while the station is sunlit and an empty ring while it's in Earth's shadow.<br>
+                            <strong>Text:</strong> The country or ocean as a headline, latitude and longitude around an ISS icon, and altitude, speed, and distance from you below.
                         </p>
-                        <span class="api-tag">Source: data.worldbank.org</span>
+                        <span class="api-tag">Source: wheretheiss.at</span>
 
                         <details open>
                             <summary>📸 Screen Preview</summary>
@@ -761,15 +765,27 @@
                                 <div class="assembly-grid">
                                     <div class="assembly-item">
                                         <div class="assembly-img-wrapper">
-                                            <img src="img/render_population.png" alt="Population Layout Render">
+                                            <img src="img/render_iss_map.png" alt="ISS Map Layout Render">
                                         </div>
-                                        <div class="assembly-caption">Layout Render</div>
+                                        <div class="assembly-caption">Map Mode - Layout Render</div>
                                     </div>
                                     <div class="assembly-item">
                                         <div class="assembly-img-wrapper">
-                                            <img src="img/real_population.jpg" alt="Population Real Photo" class="real-photo">
+                                            <img src="img/real_iss_map.jpg" alt="ISS Map Real Photo" class="real-photo">
                                         </div>
-                                        <div class="assembly-caption">Real Photo</div>
+                                        <div class="assembly-caption">Map Mode - Real Photo</div>
+                                    </div>
+                                    <div class="assembly-item">
+                                        <div class="assembly-img-wrapper">
+                                            <img src="img/render_iss_text.png" alt="ISS Text Layout Render">
+                                        </div>
+                                        <div class="assembly-caption">Text Mode - Layout Render</div>
+                                    </div>
+                                    <div class="assembly-item">
+                                        <div class="assembly-img-wrapper">
+                                            <img src="img/real_iss_text.jpg" alt="ISS Text Real Photo" class="real-photo">
+                                        </div>
+                                        <div class="assembly-caption">Text Mode - Real Photo</div>
                                     </div>
                                 </div>
                             </div>
@@ -826,6 +842,42 @@
                                             <img src="img/real_flight_closest.jpg" alt="Flight Closest Real Photo" class="real-photo">
                                         </div>
                                         <div class="assembly-caption">Closest Aircraft - Real Photo</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </details>
+                    </div>
+
+                    <div class="feature-item" id="screen-population">
+                        <div class="feature-header">🌍 Population Info</div>
+                        <div class="feature-section-title">Function</div>
+                        <p>Displays a live, second-by-second population ticker for the globe and your selected country, dynamically projected from official census data and annual growth rates.</p>
+                        <div class="feature-section-title">Settings</div>
+                        <ul>
+                            <li><strong>Trackers:</strong> Choose to track World Population, your Country's Population, or both simultaneously.</li>
+                        </ul>
+                        <div class="feature-section-title">Layout</div>
+                        <p>
+                            <strong>Split-Screen:</strong> When both are enabled, the screen divides horizontally to show world data on top and country data below.<br>
+                            <strong>Fullscreen:</strong> When only one is selected, it expands into a large, centered layout.
+                        </p>
+                        <span class="api-tag">Source: data.worldbank.org</span>
+
+                        <details open>
+                            <summary>📸 Screen Preview</summary>
+                            <div class="assembly-container">
+                                <div class="assembly-grid">
+                                    <div class="assembly-item">
+                                        <div class="assembly-img-wrapper">
+                                            <img src="img/render_population.png" alt="Population Layout Render">
+                                        </div>
+                                        <div class="assembly-caption">Layout Render</div>
+                                    </div>
+                                    <div class="assembly-item">
+                                        <div class="assembly-img-wrapper">
+                                            <img src="img/real_population.jpg" alt="Population Real Photo" class="real-photo">
+                                        </div>
+                                        <div class="assembly-caption">Real Photo</div>
                                     </div>
                                 </div>
                             </div>
